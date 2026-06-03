@@ -1,0 +1,139 @@
+{
+  "frames": [
+    {
+      "filename": "10110301.png",
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 54,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 54,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 54,
+        "h": 54
+      }
+    },
+    {
+      "filename": "10110201.png",
+      "frame": {
+        "x": 58,
+        "y": 2,
+        "w": 53,
+        "h": 47
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 6,
+        "w": 54,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 54,
+        "h": 54
+      }
+    },
+    {
+      "filename": "135406.png",
+      "frame": {
+        "x": 58,
+        "y": 51,
+        "w": 53,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 3,
+        "w": 54,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 54,
+        "h": 54
+      }
+    },
+    {
+      "filename": "10131100.png",
+      "frame": {
+        "x": 2,
+        "y": 52,
+        "w": 52,
+        "h": 46
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 6,
+        "w": 54,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 54,
+        "h": 54
+      }
+    },
+    {
+      "filename": "10110401.png",
+      "frame": {
+        "x": 113,
+        "y": 2,
+        "w": 51,
+        "h": 46
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 6,
+        "w": 54,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 54,
+        "h": 54
+      }
+    },
+    {
+      "filename": "101182003.png",
+      "frame": {
+        "x": 113,
+        "y": 50,
+        "w": 46,
+        "h": 46
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 5,
+        "w": 54,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 54,
+        "h": 54
+      }
+    }
+  ],
+  "meta": {
+    "image": "TMP_Icon.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 256,
+      "h": 128
+    },
+    "scale": 1
+  }
+}

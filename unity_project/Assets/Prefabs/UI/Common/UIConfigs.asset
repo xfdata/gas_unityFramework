@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7b9eb21ab204c91967cd09218b8d8a4, type: 3}
+  m_Name: UIConfigs
+  m_EditorClassIdentifier: 
+  Views:
+  - ViewTypeName: LoginView, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    PrefabReference:
+      m_AssetGUID: 6071e098a2fc7f64d89f8e06e029e083
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0
+    Layer: 60
+    Mode: 0
+    CacheMode: 0
+    FullScreen: 1
+    EnterPopupStack: 1
+    PauseLowerView: 1
+    HideLowerView: 1
+    BlurMode: 0
+    MaskMode: 0
+    CloseByEsc: 1
+    CloseByMask: 0
+    CloseWhenSceneChange: 1
+    SafeAreaMode: 0
+    SortOffset: 0
+    OpenAudioId: 0
+    CloseAudioId: 0
+    Group: 
+  - ViewTypeName: LoadingView, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    PrefabReference:
+      m_AssetGUID: 37402a77ca1d246f09e7afb1b2aa40c3
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0
+    Layer: 60
+    Mode: 0
+    CacheMode: 0
+    FullScreen: 0
+    EnterPopupStack: 1
+    PauseLowerView: 1
+    HideLowerView: 1
+    BlurMode: 0
+    MaskMode: 0
+    CloseByEsc: 1
+    CloseByMask: 0
+    CloseWhenSceneChange: 1
+    SafeAreaMode: 0
+    SortOffset: 0
+    OpenAudioId: 0
+    CloseAudioId: 0
+    Group: 

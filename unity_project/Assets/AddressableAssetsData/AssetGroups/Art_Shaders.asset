@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Art_Shaders
+  m_EditorClassIdentifier: 
+  m_GroupName: Art_Shaders
+  m_Data:
+    m_SerializedData: []
+  m_GUID: d98faed3d4b64c249bb53b6a06270c29
+  m_SerializeEntries:
+  - m_GUID: d545009745577364cb9ec7d98d3356a7
+    m_Address: Assets/Art/Shaders/UI/HoleShader.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: c8d31681747496649b369061b7659329, type: 2}
+    - {fileID: 11400000, guid: f4131025f5e2cd346adccbae094a3599, type: 2}

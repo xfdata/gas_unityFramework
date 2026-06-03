@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Render_PipelineAssets
+  m_EditorClassIdentifier: 
+  m_GroupName: Render_PipelineAssets
+  m_Data:
+    m_SerializedData: []
+  m_GUID: dee07504dea7d474d987be74ce1724db
+  m_SerializeEntries:
+  - m_GUID: 58dc6307f5ea21d4193813ad9bbf9bfb
+    m_Address: Assets/Render/PipelineAssets
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 478c2f7bc52d4714792ef9ed43de3f11, type: 2}
+    - {fileID: 11400000, guid: 591ecadc4031ef14faaf8bc193a7f772, type: 2}

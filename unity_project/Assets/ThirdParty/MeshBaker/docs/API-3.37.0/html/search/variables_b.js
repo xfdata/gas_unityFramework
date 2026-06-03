@@ -1,0 +1,24 @@
+var searchData=
+[
+  ['mat_0',['mat',['../class_digital_opus_1_1_m_b_1_1_core_1_1_mat_and_transform_to_merged.html#a54ace37fd75eb5a8a5a03eb2a3acdc2b',1,'DigitalOpus::MB::Core::MatAndTransformToMerged']]],
+  ['mat2rect_5fmap_1',['mat2rect_map',['../class_m_b___atlases_and_rects.html#a6fc59df6e8c4c8b4ce5ec1a084dffe71',1,'MB_AtlasesAndRects']]],
+  ['material_2',['material',['../class_m_b___material_and_u_v_rect.html#a027b8a37a920a707e914bd0741aa0c46',1,'MB_MaterialAndUVRect']]],
+  ['materialname_3',['materialName',['../class_digital_opus_1_1_m_b_1_1_core_1_1_game_object_filter_info.html#adc55fed9eafdda623850775203d4475a',1,'DigitalOpus::MB::Core::GameObjectFilterInfo']]],
+  ['materials_4',['materials',['../class_digital_opus_1_1_m_b_1_1_core_1_1_game_object_filter_info.html#a6a8f53174107c1bb7fe81543c5d981ad',1,'DigitalOpus::MB::Core::GameObjectFilterInfo']]],
+  ['materialsanduvrects_5',['materialsAndUVRects',['../class_m_b2___texture_bake_results.html#a51b364240aea5258ecf2912b20e8517a',1,'MB2_TextureBakeResults']]],
+  ['mats_6',['mats',['../class_digital_opus_1_1_m_b_1_1_core_1_1_mats_and_g_os.html#a9a3a2a90c6a5711e357dd043f33ab439',1,'DigitalOpus::MB::Core::MatsAndGOs']]],
+  ['matsandgos_7',['matsAndGOs',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b___tex_set.html#a227eecc751cafbfc63b87a2a04465e7f',1,'DigitalOpus::MB::Core::MB_TexSet']]],
+  ['max_5fatlas_5fsize_8',['MAX_ATLAS_SIZE',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b2___texture_packer.html#a555921cbdd7b2d9b47a4e2539f62e913',1,'DigitalOpus::MB::Core::MB2_TexturePacker']]],
+  ['maxdistbetweenclusters_9',['maxDistBetweenClusters',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#acdc4afd7082ffbc13ba987de0f3a3c79',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['mb_5fusing_5fhdrp_10',['MB_USING_HDRP',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b_version.html#a14a92205dc91ab65b76d63e365cef2ab',1,'DigitalOpus::MB::Core::MBVersion']]],
+  ['mesh_11',['mesh',['../class_digital_opus_1_1_m_b_1_1_m_b_editor_1_1_m_b3___texture_baker_editor_internal_1_1_mesh_submesh_material.html#a73d2e69979d5cae0c183672e5f19b1bb',1,'DigitalOpus::MB::MBEditor::MB3_TextureBakerEditorInternal::MeshSubmeshMaterial']]],
+  ['meshbakersettings_12',['meshBakerSettings',['../class_m_b3___mesh_baker_grouper.html#aafca477a70d13cd81242330f733b3dd5',1,'MB3_MeshBakerGrouper']]],
+  ['meshbakersettingsasset_13',['meshBakerSettingsAsset',['../class_m_b3___mesh_baker_grouper.html#a888cb8c37a051f073b0448e69f3762c3',1,'MB3_MeshBakerGrouper']]],
+  ['meshcombiners_14',['meshCombiners',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___multi_mesh_combiner.html#a817bd5ab10c3eb0685381350c278292b',1,'DigitalOpus::MB::Core::MB3_MultiMeshCombiner']]],
+  ['meshid2meshchannels_15',['meshID2MeshChannels',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_mesh_channels_cache.html#a1634242584c228ff039d62d943a4be6d',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle::MeshChannelsCache']]],
+  ['meshsize_16',['meshSize',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_m_b___dynamic_game_object.html#a69322542d3774b91b786da87c0cb0a16',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle::MB_DynamicGameObject']]],
+  ['meshverticesshift_17',['meshVerticesShift',['../struct_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_buffer_data_from_previous_bake.html#a75266c2586ac2f4f2f1db14ba8a1b7d1',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle::BufferDataFromPreviousBake']]],
+  ['meshverticieswereshifted_18',['meshVerticiesWereShifted',['../struct_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_buffer_data_from_previous_bake.html#ad0eb8de80997cc7fdf2723cc9f8a0afe',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle::BufferDataFromPreviousBake']]],
+  ['multiplematerialbackgroundstyle_19',['multipleMaterialBackgroundStyle',['../class_digital_opus_1_1_m_b_1_1_m_b_editor_1_1_m_b___editor_styles.html#aec95f8563d2eaab3bed95b5c2b0ffe75',1,'DigitalOpus::MB::MBEditor::MB_EditorStyles']]],
+  ['multiplematerialbackgroundstyledarker_20',['multipleMaterialBackgroundStyleDarker',['../class_digital_opus_1_1_m_b_1_1_m_b_editor_1_1_m_b___editor_styles.html#a695f4c94357e8d54fd53ddf76b67ef25',1,'DigitalOpus::MB::MBEditor::MB_EditorStyles']]]
+];

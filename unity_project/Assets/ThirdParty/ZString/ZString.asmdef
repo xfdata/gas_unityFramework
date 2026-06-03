@@ -1,0 +1,18 @@
+{
+    "name": "ZString",
+    "rootNamespace": "",
+    "references": [
+        "Unity.TextMeshPro",
+        "UnityEditor.UI",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

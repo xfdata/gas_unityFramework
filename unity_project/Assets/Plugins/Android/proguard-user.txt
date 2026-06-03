@@ -1,0 +1,5 @@
+-keep class com.renderheads.AVPro.Video.** { *; }
+-keep class com.google.android.exoplr2avp.** { *; }
+-keep class com.twobigears.audio360.** { *; }
+-keep class com.onemt.sdk.media.picker.**{*;}
+-keep class com.onemt.sdk.component.permission.**{*;}

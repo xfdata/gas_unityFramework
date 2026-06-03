@@ -1,0 +1,16 @@
+{
+    "name": "MeshBakerExamples",
+    "references": [
+        "MeshBakerCore",
+        "UnityEditor.UI",
+        "UnityEngine.UI"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

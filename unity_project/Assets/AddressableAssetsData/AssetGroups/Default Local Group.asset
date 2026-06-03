@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Default Local Group
+  m_EditorClassIdentifier: 
+  m_GroupName: Default Local Group
+  m_Data:
+    m_SerializedData: []
+  m_GUID: a5300a807cd82f24498f916b2a6d020a
+  m_SerializeEntries:
+  - m_GUID: 6071e098a2fc7f64d89f8e06e029e083
+    m_Address: Assets/Prefabs/UI/Popup/LoginView.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 37402a77ca1d246f09e7afb1b2aa40c3
+    m_Address: Assets/Prefabs/UI/Popup/LoadingView.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 8d18d7d76c559174cbf47c5b2b32e468, type: 2}
+    - {fileID: 11400000, guid: 51f4972b35dcae642b92d0b210c254cd, type: 2}

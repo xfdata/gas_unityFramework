@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Render_RenderFeatures_Shader
+  m_EditorClassIdentifier: 
+  m_GroupName: Render_RenderFeatures_Shader
+  m_Data:
+    m_SerializedData: []
+  m_GUID: 0cad2f24ea71bed42ba5f8940c24a380
+  m_SerializeEntries:
+  - m_GUID: 4c5985103ed6c2245ba24e217ccc2ec2
+    m_Address: Assets/Render/RenderFeatures/BlurUI/KawaseBlur.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 45c00a00142c13245a1d8a7d91f78b34
+    m_Address: Assets/Render/RenderFeatures/DepthRim/DepthRim.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ac8732a7b46983a458b9f6a885c56325
+    m_Address: Assets/Render/RenderFeatures/RadialBlur/RadialBlur.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3caac8a3ef37dda48ab508fa93e80421
+    m_Address: Assets/Render/RenderFeatures/TeamSetupHero/HeroShowPost.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cdb63ee43cb30274ab493a33a52fedb2
+    m_Address: Assets/Render/RenderFeatures/UnderWaterPost/UnderWaterPost.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 371bcea80b8dc2046b4187ac8dda4e41
+    m_Address: Assets/Render/RenderFeatures/UnderWaterPostWorldMap/UnderWaterWorldMapPost.shader
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 2f8088d2224fbc846829cc815ccfb348, type: 2}
+    - {fileID: 11400000, guid: b1a9e72a1188b4745be3aff49674ec78, type: 2}

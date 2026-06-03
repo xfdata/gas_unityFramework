@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        maven { url 'https://sdkrepo.onemt.co/repository/' }
+        maven { url 'https://sdkrepo.onemt.co/repository/sdk' }
+        
+        **ARTIFACTORYREPOSITORY**
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+include ':launcher', ':unityLibrary'
+**INCLUDES**
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        maven { url 'https://sdkrepo.onemt.co/repository/' }
+        maven { url 'https://sdkrepo.onemt.co/repository/sdk' }
+        
+        **ARTIFACTORYREPOSITORY**
+        google()
+        mavenCentral()
+        flatDir {
+            dirs "${project(':unityLibrary').projectDir}/libs"
+        }
+    }
+}

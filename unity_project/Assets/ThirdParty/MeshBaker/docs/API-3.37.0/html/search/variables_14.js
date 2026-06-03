@@ -1,0 +1,6 @@
+var searchData=
+[
+  ['version_0',['version',['../class_m_b2___texture_bake_results.html#a1895868eae1096bb7e8323db7d40eb5d',1,'MB2_TextureBakeResults.version'],['../class_m_b3___mesh_baker_common.html#a1443c8d52385fde973ab124b51bd72e7',1,'MB3_MeshBakerCommon.version']]],
+  ['vertices_1',['vertices',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_mesh_channels.html#a9dc132d1658bf5b2979caadee6855020',1,'DigitalOpus.MB.Core.MB3_MeshCombinerSingle.MeshChannels.vertices'],['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_m_b_blend_shape_frame.html#a28892669efa1eaf80e3d0cdec3b3f011',1,'DigitalOpus.MB.Core.MB3_MeshCombinerSingle.MBBlendShapeFrame.vertices']]],
+  ['vertidx_2',['vertIdx',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_m_b___dynamic_game_object.html#a85de46f8809737628211a49ce0f5fc2c',1,'DigitalOpus.MB.Core.MB3_MeshCombinerSingle.MB_DynamicGameObject.vertIdx'],['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___atlas_packer_render_texture_using_mesh_1_1_mesh_rect_info.html#a89314bd032c3217f102a5a5b14a5d287',1,'DigitalOpus.MB.Core.MB3_AtlasPackerRenderTextureUsingMesh.MeshRectInfo.vertIdx']]]
+];

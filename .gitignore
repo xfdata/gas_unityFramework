@@ -1,0 +1,381 @@
+# Files
+unity_project/*.csproj
+unity_project/*.sln
+unity_project/*.vsconfig
+*.apk
+*.aab
+*.unitypackage
+
+.DS_Store
+Thumbs.db
+Thumbs.db.meta
+unity_project/ProjectSettings/ManuallyReloadSettings.asset
+unity_project/Assets/AddressableAssetsData/link.xml
+unity_project/Assets/AddressableAssetsData/link.xml.meta
+unity_project/Assets/ThirdParty/PlayMaker/Editor/Resources/EditorStartupPrefs.asset
+
+# Folders
+.vs/
+.vscode/
+.venv/
+__pycache__/
+
+unity_project/Library/
+unity_project/Temp/
+unity_project/Logs/
+unity_project/UserSettings/
+unity_project/.idea
+unity_project/obj
+build_tools/__pycache__
+build_tools/pyXls2lua/src/__pycache__
+unity_project/HybridCLRData/StrippedAOTDllsTempProj
+unity_project/HybridCLRData/HotUpdateDlls
+unity_project/HybridCLRData/LocalIl2CppData-WindowsEditor
+unity_project/HybridCLRData/AssembliesPostIl2CppStrip
+unity_project/HybridCLRData/LocalIl2CppData-OSXEditor
+unity_project/*_BurstDebugInformation_DoNotShip
+unity_project/MemoryCaptures
+/unity_project/Assets/Plugins/Sirenix/Demos
+/unity_project/Assets/Plugins/Sirenix/Demos.meta
+unity_project/bakery_times.log
+unity_project/Assets/ThirdParty/Editor/x64/Bakery/.uvgblog.txt
+unity_project/Assets/taecgLibrary/
+unity_project/Assets/taecgLibrary.meta
+unity_project/UwaScan
+build_tools/UwaDataUploader/result.json
+build_tools/UwaDataUploader/log*.txt
+unity_project/Assets/ThirdParty/Editor/x64/Bakery/.denoiserlog.txt
+unity_project/Assets/ThirdParty/Editor/x64/Bakery/.ftracelog.txt
+unity_project/Assets/ThirdParty/Bakery/_tempScene
+unity_project/Assets/ThirdParty/Bakery/_tempScene.meta
+unity_project/Assets/ThirdParty/Bakery/_tempScene.unity
+unity_project/Assets/ThirdParty/Bakery/_tempScene.unity.meta
+unity_project/Recordings
+/build_tools/LuaExt/src/obj
+/build_tools/LuaExt/src/bin
+unity_project/Assets/HybridCLRGenerate/AOTGenericReferences.cs
+unity_project/Assets/HybridCLRGenerate/link.xml
+unity_project/Assets/AddressableAssetsData/Android/addressables_content_state.bin
+unity_project/Assets/ThirdParty/Editor/UwaProjScan/UwaProjScan_3.1.5/UWAScanConfig/ResultData
+build_tools/xlua/build/build32
+build_tools/xlua/build/build32_lua54
+build_tools/xlua/build/build64
+build_tools/xlua/build/build64_lua54
+build_tools/xlua/build/plugin_lua53
+build_tools/xlua/build/plugin_lua54
+build_tools/xlua/build/plugin_luajit
+build_tools/xlua/build/build_osx_54
+unity_project/iOS
+unity_project/Windows
+unity_project/Assets/AddressableAssetsData/Windows
+unity_project/Assets/AddressableAssetsData/Windows.meta
+unity_project/OSX
+unity_project/Assets/Art/TA
+unity_project/Assets/Art/Test
+unity_project/Assets/Arts
+unity_project/Assets/Plugins/HoudiniEngineUnity
+certificate/pepk/output.zip
+PD_Project/unity_project/PD_pro/Library
+build_tools/log/obj
+build_tools/log/Properties/PublishProfiles
+build_tools/log/logServer.csproj.user
+/.idea
+unity_project/android_proj
+unity_project/build
+unity_project/Assets/Perosonal
+unity_project/Assets/Perosonal.meta
+/unity_project_clone_[0-9]*
+unity_project/Assets/Scripts/Logic/Gen
+unity_project/Assets/Scripts/Logic/Gen.meta
+build_tools/xlua/build/out/build/x64-Debug
+build_tools/xlua/build/build_linux64
+build_tools/xlua/build/build_linux32
+/build_tools/xlua/build/build_linux64_54
+unity_project/Assets/Scripts/Logic/SDK/Poco
+unity_project/Assets/Scripts/Logic/SDK/Poco.meta
+unity_project/Assets/Config/Editor/CustomGm/History
+unity_project/Assets/Config/Editor/CustomGm/History.meta
+unity_project/Assets/Config/Editor/CustomGm/AllHistory
+unity_project/Assets/Config/Editor/CustomGm/AllHistory.meta
+unity_project/Assets/Config/Editor/CustomGm/SprotoRecord
+unity_project/Assets/Config/Editor/CustomGm/SprotoRecord.meta
+unity_project/Assets/Editor/ScriptHeaderProcessor.cs.meta
+unity_project/Assets/Editor/ScriptHeaderProcessor.cs
+
+
+### C#
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache/options directory
+.vs/
+
+# User-specific files
+*.suo
+*.user
+
+# Debug symbols
+*.pdb
+
+# NuGet Packages
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# .NET build artifacts
+artifacts/
+
+# Publish output
+publish/
+
+### Java
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# Package Files
+*.jar
+*.war
+*.ear
+
+# Virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+### Node
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Runtime data
+*.pid
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output
+
+# Build output
+dist/
+build/Release
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Framework build output and caches
+.cache
+.parcel-cache
+.next
+out/
+.nuxt
+
+# dotenv environment variable files
+.env
+.env.local
+.env.*.local
+
+# npm cache directory
+.npm
+*.tgz
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+.pnp.*
+
+### Objective-C
+# Xcode user settings
+xcuserdata/
+
+# Xcode build data
+DerivedData/
+
+# Obj-C/Swift specific
+*.hmap
+
+# App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+### Swift
+# Xcode user settings
+xcuserdata/
+
+# Xcode build data
+DerivedData/
+
+# Swift/Obj-C specific
+*.hmap
+
+# App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+# Package.resolved
+
+### Android
+# Gradle files
+.gradle/
+build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log files
+*.log
+
+# Android Studio generated files and folders
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+output.json
+
+# IntelliJ
+*.iml
+.idea/
+
+# Keystore files
+*.jks
+*.keystore
+
+### Unity
+# Unity generated directories
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emory[Cc]aptures/
+
+# Asset meta data should only be ignored when the corresponding asset is also ignored
+!/[Aa]ssets/**/*.meta
+
+# Build output
+*.apk
+*.aab
+*.unitypackage
+
+# Autogenerated solution and project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+
+### Windows
+# Windows thumbnail cache files
+Thumbs.db
+
+# Folder config file
+[Dd]esktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows shortcuts
+*.lnk
+
+### JetBrains
+# JetBrains IDE directory
+.idea/
+
+# CMake build directories
+cmake-build-*/
+
+# File-based project format
+*.iws
+*.iml
+
+# IntelliJ build output
+out/
+
+### VisualStudio
+# User-specific files
+*.suo
+*.user
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache/options directory
+.vs/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Publish Web Output
+*.[Pp]ublish.xml
+
+### VS Code
+# VSCode settings (keep shared configuration)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Local History for Visual Studio Code
+.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+### Xcode
+# Xcode user settings
+xcuserdata/
+
+# Xcode build artifacts
+build/
+DerivedData/
+
+# Obj-C/Swift specific
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Xcode state files
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+*.xcscmblueprint

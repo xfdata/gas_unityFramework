@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['obj2meshcombinermap_0',['obj2MeshCombinerMap',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___multi_mesh_combiner.html#ae6d3e4a7c75b75f0421c6f91302bd82f',1,'DigitalOpus::MB::Core::MB3_MultiMeshCombiner']]],
+  ['objects_1',['objects',['../class_m_b2___update_skinned_mesh_bounds_from_bounds.html#ac2f476685c29311321067657a43ca11a',1,'MB2_UpdateSkinnedMeshBoundsFromBounds']]],
+  ['objectsincombinedmesh_2',['objectsInCombinedMesh',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single.html#a5447c2fe20288d3232deb4ff45c53679',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle']]],
+  ['objectsthatuse_3',['objectsThatUse',['../class_m_b___material_and_u_v_rect.html#ae18abc1199f4cd10ae3b5969069d18eb',1,'MB_MaterialAndUVRect']]],
+  ['objname_4',['objName',['../class_digital_opus_1_1_m_b_1_1_core_1_1_mat_and_transform_to_merged.html#a9f8071271da6e7ba39ca56d36a9c58db',1,'DigitalOpus::MB::Core::MatAndTransformToMerged']]],
+  ['objstomesh_5',['objsToMesh',['../class_m_b3___mesh_baker_common.html#ab36637dbab547273b1d22fc90fc66e73',1,'MB3_MeshBakerCommon.objsToMesh'],['../class_m_b3___texture_baker.html#a87951d1b2934d195db0da4229c1f358d',1,'MB3_TextureBaker.objsToMesh']]],
+  ['objswitherrors_6',['objsWithErrors',['../class_digital_opus_1_1_m_b_1_1_m_b_editor_1_1_m_b___replace_prefabs_settings_1_1_prefab_pair.html#ad4f2eba308e76f0d0354ff807f90addc',1,'DigitalOpus::MB::MBEditor::MB_ReplacePrefabsSettings::PrefabPair']]],
+  ['obuvrects_7',['obUVRects',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_m_b___dynamic_game_object.html#a900a658d2d18ddac0bafd9f3a417dd16',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle::MB_DynamicGameObject']]],
+  ['obuvs_8',['obUVs',['../class_digital_opus_1_1_m_b_1_1_m_b_editor_1_1_m_b3___texture_baker_editor_internal_1_1_mesh_submesh_material.html#a64927c1ebafa089b9cd9c72389467322',1,'DigitalOpus::MB::MBEditor::MB3_TextureBakerEditorInternal::MeshSubmeshMaterial']]],
+  ['onbuiltatlasesfail_9',['onBuiltAtlasesFail',['../class_m_b3___texture_baker.html#a31326d13261dbebe98a376cf9ed5395c',1,'MB3_TextureBaker']]],
+  ['onbuiltatlasessuccess_10',['onBuiltAtlasesSuccess',['../class_m_b3___texture_baker.html#aef44c59e737a739af7060d910f9e43c2',1,'MB3_TextureBaker']]],
+  ['oncombinedtexturescoroutineatlasesandrects_11',['OnCombinedTexturesCoroutineAtlasesAndRects',['../class_m_b3___texture_baker.html#aa6c4474fb4c3b0a487a1cf89e19651b5',1,'MB3_TextureBaker']]],
+  ['origin_12',['origin',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#a70baf4509931e82bb522ae3d59dd26f8',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['outofboundsuvs_13',['outOfBoundsUVs',['../class_digital_opus_1_1_m_b_1_1_core_1_1_game_object_filter_info.html#a99028c21ebb0d99f310ae6df9671e3ab',1,'DigitalOpus::MB::Core::GameObjectFilterInfo']]],
+  ['outputfolder_14',['outputFolder',['../class_m_b3___bone_weight_copier.html#a696ca72a9ea26ab2605ed4caa71fd401',1,'MB3_BoneWeightCopier']]],
+  ['outputprefab_15',['outputPrefab',['../class_m_b3___bone_weight_copier.html#ad9c4b27c4d21c95f5e1e35f6e59eca3b',1,'MB3_BoneWeightCopier']]],
+  ['outputprefabfolder_16',['outputPrefabFolder',['../class_m_b3___batch_prefab_baker.html#a4d20796a3ff83483dac9b0a6e29761d2',1,'MB3_BatchPrefabBaker']]]
+];

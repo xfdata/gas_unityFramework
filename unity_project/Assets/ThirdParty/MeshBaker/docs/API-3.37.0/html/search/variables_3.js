@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['cammasklayer_0',['camMaskLayer',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___atlas_packer_render_texture_using_mesh.html#af7b578d43475530b922117756890b768',1,'DigitalOpus::MB::Core::MB3_AtlasPackerRenderTextureUsingMesh']]],
+  ['cellsize_1',['cellSize',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#a34e901a3ba212e6b215d483130a2fa01',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['centroid_2',['centroid',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___agglomerative_clustering_1_1_cluster_node.html#a55c0aa0135723df2d4061e044c15b53f',1,'DigitalOpus::MB::Core::MB3_AgglomerativeClustering::ClusterNode']]],
+  ['cha_3',['cha',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___agglomerative_clustering_1_1_cluster_node.html#a5c21d7e7701772c592a46f23d9738afd',1,'DigitalOpus::MB::Core::MB3_AgglomerativeClustering::ClusterNode']]],
+  ['chb_4',['chb',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___agglomerative_clustering_1_1_cluster_node.html#af78d4453e94b97379697aa9d7291e5f8',1,'DigitalOpus::MB::Core::MB3_AgglomerativeClustering::ClusterNode']]],
+  ['cluster_5',['cluster',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#aed304b9250c350c062deaae28187e3cd',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['clusterbylodlevel_6',['clusterByLODLevel',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#a2f240390876bfa31cb61a7afb698e265',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['clusteronlmindex_7',['clusterOnLMIndex',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#ada6ea2586f2471f85223326c77b2da0b',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['clusters_8',['clusters',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___agglomerative_clustering.html#a313cb257c7d2e5c2b21a49ab68cea12d',1,'DigitalOpus::MB::Core::MB3_AgglomerativeClustering']]],
+  ['clustertype_9',['clusterType',['../class_m_b3___mesh_baker_grouper.html#aa3bf0e095b835000dac327071713a2a9',1,'MB3_MeshBakerGrouper']]],
+  ['color_10',['color',['../struct_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___texture_combiner_non_texture_properties_1_1_tex_property_name_color_pair.html#a3b7b2f37f4043970b654951327d382dd',1,'DigitalOpus::MB::Core::MB3_TextureCombinerNonTextureProperties::TexPropertyNameColorPair']]],
+  ['colors_11',['colors',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_single_1_1_mesh_channels.html#ad9b15e66eed406140234f07a1b49fac5',1,'DigitalOpus::MB::Core::MB3_MeshCombinerSingle::MeshChannels']]],
+  ['combinedmaterial_12',['combinedMaterial',['../class_m_b___multi_material.html#acbfd716a20c2eee77f05d50546347620',1,'MB_MultiMaterial.combinedMaterial'],['../class_m_b___multi_material_tex_array.html#a87e3f77624d28582168c0e6c64c83494',1,'MB_MultiMaterialTexArray.combinedMaterial']]],
+  ['combinedmesh_13',['combinedMesh',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___multi_mesh_combiner_1_1_combined_mesh.html#a4a513739292867ddf10ba3a23d3cd0d3',1,'DigitalOpus::MB::Core::MB3_MultiMeshCombiner::CombinedMesh']]],
+  ['combinedmeshgameobject_14',['combinedMeshGameObject',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___mesh_combiner_1_1_m_b_blend_shape_value.html#aeccc620b742e81acdf910709e29b3331',1,'DigitalOpus::MB::Core::MB3_MeshCombiner::MBBlendShapeValue']]],
+  ['combinedmeshtargetgameobject_15',['combinedMeshTargetGameObject',['../class_digital_opus_1_1_m_b_1_1_core_1_1_serializable_source_blend_shape2_combined.html#a1d64e44a53ae7eef953f31fe46b04a65',1,'DigitalOpus::MB::Core::SerializableSourceBlendShape2Combined']]],
+  ['combinesegmentsininnermostring_16',['combineSegmentsInInnermostRing',['../class_digital_opus_1_1_m_b_1_1_core_1_1_grouper_data.html#aee8504a79675e49f67a6778df163bb1b',1,'DigitalOpus::MB::Core::GrouperData']]],
+  ['comment_17',['comment',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___comment.html#a5c4698827f1f600944928bdc7f4ad277',1,'DigitalOpus::MB::Core::MB3_Comment']]],
+  ['compressionquality_18',['compressionQuality',['../class_m_b___texture_array_format.html#a234883a57b738b26e9a642fadc196645',1,'MB_TextureArrayFormat']]],
+  ['considermeshuvs_19',['considerMeshUVs',['../class_m_b___multi_material.html#adf031449cb4262caab5f8c61ee955124',1,'MB_MultiMaterial.considerMeshUVs'],['../class_m_b___tex_array_slice.html#a6f19a19c0d63ae4061a6155493b90a14',1,'MB_TexArraySlice.considerMeshUVs']]],
+  ['considernontextureproperties_20',['considerNonTextureProperties',['../class_m_b3___atlas_packer_render_texture.html#a9a988f80a0e7822f13a79ef65a489ec9',1,'MB3_AtlasPackerRenderTexture']]],
+  ['coord_21',['coord',['../class_digital_opus_1_1_m_b_1_1_core_1_1_m_b3___agglomerative_clustering_1_1item__s.html#a9c6a02933dde024c2966e6fc37fd521d',1,'DigitalOpus::MB::Core::MB3_AgglomerativeClustering::item_s']]]
+];

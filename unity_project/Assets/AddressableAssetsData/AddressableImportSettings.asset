@@ -1,0 +1,1256 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4457b6e6d3304bd46a31be63dad3325c, type: 3}
+  m_Name: AddressableImportSettings
+  m_EditorClassIdentifier: 
+  allowGroupCreation: 1
+  rules:
+  - path: ^Assets/Scenes/Main.unity$
+    matchType: 1
+    groupName: DoNotPackage
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Scenes/Main.unity
+  - path: ^Assets/Art/WorldMap/Editor$
+    matchType: 1
+    groupName: DoNotPackage
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/WorldMap/Editor
+  - path: ^Assets/Tests$
+    matchType: 1
+    groupName: DoNotPackage
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Tests
+  - path: Packages/com.unity.render-pipelines.universal/Runtime/Materials/PhysicalMaterial3DsMax/PhysicalMaterial3DsMax.shadergraph
+    matchType: 1
+    groupName: DoNotPackage
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Packages/com.unity.render-pipelines.universal/Runtime/Materials/PhysicalMaterial3DsMax/PhysicalMaterial3DsMax.shadergraph
+  - path: ^Assets/Config/csv$
+    matchType: 1
+    groupName: DoNotPackage
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Config/csv
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/Characters/(?<Module2>[^/]+)/(?<Module3>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_Charactor
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/Characters/${Module2}/${Module3}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/TextureBanner/(?<banner>.*).png$
+    matchType: 1
+    groupName: AssetsPack_Art_TextureBanner
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/TextureBanner/${banner}.png
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/PVE/LandForm/Terrain/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_PVE_Terrain
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/PVE/LandForm/Terrain/${Module2}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/City/Building/(?<SubFolder1>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_City_Building
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/City/Building/${SubFolder1}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Scenes/(?<SceneFolder>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Scenes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Scenes/${SceneFolder}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/ArtPrefabs/Characters/(?<Module2>[^/]+)/(?<Module3>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_ArtPrefabs_Characters
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/ArtPrefabs/Characters/${Module2}/${Module3}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/ArtPrefabs/PVE/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_ArtPrefabs_PVE
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/ArtPrefabs/PVE/${Module2}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/ArtPrefabs/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_ArtPrefabs
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/ArtPrefabs/${Module2}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/SpriteAtlas/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/SpriteAtlas/${Module2}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/SpriteAtlas/(?<Module2>[^/]+)/(?<Module3>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/SpriteAtlas/${Module2}/${Module3}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/SpriteAtlas/(?<Module2>[^/]+)/(?<Module3>[^/]+)/(?<Module4>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/SpriteAtlas/${Module2}/${Module3}/${Module4}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/PetFish/(?<Module2>[^/]+)/(?<Module3>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_PetFish
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/PetFish/${Module2}/${Module3}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/Building/(?<SubFolder1>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_Building
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/Building/${SubFolder1}
+  - path: ^Assets/AssetsPack/(?<Module1>[^/]+)/Art/Terrain/(?<SubFolder1>[^/]+)$
+    matchType: 1
+    groupName: AssetsPack_Art_Terrain
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/AssetsPack/${Module1}/Art/Terrain/${SubFolder1}
+  - path: ^Assets/ArtPrefabs/UI/Activities/(?<Module1>[^/]+)$
+    matchType: 1
+    groupName: ArtPrefabs_UI_Activities
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/ArtPrefabs/UI/Activities/${Module1}
+  - path: ^Assets/Art/Characters/Show$
+    matchType: 1
+    groupName: Art_Characters_Show
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Characters/Show
+  - path: Assets/Render/RenderFeatures/(?<Effect>[^/]+)/(?<ShaderName>.*).shader
+    matchType: 1
+    groupName: Render_RenderFeatures_Shader
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${Effect}/${ShaderName}.shader
+  - path: Assets/Art/Shaders/(?<Module>[^/]+)/(?<TexName>.*).shader
+    matchType: 1
+    groupName: Art_Shaders
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${Module}/${TexName}.shader
+  - path: ^Assets/Art/UI/Materials$
+    matchType: 1
+    groupName: Art_UI_Materials
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${PATH[3]}
+  - path: Assets/Art/UI/Animation/(?<UIModule>[^/]+)$
+    matchType: 1
+    groupName: Art_UI_Animation
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${PATH[3]}/${UIModule}
+  - path: ^Assets/Art/UI/Font/EmojiSprite/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_UI_Font_Emoji
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/UI/Font/EmojiSprite/${Module}
+  - path: ^Assets/Art/UI/Font/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_UI_Font
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${PATH[3]}/${Module}
+  - path: ^Assets/Art/Audio/Music$
+    matchType: 1
+    groupName: Art_Audio_Music
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Audio/Music
+  - path: ^Assets/Art/PVE/LandForm/Terrain/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_PVE_Terrain
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/PVE/LandForm/Terrain/${Module}
+  - path: ^Assets/Art/PVE/(?<Module>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: Art_PVE
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/PVE/${Module}/${Module2}
+  - path: ^Assets/Art/PVP/(?<Module>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: Art_PVP
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/PVP/${Module}/${Module2}
+  - path: ^Assets/Art/Models$
+    matchType: 1
+    groupName: Art_Models
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Models
+  - path: ^Assets/Art/Materials$
+    matchType: 1
+    groupName: Art_Materials
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}
+  - path: ^Assets/Art/Clips$
+    matchType: 1
+    groupName: Art_Clips
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Clips
+  - path: ^Assets/Art/PetFish/(?<Module>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: Art_PetFish
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/PetFish/${Module}/${Module2}
+  - path: ^Assets/Plugins/Amazing Assets/Terrain To Mesh/Shaders/Splatmap$
+    matchType: 1
+    groupName: Art_T4M
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Plugins/Amazing Assets/Terrain To Mesh/Shaders/Splatmap
+  - path: ^Assets/Art/Audio/BGM$
+    matchType: 1
+    groupName: Audio_BGM
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Audio/BGM
+  - path: Assets/Art/Audio/Sound/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Audio_Sound
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${PATH[3]}/${Module}
+  - path: ^Assets/Art/Effects/Animation/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_Effects_Animation
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/Animation/${Module}
+  - path: ^Assets/Art/Effects/Materials$
+    matchType: 1
+    groupName: Art_Effects_Materials
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/Materials
+  - path: ^Assets/Art/Effects/Model$
+    matchType: 1
+    groupName: Art_Effects_Model
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/Model
+  - path: ^Assets/Art/Effects/Meshes$
+    matchType: 1
+    groupName: Art_Effects_Meshes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/Meshes
+  - path: ^Assets/Art/Effects/Shader$
+    matchType: 1
+    groupName: Art_Effects_Shader
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/Shader
+  - path: ^Assets/Art/Effects/Textures/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_Effects_Textures
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/Textures/${Module}
+  - path: ^Assets/Art/Effects/SpriteAtlas/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_Effects_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Effects/SpriteAtlas/${Module}
+  - path: ^Assets/Art/SpriteAtlas/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/SpriteAtlas/${Module}
+  - path: ^Assets/Art/SpriteAtlas/(?<Module>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: Art_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/SpriteAtlas/${Module}/${Module2}
+  - path: ^Assets/Art/SpriteAtlas/(?<Module>[^/]+)/(?<Module2>[^/]+)/(?<Module3>[^/]+)$
+    matchType: 1
+    groupName: Art_SpriteAtlas
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/SpriteAtlas/${Module}/${Module2}/${Module3}
+  - path: ^Assets/Art/WorldMap/(?<Module>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: Art_WorldMap
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/WorldMap/${Module}/${Module2}
+  - path: ^Assets/Scenes/(?<SceneFolder>[^/]+)$
+    matchType: 1
+    groupName: Scenes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Scenes/${SceneFolder}
+  - path: ^Assets/Config/(?<Files>[^/]+)$
+    matchType: 1
+    groupName: Config
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Config/${Files}
+  - path: ^Assets/Render/Volume$
+    matchType: 1
+    groupName: Render_Volume
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Render/Volume
+  - path: ^Assets/Render/RenderFeatures$
+    matchType: 1
+    groupName: Render_RenderFeatures
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Render/RenderFeatures
+  - path: ^Assets/Render/PipelineAssets$
+    matchType: 1
+    groupName: Render_PipelineAssets
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Render/PipelineAssets
+  - path: ^Assets/Settings/(?<Files>[^/]+)$
+    matchType: 1
+    groupName: Settings
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Settings/${Files}
+  - path: Assets/Art/Timeline/(?<Module>[^/]+)/(?<TimelinePrefab>.*).prefab
+    matchType: 1
+    groupName: Art_Timeline
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${Module}/${TimelinePrefab}.prefab
+  - path: Assets/Art/Timeline/(?<Module>[^/]+)/(?<TimelinePrefab>.*).playable
+    matchType: 1
+    groupName: Art_Timeline
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: ${PATH[0]}/${PATH[1]}/${PATH[2]}/${Module}/${TimelinePrefab}.playable
+  - path: ^Assets/Art/Spine/(?<Module>[^/]+)$
+    matchType: 1
+    groupName: Art_Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Spine/${Module}
+  - path: Assets/Art/City/Soil$
+    matchType: 1
+    groupName: Art_City_Soil
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/City/Soil
+  - path: Assets/Art/City/Building/(?<SubFolder1>[^/]+)$
+    matchType: 1
+    groupName: Art_City_Building
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/City/Building/${SubFolder1}
+  - path: Assets/Art/City/Common/(?<SubFolder1>[^/]+)$
+    matchType: 1
+    groupName: Art_City_Common
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/City/Common/${SubFolder1}
+  - path: ^Assets/Art/TextureBanner/(?<banner>.*).png$
+    matchType: 1
+    groupName: Art_TextureBanner
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/TextureBanner/${banner}.png
+  - path: ^Assets/Art/TextureSingle/(?<single>.*).png$
+    matchType: 1
+    groupName: Art_TextureSingle
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/TextureSingle/${single}.png
+  - path: ^Assets/ArtPrefabs/UI/(?<Module1>[^/]+)$
+    matchType: 1
+    groupName: ArtPrefabs_UI
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/ArtPrefabs/UI/${Module1}
+  - path: ^Assets/Prefabs/UI/(?<Module1>[^/]+)$
+    matchType: 1
+    groupName: Prefabs_UI
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Prefabs/UI/${Module1}
+  - path: ^Assets/ArtPrefabs/Characters/(?<Module1>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: ArtPrefabs_Characters
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/ArtPrefabs/Characters/${Module1}/${Module2}
+  - path: ^Assets/ArtPrefabs/(?<Module1>[^/]+)$
+    matchType: 1
+    groupName: ArtPrefabs
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/ArtPrefabs/${Module1}
+  - path: ^Assets/Art/Characters/(?<Module1>[^/]+)/(?<Module2>[^/]+)$
+    matchType: 1
+    groupName: Art_Charactor
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f8b22a80a61fe9946bd262d337918020, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/Characters/${Module1}/${Module2}
+  - path: ^Packages/com.unity.shadergraph/Editor/Resources/Shaders/FallbackError.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Utils/FallbackError.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Lit.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/UberPost.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Utils/StencilDeferred.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/FinalPost.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/BokehDepthOfField.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/SubpixelMorphologicalAntialiasing.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainDetailLit.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLit.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitAdd.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitBase.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitBasemapGen.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrass.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrassBillboard.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/Unlit.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Shaders/ParticlesUnlit.shader$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.render-pipelines.universal/Shaders/Particles/ParticlesUnlit.shader
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitAdd.shader
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitBase.shader
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrassBillboard.shader
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.render-pipelines.core/Runtime/RenderPipelineResources/FallbackShader.shader
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Magic Light Probes/Passes/Compute Shaders/CalculateDistanceFromGeometry.compute$
+    matchType: 1
+    groupName: Magic_Light_Probes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Magic Light Probes/Passes/Compute Shaders/CalculateProbeSpacing.compute$
+    matchType: 1
+    groupName: Magic_Light_Probes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Magic Light Probes/Passes/Compute Shaders/RecalculateVolumeFilling.compute$
+    matchType: 1
+    groupName: Magic_Light_Probes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/TextMesh Pro/Materials$
+    matchType: 1
+    groupName: TextMesh_Pro_Mat
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/TextMesh Pro/Shaders$
+    matchType: 1
+    groupName: TextMesh_Pro_Mat
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/TextMesh Pro/Shaders/(?<Shader>.*).shader
+    matchType: 1
+    groupName: TextMesh_Pro_Shader
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/TextMesh Pro/Shaders/${Shader}.shader
+  - path: Assets/OneMTSDK/Prefabs/(?<Prefab>.*).prefab
+    matchType: 1
+    groupName: OnemtSdk
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/OneMTSDK/Prefabs/${Prefab}.prefab
+  - path: ^Assets/ThirdParty/TextMesh Pro/Fonts/LiberationSans.ttf$
+    matchType: 1
+    groupName: TextMesh_Pro_LiberationSans
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: LiberationSans
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/Spine-Skeleton.shader$
+    matchType: 1
+    groupName: Shader_Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/Sprite/SpritesUnlit.shader$
+    matchType: 1
+    groupName: Shader_Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/BlendModes/Spine-Skeleton-PMA-Multiply.shader$
+    matchType: 1
+    groupName: Shader_Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/BlendModes/Spine-Skeleton-PMA-Screen.shader$
+    matchType: 1
+    groupName: Shader_Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/BlendModes/Spine-Skeleton-PMA-Additive.shader$
+    matchType: 1
+    groupName: Shader_Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/Scripts/Poco/PocoManager.prefab$
+    matchType: 1
+    groupName: Poco
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/SkeletonGraphic$
+    matchType: 1
+    groupName: Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/ThirdParty/Spine/Runtime/spine-unity/Materials$
+    matchType: 1
+    groupName: Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Bakery/ftUnitySpotTexture.bmp
+    matchType: 1
+    groupName: Bakery
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Bakery/ftSkybox.shader
+    matchType: 1
+    groupName: Bakery
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Bakery/examples/content/skies64.exr
+    matchType: 1
+    groupName: Bakery
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Bakery/emptyDirection.tga
+    matchType: 1
+    groupName: Bakery
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.coffee.ui-particle/Shaders$
+    matchType: 1
+    groupName: Packages_UIParticle
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Trails FX2/Trails FX/Demo/Textures/arrow.png
+    matchType: 1
+    groupName: Trails
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Trails FX2/Trails FX/Demo/Materials/Bouncy.physicMaterial
+    matchType: 1
+    groupName: Trails
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Spine/Runtime/spine-unity/Shaders/Outline/SkeletonGraphic/Spine-SkeletonGraphic-Outline.shader
+    matchType: 1
+    groupName: Spine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Assets/ThirdParty/Magic Light Probes/Examples/Demo/ReflectionProbe-0.exr
+    matchType: 1
+    groupName: Magic_Light_Probes
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.2d.sprite/Editor/ObjectMenuCreation/DefaultAssets/Textures/v2/Circle.png
+    matchType: 1
+    groupName: Packages_2Dsprite
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.cinemachine/Presets/Noise/6D Shake.asset
+    matchType: 1
+    groupName: Packages_Cimemachine
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.probuilder/Content/Material/Textures/GridBox_Trigger.png
+    matchType: 1
+    groupName: Packages_Probuilder
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: Packages/com.unity.probuilder/Content/Resources/Materials/Trigger.mat
+    matchType: 1
+    groupName: Packages_Probuilder
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Packages/com.unity.render-pipelines.universal/Runtime/Materials/PhysicalMaterial3DsMax$
+    matchType: 1
+    groupName: Packages_Asset_Urp
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: 
+  - path: ^Assets/Art/PVE/LandForm/Terrain/(?<Module>[^/]+)/Editor$
+    matchType: 1
+    groupName: Editor
+    LabelMode: 1
+    labelRefs: []
+    dynamicLabels: []
+    groupTemplate: {fileID: 11400000, guid: f1ed0b61407208a4baaa343710bb649b, type: 2}
+    groupTemplateApplicationMode: 1
+    simplified: 0
+    addressReplacement: Assets/Art/PVE/LandForm/Terrain/${Module}/Editor

@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05ca84e725c7c764aa5ed097918d14b7, type: 3}
+  m_Name: ftLocalStorage
+  m_EditorClassIdentifier: 
+  modifiedAssetPathList:
+  - Assets/Bakery/examples/content/sponza/sponza.FBX
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_02_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_13_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_06_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_01_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant03_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_08_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_BG02_tes.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_04_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_07_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant04_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant08_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_00_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_BG01_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_10_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant05_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant07_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant02_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant01_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_14_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_12_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_05_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_09_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_plant06_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_03_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_11_test.fbx
+  - Assets/Art/PVE/RuinedCity/FBX/City_RuinedCity_Boss_20_test.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_a.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_01_c.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_h.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_d.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_j.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_l.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_d.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_f.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_i.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_e.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_c.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_a.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_b.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_03.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_g.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_k.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_00_b.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_g.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_f.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_06.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_b.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_05_c.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_04_e.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_02.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_00_a.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_01_lava.fbx
+  - Assets/Art/PVE/Volcano/FBX/SM_VolcanoDefence_01_a.fbx
+  modifiedAssetPaddingHash: d6a958ff383fd3d980c5d890333fd3d9333fd3d9d9398033323fd3d9363fd3d93f3fd3d9333fd3d9dd5131ee07a3ddde363fd3d9343fd3d93c4efff078c6d890abdb894b1c7e936327dc894b194efff0de09ecc0333fd3d9383fd3d9f227c115797e936380c5d890567e9363393fd3d9353fd3d93f3fd3d9323fd3d9343fd3d9797e93633f3fd3d9323fd3d9e55031ee1b3a8033353fd3d914f33a06393fd3d9323fd3d9353fd3d93e3fd3d9333fd3d94adc894b3e3fd3d9363fd3d9343fd3d93f3fd3d93e3fd3d9393fd3d9383fd3d9bb09ecc0353fd3d9

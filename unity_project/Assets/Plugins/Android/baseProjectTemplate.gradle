@@ -1,0 +1,28 @@
+buildscript {
+    apply from:"https://gitlab.onemt.co/onemtsdkpublic/SDKGradle/raw/master/scripts/pd/v5.28.1/OneMTSDK.gradle"
+    repositories {
+            maven { url 'https://sdkrepo.onemt.co/repository/' }
+            maven { url 'https://sdkrepo.onemt.co/repository/sdk' }
+        }
+        dependencies {
+            // If you are changing the Android Gradle Plugin version, make sure it is compatible with the Gradle version preinstalled with Unity
+            // See which Gradle version is preinstalled with Unity here https://docs.unity3d.com/Manual/android-gradle-overview.html
+            // See official Gradle and Android Gradle Plugin compatibility table here https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
+            // To specify a custom Gradle version in Unity, go do "Preferences > External Tools", uncheck "Gradle Installed with Unity (recommended)" and specify a path to a custom Gradle version
+            classpath 'com.android.tools.build:gradle:7.3.0'
+            classpath 'com.google.firebase:firebase-crashlytics-gradle:2.3.0'
+        }
+}
+plugins {
+    // If you are changing the Android Gradle Plugin version, make sure it is compatible with the Gradle version preinstalled with Unity
+    // See which Gradle version is preinstalled with Unity here https://docs.unity3d.com/Manual/android-gradle-overview.html
+    // See official Gradle and Android Gradle Plugin compatibility table here https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
+    // To specify a custom Gradle version in Unity, go do "Preferences > External Tools", uncheck "Gradle Installed with Unity (recommended)" and specify a path to a custom Gradle version
+    id 'com.android.application' version '7.3.0' apply false
+    id 'com.android.library' version '7.3.0' apply false
+    **BUILD_SCRIPT_DEPS**
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

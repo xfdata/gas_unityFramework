@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: TextMesh_Pro_LiberationSans
+  m_EditorClassIdentifier: 
+  m_GroupName: TextMesh_Pro_LiberationSans
+  m_Data:
+    m_SerializedData: []
+  m_GUID: 662cc324445e606479d42e3f42598c47
+  m_SerializeEntries:
+  - m_GUID: e3265ab4bf004d28a9537516768c1c75
+    m_Address: LiberationSans
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 71f2768909a891c4fb1980f10f001017, type: 2}
+    - {fileID: 11400000, guid: 1dc220a8f7e0ce04793c3934f37b3ec2, type: 2}
