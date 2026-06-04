@@ -1,0 +1,55 @@
+{
+  "module_rules": [
+    ["gameplayeffect", "GASSystem"],
+    ["gameplaycue", "CueSystem"],
+    ["abilitysystem", "GASSystem"],
+    ["attributeset", "AttributeSystem"],
+    ["pveworld", "PVEWorld"],
+    ["boss", "BossSystem"],
+    ["monster", "EntitySystem"],
+    ["actor", "EntitySystem"],
+    ["property", "PropertySystem"],
+    ["attribute", "AttributeSystem"],
+    ["skill", "SkillSystem"],
+    ["buff", "BuffSystem"],
+    ["spawn", "SpawnSystem"],
+    ["behaviortree", "AISystem"],
+    ["ai/", "AISystem"],
+    ["aisystem", "AISystem"],
+    ["aicontroller", "AISystem"],
+    [" ai", "AISystem"],
+    ["replay", "ReplaySystem"],
+    ["sync", "NetSyncSystem"],
+    ["net", "NetSyncSystem"],
+    ["guide", "GuideSystem"]
+  ],
+  "event_patterns": [
+    "\\b(On[A-Za-z_]\\w*)\\s*\\?\\s*\\.Invoke",
+    "\\b(On[A-Za-z_]\\w*)\\s*\\.Invoke",
+    "\\bNotifyEvent_[A-Za-z_]\\w*\\.[A-Za-z_]\\w+",
+    "\\bSendNotification\\s*\\(\\s*([A-Za-z_][A-Za-z0-9_\\.]*)",
+    "\\bDispatch\\s*\\(\\s*([A-Za-z_][A-Za-z0-9_\\.]*)"
+  ],
+  "config_patterns": [
+    "\\bNativeConfig[A-Za-z_0-9\\.]*",
+    "\\bNativeTable_[A-Za-z_0-9]+",
+    "\\bpve_[A-Za-z_0-9]+"
+  ],
+  "gameplay_tag_patterns": [
+    "\\bPveGameTags\\.[A-Za-z_][A-Za-z0-9_]*",
+    "\\bGameTags\\.[A-Za-z_][A-Za-z0-9_]*",
+    "\\bGameplayTag\\.[A-Za-z_][A-Za-z0-9_]*",
+    "RequestGameplayTag\\s*\\(\\s*\\\"([^\\\"]+)\\\"",
+    "HasTag\\s*\\(\\s*([A-Za-z_][A-Za-z0-9_\\.]*)",
+    "AddTag\\s*\\(\\s*([A-Za-z_][A-Za-z0-9_\\.]*)",
+    "RemoveTag\\s*\\(\\s*([A-Za-z_][A-Za-z0-9_\\.]*)"
+  ],
+  "performance_checks": [
+    ["new List", "\\bnew\\s+List\\s*<"],
+    ["new Dictionary", "\\bnew\\s+Dictionary\\s*<"],
+    ["LINQ", "\\.(Where|Select|OrderBy|GroupBy|ToList|ToArray)\\s*\\("],
+    ["lambda", "=>"],
+    ["string.Format", "\\bstring\\.Format\\s*\\("],
+    ["foreach", "\\bforeach\\s*\\("]
+  ]
+}

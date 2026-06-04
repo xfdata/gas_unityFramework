@@ -1,0 +1,20 @@
+{
+  "control_keywords": [
+    "if",
+    "for",
+    "foreach",
+    "while",
+    "switch",
+    "catch",
+    "using",
+    "lock",
+    "fixed",
+    "try",
+    "else",
+    "do",
+    "get",
+    "set",
+    "add",
+    "remove"
+  ]
+}

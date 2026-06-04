@@ -1,0 +1,25 @@
+{
+  "default_project_root": null,
+  "default_out_dir": "ProjectKnowledge/raw",
+  "include_dirs": null,
+  "text_encodings": [
+    "utf-8-sig",
+    "utf-8",
+    "gb18030"
+  ],
+  "exclude_dirs": [
+    ".git",
+    ".svn",
+    ".vs",
+    ".idea",
+    "Library",
+    "Temp",
+    "Obj",
+    "Build",
+    "Builds",
+    "Logs",
+    "UserSettings",
+    "MemoryCaptures",
+    "Packages/PackageCache"
+  ]
+}
