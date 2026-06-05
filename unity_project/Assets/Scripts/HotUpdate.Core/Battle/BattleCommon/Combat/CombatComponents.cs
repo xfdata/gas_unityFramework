@@ -43,21 +43,6 @@ namespace BattleCommon
         public float CritDamageMul { get => CritDamage; set => CritDamage = value; }
         public float DamageReduce { get => Get(CombatAttributeIds.DamageReduce); set => Set(CombatAttributeIds.DamageReduce, value); }
 
-        public void ApplyLoadout(CombatLoadoutDefinition loadout)
-        {
-            if (loadout == null) return;
-            MaxHP = loadout.MaxHP;
-            HP = loadout.MaxHP;
-            Attack = loadout.Attack;
-            Defense = loadout.Defense;
-            MoveSpeed = loadout.MoveSpeed;
-            AttackRange = loadout.AttackRange;
-            AttackInterval = loadout.AttackInterval;
-            CritRate = loadout.CritRate;
-            CritDamage = loadout.CritDamage;
-            DamageReduce = loadout.DamageReduce;
-        }
-
         public float Get(int attributeId) => _attributeSet.GetAttribute(attributeId);
         public float GetAttribute(int attributeId) => _attributeSet.GetAttribute(attributeId);
         public void Set(int attributeId, float value) => _attributeSet.SetBaseValue(attributeId, value);
@@ -189,7 +174,7 @@ namespace BattleCommon
         private GameplayAbilitySystem _gas;
 
         public GameplayAbilitySystem GAS => _gas;
-        public bool IsDead => HasTag(CombatGameplayTags.State_Dead);
+        public bool IsDead => Owner == null || !Owner.IsAlive;
 
         public void SetInitialAbilities(IEnumerable<GameplayAbilityDefinition> abilities)
         {
@@ -202,11 +187,7 @@ namespace BattleCommon
             base.Initialize();
             _gas?.Dispose();
             var services = Owner?.AbilityServices;
-            _gas = new GameplayAbilitySystem(
-                Owner != null ? Owner.Id : 0,
-                Owner,
-                null,
-                services?.AbilityCatalog,
+            _gas = new GameplayAbilitySystem(Owner?.Id ?? 0, Owner, null, services?.AbilityCatalog,
                 services?.GameplayCueManager);
             for (int i = 0; i < _initialAbilities.Count; i++)
                 GrantAbility(_initialAbilities[i]);
@@ -221,7 +202,7 @@ namespace BattleCommon
         public bool TryActivateBornAbility()
         {
             if (_gas == null || IsDead) return false;
-            var ability = FindAbilityByTag(CombatGameplayTags.Ability_Born);
+            var ability = FindAbility<BornAbilityDefinition>();
             return ability != null && _gas.ActivateAbility(ability) != null;
         }
 
@@ -234,8 +215,8 @@ namespace BattleCommon
 
         public bool TryActivateDeathAbility(CombatActor killer)
         {
-            if (_gas == null || IsDead) return false;
-            var ability = FindAbilityByTag(CombatGameplayTags.Ability_Death);
+            if (_gas == null) return false;
+            var ability = FindAbility<DeathAbilityDefinition>();
             return ability != null && _gas.ActivateAbility(ability, killer?.Get<CombatAbilityComponent>()?.GAS) != null;
         }
 
@@ -246,13 +227,30 @@ namespace BattleCommon
             return ability != null && _gas.ActivateAbility(ability) != null;
         }
 
+        public bool TryBlockIncomingDamage(DamageBlockContext blockContext)
+        {
+            if (_gas?.Abilities == null || blockContext == null)
+                return false;
+
+            foreach (var ability in _gas.Abilities.GrantedAbilities)
+            {
+                if (ability is DamageBlockAbilityDefinition blockAbility &&
+                    blockAbility.TryActivateBlock(_gas, blockContext))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public override void Update(float deltaTime) => _gas?.Tick(deltaTime);
 
-        private GameplayAbilityDefinition FindAbilityByTag(GameplayTag tag)
+        private T FindAbility<T>() where T : GameplayAbilityDefinition
         {
             if (_gas?.Abilities == null) return null;
             foreach (var ability in _gas.Abilities.GrantedAbilities)
-                if (ability.AbilityTag == tag) return ability;
+                if (ability is T typedAbility) return typedAbility;
             return null;
         }
 
@@ -277,7 +275,8 @@ namespace BattleCommon
                 }
             }
 
-            return FindAbilityByTag(CombatGameplayTags.Ability_Attack);
+            return (GameplayAbilityDefinition)FindAbility<MeleeAttackAbilityDefinition>() ??
+                   FindAbility<RemoteAttackAbilityDefinition>();
         }
 
         public override void DeactivateForPool()

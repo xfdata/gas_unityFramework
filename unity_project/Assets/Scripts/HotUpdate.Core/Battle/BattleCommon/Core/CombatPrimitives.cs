@@ -26,12 +26,4 @@ namespace BattleCommon
         public const int DamageUp1 = 14;
         public const int DamageUp2 = 15;
     }
-
-    public static class CombatAbilityIds
-    {
-        public const int Born = 1001;
-        public const int Attack = 1002;
-        public const int Death = 1003;
-        public const int Skill = 2001;
-    }
 }

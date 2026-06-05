@@ -32,6 +32,9 @@ public sealed class GameplayTagDatabaseEditor : UnityEditor.Editor
         if (DB == null)
             return;
 
+        DrawGeneratedCodePath();
+        GUILayout.Space(4);
+
         DrawToolbar();
 
         GUILayout.Space(2);
@@ -77,6 +80,13 @@ public sealed class GameplayTagDatabaseEditor : UnityEditor.Editor
 
             treeView.searchString = searchField.OnToolbarGUI(treeView.searchString);
         }
+    }
+
+    private void DrawGeneratedCodePath()
+    {
+        serializedObject.Update();
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("generatedCodePath"));
+        serializedObject.ApplyModifiedProperties();
     }
 
     private void DrawBottomBar()

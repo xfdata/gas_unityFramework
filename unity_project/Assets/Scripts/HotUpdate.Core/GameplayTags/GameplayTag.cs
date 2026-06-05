@@ -44,7 +44,7 @@ public struct GameplayTag : IEquatable<GameplayTag>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Value, Mask);
+        return unchecked((value * 397) ^ mask);
     }
 
     public static bool operator ==(GameplayTag left, GameplayTag right)

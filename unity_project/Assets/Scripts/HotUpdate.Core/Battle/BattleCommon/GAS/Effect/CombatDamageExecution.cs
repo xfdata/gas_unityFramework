@@ -9,6 +9,8 @@ namespace BattleCommon
         public const int Attack = 2;
         public const int DamageUp1 = 3;
         public const int DamageUp2 = 4;
+        public const int BlockedDamage = 5;
+        public const int FinalDamage = 6;
     }
 
     [CreateAssetMenu(menuName = "BattleCommon/GAS/Execution/Damage")]
@@ -38,7 +40,28 @@ namespace BattleCommon
                 target.GetAttribute(CombatAttributeIds.Defense) -
                 target.GetAttribute(CombatAttributeIds.AbsoluteReduce));
 
+            damage = ApplyDamageBlock(spec, damage);
+            spec.SetByCaller(CombatDamageKeys.FinalDamage, damage);
+
+            if (damage <= 0f)
+                return;
+
             target.SetBaseValue(CombatAttributeIds.HP, Mathf.Max(0f, hp - damage));
+        }
+
+        private float ApplyDamageBlock(GameplayEffectSpec spec, float damage)
+        {
+            var targetActor = spec.Target?.AttributeOwner as CombatActor;
+            var ability = targetActor?.Get<CombatAbilityComponent>();
+            if (ability == null || damage <= 0f)
+                return damage;
+
+            var blockContext = new DamageBlockContext(spec, spec.Source, spec.Target, damage);
+            if (!ability.TryBlockIncomingDamage(blockContext))
+                return damage;
+
+            spec.SetByCaller(CombatDamageKeys.BlockedDamage, blockContext.BlockedDamage);
+            return blockContext.RemainingDamage;
         }
     }
 }

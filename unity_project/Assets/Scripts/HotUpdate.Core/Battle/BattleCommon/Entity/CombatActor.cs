@@ -5,10 +5,11 @@ using BattleFoundation;
 using GAS;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.Timeline;
 
 namespace BattleCommon
 {
-    public class CombatActor : BattleEntity, IGameplayAttributeOwner, IGameplayAttributeSetProvider, ICombatTarget, IMeleeSource, IAnimancerProvider, ITimelineProvider
+    public class CombatActor : BattleEntity, IGameplayAttributeOwner, IGameplayAttributeSetProvider, ICombatTarget, IMeleeSource, IAbilityAnimationProvider
     {
         private readonly List<IRangedTarget> _meleeTargetCache = new List<IRangedTarget>(16);
         private AnimancerComponent _animancer;
@@ -20,6 +21,7 @@ namespace BattleCommon
         public Transform Transform { get; set; }
         public Animator Animator { get; set; }
         public ICombatAbilityServices AbilityServices { get; set; }
+        public ClipTransition AttackClip { get; protected set; }
         public Vector3 SpawnPosition
         {
             get => _spawnPosition;
@@ -79,27 +81,29 @@ namespace BattleCommon
             }
         }
 
-        public void ApplyLoadout(CombatLoadoutDefinition loadout)
-        {
-            if (loadout == null) return;
-
-            HitRadius = loadout.HitRadius;
-            var attributes = Get<CombatAttributeComponent>();
-            attributes?.ApplyLoadout(loadout);
-
-            var ability = Get<CombatAbilityComponent>();
-            ability?.SetInitialAbilities(loadout.Abilities);
-
-            var ai = Get<CombatAIComponent>();
-            ai?.SetProfile(loadout.AIProfile);
-        }
-
         public IReadOnlyList<IRangedTarget> GetMeleeTargets(MeleeHitDefinition hitDefinition)
         {
             _meleeTargetCache.Clear();
             var query = Engine?.Context?.GetSystem<CombatTargetQuerySystem>();
             query?.FindMeleeTargets(this, hitDefinition, _meleeTargetCache);
             return _meleeTargetCache;
+        }
+
+        public virtual ClipTransition GetAbilityMontage(GameplayAbilityDefinition ability)
+        {
+            if (!IsAttackAbility(ability) || !IsValidClip(AttackClip))
+                return null;
+
+            return AttackClip;
+        }
+
+        public virtual TimelineAsset GetAbilityTimeline(GameplayAbilityDefinition ability)
+        {
+            return null;
+        }
+
+        public virtual void BeginDeathFadeOut(float duration)
+        {
         }
 
         public void MoveTo(Vector3 destination)
@@ -117,6 +121,31 @@ namespace BattleCommon
             base.DeactivateForPool();
             _animancer = null;
             _director = null;
+            AttackClip = null;
+        }
+
+        protected static bool IsAttackAbility(GameplayAbilityDefinition ability)
+        {
+            return ability != null &&
+                   (ability is MeleeAttackAbilityDefinition ||
+                    ability is RemoteAttackAbilityDefinition);
+        }
+
+        protected static bool IsBornAbility(GameplayAbilityDefinition ability)
+        {
+            return ability != null &&
+                   ability is BornAbilityDefinition;
+        }
+
+        protected static bool IsDeathAbility(GameplayAbilityDefinition ability)
+        {
+            return ability != null &&
+                   ability is DeathAbilityDefinition;
+        }
+
+        protected static bool IsValidClip(ClipTransition clip)
+        {
+            return clip != null && clip.Clip != null;
         }
 
         private AnimancerComponent ResolveAnimancer()
@@ -144,6 +173,7 @@ namespace BattleCommon
             _animancer = null;
             _director = null;
             AbilityServices = null;
+            AttackClip = null;
             base.OnDispose();
         }
     }

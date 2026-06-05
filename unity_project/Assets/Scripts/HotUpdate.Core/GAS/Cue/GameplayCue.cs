@@ -65,7 +65,7 @@ namespace GAS
         public GameplayCueNotify Notify;
     }
 
-    [CreateAssetMenu(menuName = "PVE/GAS/Gameplay Cue Set")]
+    [CreateAssetMenu(menuName = "PVE/GAS/游戏提示集")]
     public class GameplayCueSet : ScriptableObject
     {
         public List<GameplayCueEntry> Entries = new List<GameplayCueEntry>();

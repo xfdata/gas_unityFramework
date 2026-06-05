@@ -4,6 +4,8 @@ namespace GAS
 {
     public class ActiveGameplayEffect
     {
+        private readonly List<AttributeModifierHandle> _modifierHandles = new List<AttributeModifierHandle>();
+
         public int RuntimeEffectId;
 
         public GameplayEffectSpec Spec { get; }
@@ -12,21 +14,34 @@ namespace GAS
         public float PeriodLeft;
         public int Stack;
 
-        public readonly List<AttributeModifierHandle> ModifierHandles = new List<AttributeModifierHandle>();
+        public readonly bool HasAnyCue;
+        public readonly bool HasWhileActiveCue;
+        public readonly bool HasDuration;
+        public readonly bool HasPeriod;
+        public readonly bool IsInfinite;
+
+        public IReadOnlyList<AttributeModifierHandle> ModifierHandles => _modifierHandles;
 
         public GameplayEffectDefinition Definition => Spec.Asset;
 
-        public int RuntimeId
+        public bool IsExpired => HasDuration && TimeLeft <= 0f;
+
+        internal void AddModifierHandle(AttributeModifierHandle handle)
         {
-            get => RuntimeEffectId;
-            set => RuntimeEffectId = value;
+            _modifierHandles.Add(handle);
         }
 
-        public bool IsInfinite => Definition.DurationPolicy == GameplayEffectDurationPolicy.Infinite;
+        internal void ClearModifierHandles()
+        {
+            _modifierHandles.Clear();
+        }
 
-        public bool IsExpired =>
-            Definition.DurationPolicy == GameplayEffectDurationPolicy.Duration &&
-            TimeLeft <= 0f;
+        internal AttributeModifierHandle GetModifierHandleAt(int index)
+        {
+            return _modifierHandles[index];
+        }
+
+        internal int ModifierHandleCount => _modifierHandles.Count;
 
         public ActiveGameplayEffectState CaptureState()
         {
@@ -60,6 +75,27 @@ namespace GAS
             TimeLeft = timeLeft;
             PeriodLeft = periodLeft;
             Stack = spec != null ? spec.Stack : 1;
+
+            var asset = spec?.Asset;
+            var durationPolicy = asset != null ? asset.DurationPolicy : GameplayEffectDurationPolicy.Instant;
+            HasDuration = durationPolicy == GameplayEffectDurationPolicy.Duration;
+            IsInfinite = durationPolicy == GameplayEffectDurationPolicy.Infinite;
+            HasPeriod = spec != null && spec.Period > 0f;
+
+            var cues = asset?.Cues;
+            if (cues != null && cues.Count > 0)
+            {
+                HasAnyCue = true;
+                for (int i = 0; i < cues.Count; i++)
+                {
+                    var cue = cues[i];
+                    if (cue != null && cue.Policy == GameplayCuePolicy.Active)
+                    {
+                        HasWhileActiveCue = true;
+                        break;
+                    }
+                }
+            }
 
             if (Spec != null)
             {

@@ -30,6 +30,7 @@ namespace GAS
         MeleeWindowEnded,
         RestoreEffectSkipped,
         RestoreAbilitySkipped,
+        DamageBlocked,
     }
 
     public struct GameplayEffectEvent

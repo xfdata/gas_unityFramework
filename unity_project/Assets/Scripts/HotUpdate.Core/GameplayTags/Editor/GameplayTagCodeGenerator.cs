@@ -17,7 +17,7 @@ public static class GameplayTagCodeGenerator
         public SortedDictionary<string, TagNode> Children = new(StringComparer.Ordinal);
     }
 
-    private const string OutputPathPattern = "Assets/Scripts/HotUpdate.Core/GameplayTags/{0}Def.gen.cs";
+    private const string DefaultOutputPathPattern = "Assets/Scripts/HotUpdate.Core/GameplayTags/{0}Def.gen.cs";
 
     public static void BuildGameplayTags(GameplayTagDatabase db)
     {
@@ -25,7 +25,7 @@ public static class GameplayTagCodeGenerator
             throw new ArgumentNullException(nameof(db));
 
         string className = ToCSharpIdentifier(db.name, "GameplayTags");
-        string buildPath = string.Format(OutputPathPattern, className);
+        string buildPath = ResolveOutputPath(db, className);
 
         string directory = Path.GetDirectoryName(buildPath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -169,7 +169,7 @@ public static class GameplayTagCodeGenerator
             throw new ArgumentNullException(nameof(db));
 
         string className = ToCSharpIdentifier(db.name, "GameplayTags");
-        string filePath = string.Format(OutputPathPattern, className);
+        string filePath = ResolveOutputPath(db, className);
 
         if (!File.Exists(filePath))
         {
@@ -227,6 +227,19 @@ public static class GameplayTagCodeGenerator
             mask |= 0xFFu << shift;
             shift -= 8;
         }
+    }
+
+    private static string ResolveOutputPath(GameplayTagDatabase db, string className)
+    {
+        string configuredPath = db.GeneratedCodePath;
+        if (string.IsNullOrWhiteSpace(configuredPath))
+            return string.Format(DefaultOutputPathPattern, className);
+
+        configuredPath = configuredPath.Trim().Replace('\\', '/');
+        if (configuredPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            return configuredPath.Replace("{0}", className);
+
+        return Path.Combine(configuredPath, $"{className}Def.gen.cs").Replace('\\', '/');
     }
 
     private static string ToCSharpIdentifier(string raw, string fallback)

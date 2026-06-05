@@ -1,3 +1,4 @@
+using Animancer;
 using UnityEngine;
 using UnityEngine.Timeline;
 
@@ -10,7 +11,7 @@ namespace GAS
 
         [Header("Animation")]
         [Tooltip("攻击动画片段（使用 Animancer 播放）")]
-        public AnimationClip AttackClip;
+        public ClipTransition AttackClip;
 
         [Tooltip("动画过渡时间")]
         [Min(0f)]
@@ -38,17 +39,19 @@ namespace GAS
 
             StartDelayedEffects(spec);
 
-            var timelineProvider = spec.Source?.AttributeOwner as ITimelineProvider;
-            if (AttackTimeline != null && timelineProvider?.Director != null)
+            var animationProvider = ResolveAnimationProvider(spec);
+            var attackTimeline = ResolveAbilityTimeline(animationProvider);
+            if (attackTimeline != null && animationProvider?.Director != null)
             {
-                ActivateTimelineMelee(spec, timelineProvider);
+                ActivateTimelineMelee(spec, attackTimeline);
                 return;
             }
 
+            var attackClip = ResolveAbilityMontage(animationProvider);
             var meleeProvider = spec.Source?.AttributeOwner as IMeleeAttackSourceProvider;
             if (meleeProvider != null)
             {
-                ActivateSynchronizedMelee(spec, meleeProvider);
+                ActivateSynchronizedMelee(spec, meleeProvider, attackClip);
                 return;
             }
 
@@ -57,7 +60,8 @@ namespace GAS
 
         private void ActivateSynchronizedMelee(
             GameplayAbilitySpec spec,
-            IMeleeAttackSourceProvider meleeProvider)
+            IMeleeAttackSourceProvider meleeProvider,
+            ClipTransition attackClip)
         {
             if (DamageEffect == null || HitDefinition == null)
             {
@@ -80,13 +84,13 @@ namespace GAS
                 return true;
             }
 
-            if (AttackClip == null)
+            if (!IsValidClip(attackClip))
             {
                 ApplyHit();
                 return;
             }
 
-            var montageTask = spec.AddTask(new AbilityTaskPlayMontage(AttackClip, TransitionDuration, task =>
+            var montageTask = spec.AddTask(new AbilityTaskPlayMontage(attackClip, TransitionDuration, task =>
             {
                 if (spec.IsEnded)
                     return;
@@ -110,9 +114,21 @@ namespace GAS
             }
         }
 
+        private ClipTransition ResolveAbilityMontage(IAbilityAnimationProvider animationProvider)
+        {
+            return IsValidClip(AttackClip)
+                ? AttackClip
+                : animationProvider?.GetAbilityMontage(this);
+        }
+
+        private static bool IsValidClip(ClipTransition clip)
+        {
+            return clip != null && clip.Clip != null;
+        }
+
         private void ActivateTimelineMelee(
             GameplayAbilitySpec spec,
-            ITimelineProvider timelineProvider)
+            TimelineAsset attackTimeline)
         {
             if (DamageEffect == null || HitDefinition == null)
             {
@@ -142,7 +158,7 @@ namespace GAS
                 return true;
             }
 
-            var timelineTask = spec.AddTask(new AbilityTaskPlayTimeline(AttackTimeline, task =>
+            var timelineTask = spec.AddTask(new AbilityTaskPlayTimeline(attackTimeline, task =>
             {
                 if (spec.IsEnded)
                     return;
@@ -163,6 +179,18 @@ namespace GAS
             {
                 ApplyHit();
             }
+        }
+
+        private TimelineAsset ResolveAbilityTimeline(IAbilityAnimationProvider animationProvider)
+        {
+            return AttackTimeline != null
+                ? AttackTimeline
+                : animationProvider?.GetAbilityTimeline(this);
+        }
+
+        private static IAbilityAnimationProvider ResolveAnimationProvider(GameplayAbilitySpec spec)
+        {
+            return spec?.Source?.AttributeOwner as IAbilityAnimationProvider;
         }
     }
 }

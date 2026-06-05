@@ -17,9 +17,10 @@ namespace GAS
 
         private bool isInitialized;
 
-        public GameplayAbilitySystem()
-        {
-        }
+#if UNITY_EDITOR
+        private static readonly List<GameplayAbilitySystem> _editorInstances = new List<GameplayAbilitySystem>();
+        internal static IReadOnlyList<GameplayAbilitySystem> EditorInstances => _editorInstances;
+#endif
 
         public GameplayAbilitySystem(
             long entityId,
@@ -53,7 +54,7 @@ namespace GAS
             }
         }
 
-        public virtual void Initialize(
+        private void Initialize(
             long entityId,
             IGameplayAttributeOwner attributeOwner,
             IGameplayEffectRuntimeContext context = null,
@@ -85,6 +86,11 @@ namespace GAS
             effectRuntime.Initialize(entityId, attributeOwner, runtimeContext);
             abilityRuntime.Initialize(effectRuntime);
             isInitialized = true;
+
+#if UNITY_EDITOR
+            if (!_editorInstances.Contains(this))
+                _editorInstances.Add(this);
+#endif
         }
 
         public void SetCueManager(IGameplayCueManager cueManager)
@@ -98,6 +104,9 @@ namespace GAS
 
         public virtual void Dispose()
         {
+#if UNITY_EDITOR
+            _editorInstances.Remove(this);
+#endif
             abilityRuntime?.Dispose();
             effectRuntime?.Dispose();
             isInitialized = false;
@@ -411,30 +420,29 @@ namespace GAS
             }
         }
 
-        private Dictionary<GameplayTag, int> CaptureActiveEffectGrantedTagCounts()
+        private static Dictionary<GameplayTag, int> CountTagOccurrences<T>(
+            IReadOnlyList<T> items,
+            Func<T, IReadOnlyList<GameplayTag>> tagSelector)
         {
-            if (effectRuntime?.ActiveEffects == null || effectRuntime.ActiveEffects.Count == 0)
+            if (items == null || items.Count == 0)
                 return null;
 
             Dictionary<GameplayTag, int> counts = null;
-            var activeEffects = effectRuntime.ActiveEffects;
 
-            for (int i = 0; i < activeEffects.Count; i++)
+            for (int i = 0; i < items.Count; i++)
             {
-                var grantedTags = activeEffects[i]?.Definition?.GrantedTags?.Tags;
-                if (grantedTags == null)
+                var tags = tagSelector(items[i]);
+                if (tags == null)
                     continue;
 
-                for (int j = 0; j < grantedTags.Count; j++)
+                for (int j = 0; j < tags.Count; j++)
                 {
-                    var tag = grantedTags[j];
+                    var tag = tags[j];
                     if (!tag.IsValid)
                         continue;
 
                     if (counts == null)
-                    {
                         counts = new Dictionary<GameplayTag, int>();
-                    }
 
                     counts.TryGetValue(tag, out int count);
                     counts[tag] = count + 1;
@@ -444,37 +452,18 @@ namespace GAS
             return counts;
         }
 
+        private Dictionary<GameplayTag, int> CaptureActiveEffectGrantedTagCounts()
+        {
+            return CountTagOccurrences(
+                effectRuntime?.ActiveEffects,
+                active => active?.Definition?.GrantedTags?.Tags);
+        }
+
         private Dictionary<GameplayTag, int> CaptureActiveAbilityOwnedTagCounts()
         {
-            if (abilityRuntime?.ActiveAbilities == null || abilityRuntime.ActiveAbilities.Count == 0)
-                return null;
-
-            Dictionary<GameplayTag, int> counts = null;
-            var activeAbilities = abilityRuntime.ActiveAbilities;
-
-            for (int i = 0; i < activeAbilities.Count; i++)
-            {
-                var ownedTags = activeAbilities[i]?.Ability?.ActivationOwnedTags?.Tags;
-                if (ownedTags == null)
-                    continue;
-
-                for (int j = 0; j < ownedTags.Count; j++)
-                {
-                    var tag = ownedTags[j];
-                    if (!tag.IsValid)
-                        continue;
-
-                    if (counts == null)
-                    {
-                        counts = new Dictionary<GameplayTag, int>();
-                    }
-
-                    counts.TryGetValue(tag, out int count);
-                    counts[tag] = count + 1;
-                }
-            }
-
-            return counts;
+            return CountTagOccurrences(
+                abilityRuntime?.ActiveAbilities,
+                spec => spec?.Ability?.ActivationOwnedTags?.Tags);
         }
 
         private AttributeSetState CaptureAttributeSetState()

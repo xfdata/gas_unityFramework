@@ -25,10 +25,55 @@ namespace BattleFoundation
         {
             public readonly Type PayloadType;
             public readonly List<Delegate> Handlers = new List<Delegate>();
+            private Delegate[] _cachedArray = Array.Empty<Delegate>();
+            private int _cachedCount;
+            private int _activeSnapshots;
+            private bool _needsRebuild = true;
 
             public HandlerSet(Type payloadType)
             {
                 PayloadType = payloadType;
+            }
+
+            public Delegate[] GetCachedHandlers(out int count)
+            {
+                if (_needsRebuild)
+                {
+                    RebuildCache();
+                    _needsRebuild = false;
+                }
+                count = _cachedCount;
+                _activeSnapshots++;
+                return _cachedArray;
+            }
+
+            public void ReleaseCachedHandlers()
+            {
+                _activeSnapshots--;
+            }
+
+            public void InvalidateCache() => _needsRebuild = true;
+
+            private void RebuildCache()
+            {
+                int newCount = Handlers.Count;
+                if (_activeSnapshots > 0)
+                {
+                    var nextArray = newCount == 0 ? Array.Empty<Delegate>() : new Delegate[newCount * 2];
+                    Handlers.CopyTo(nextArray);
+                    _cachedArray = nextArray;
+                    _cachedCount = newCount;
+                    return;
+                }
+
+                int oldCount = _cachedCount;
+                if (_cachedArray.Length < newCount)
+                    _cachedArray = new Delegate[newCount * 2];
+
+                Handlers.CopyTo(_cachedArray);
+                if (oldCount > newCount)
+                    Array.Clear(_cachedArray, newCount, oldCount - newCount);
+                _cachedCount = newCount;
             }
         }
 
@@ -37,7 +82,9 @@ namespace BattleFoundation
         public void On<T>(int eventId, Action<T> handler)
         {
             if (handler == null) return;
-            GetOrCreate<T>(eventId).Handlers.Add(handler);
+            var set = GetOrCreate<T>(eventId);
+            set.Handlers.Add(handler);
+            set.InvalidateCache();
         }
 
         public void Off<T>(int eventId, Action<T> handler)
@@ -46,7 +93,12 @@ namespace BattleFoundation
                 return;
 
             EnsurePayloadType<T>(eventId, set);
-            set.Handlers.Remove(handler);
+            int index = set.Handlers.IndexOf(handler);
+            if (index >= 0)
+            {
+                set.Handlers.RemoveAt(index);
+                set.InvalidateCache();
+            }
             if (set.Handlers.Count == 0)
                 _handlers.Remove(eventId);
         }
@@ -57,17 +109,24 @@ namespace BattleFoundation
                 return;
 
             EnsurePayloadType<T>(eventId, set);
-            var handlers = set.Handlers.ToArray();
-            for (int i = 0; i < handlers.Length; i++)
+            var handlers = set.GetCachedHandlers(out int count);
+            try
             {
-                try
+                for (int i = 0; i < count; i++)
                 {
-                    ((Action<T>)handlers[i]).Invoke(data);
+                    try
+                    {
+                        ((Action<T>)handlers[i]).Invoke(data);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
+                    }
                 }
-                catch (Exception e)
-                {
-                    Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
-                }
+            }
+            finally
+            {
+                set.ReleaseCachedHandlers();
             }
         }
 

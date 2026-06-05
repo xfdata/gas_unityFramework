@@ -8,10 +8,14 @@ public sealed class GameplayTagDatabase : ScriptableObject
 {
     private const int MaxDepth = 4;
 
+    [SerializeField]
+    private string generatedCodePath = "";
+
     [FormerlySerializedAs("Tags")]
     [SerializeField]
     private List<string> tags = new();
 
+    public string GeneratedCodePath => generatedCodePath;
     public IReadOnlyList<string> Tags => tags;
 
     public bool Contains(string tag)

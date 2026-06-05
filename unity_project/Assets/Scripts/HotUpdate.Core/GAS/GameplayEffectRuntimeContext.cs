@@ -194,10 +194,10 @@ namespace GAS
             if (!subscribers.TryGetValue(gameplayEvent.Type, out var handlers))
                 return;
 
-            var snapshot = handlers.ToArray();
-            for (int i = 0; i < snapshot.Length; i++)
+            for (int i = handlers.Count - 1; i >= 0; i--)
             {
-                snapshot[i]?.Invoke(gameplayEvent);
+                if (i < handlers.Count)
+                    handlers[i]?.Invoke(gameplayEvent);
             }
         }
     }

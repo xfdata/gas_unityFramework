@@ -64,11 +64,6 @@ namespace GAS
             return states;
         }
 
-        public virtual void Initialize(IGameplayAttributeOwner attributeOwner)
-        {
-            Initialize(EntityId, attributeOwner, runtimeContext);
-        }
-
         public void Initialize(
             long entityId,
             IGameplayAttributeOwner attributeOwner,
@@ -249,13 +244,7 @@ namespace GAS
 
             for (int i = activeEffects.Count - 1; i >= 0; i--)
             {
-                var assetTag = activeEffects[i].Definition.EffectTag;
-
-                bool matched = includeChildren
-                    ? assetTag.Matches(effectTag)
-                    : assetTag == effectTag;
-
-                if (!matched)
+                if (!MatchesEffectTag(activeEffects[i].Definition.EffectTag, effectTag, includeChildren))
                     continue;
 
                 RemoveActiveEffectAt(i);
@@ -272,13 +261,7 @@ namespace GAS
 
             for (int i = 0; i < activeEffects.Count; i++)
             {
-                var assetTag = activeEffects[i].Definition.EffectTag;
-
-                bool matched = includeChildren
-                    ? assetTag.Matches(effectTag)
-                    : assetTag == effectTag;
-
-                if (matched)
+                if (MatchesEffectTag(activeEffects[i].Definition.EffectTag, effectTag, includeChildren))
                     return true;
             }
 
@@ -306,13 +289,7 @@ namespace GAS
 
             for (int i = 0; i < activeEffects.Count; i++)
             {
-                var assetTag = activeEffects[i].Definition.EffectTag;
-
-                bool matched = includeChildren
-                    ? assetTag.Matches(effectTag)
-                    : assetTag == effectTag;
-
-                if (matched)
+                if (MatchesEffectTag(activeEffects[i].Definition.EffectTag, effectTag, includeChildren))
                     return activeEffects[i];
             }
 
@@ -351,11 +328,9 @@ namespace GAS
             for (int i = activeEffects.Count - 1; i >= 0; i--)
             {
                 var active = activeEffects[i];
-                var asset = active.Definition;
-                var spec = active.Spec;
                 float effectDeltaTime = deltaTime;
 
-                if (asset.DurationPolicy == GameplayEffectDurationPolicy.Duration)
+                if (active.HasDuration)
                 {
                     effectDeltaTime = active.TimeLeft > 0f
                         ? Math.Min(deltaTime, active.TimeLeft)
@@ -363,12 +338,12 @@ namespace GAS
                     active.TimeLeft -= deltaTime;
                 }
 
-                if (spec.Period > 0f && effectDeltaTime > 0f)
+                if (active.HasPeriod && effectDeltaTime > 0f)
                 {
                     active.PeriodLeft -= effectDeltaTime;
-
+                    var spec = active.Spec;
                     int periodLoops = 0;
-                    const int maxPeriodLoopsPerTick = 32;
+                    const int maxPeriodLoopsPerTick = 64;
 
                     while (active.PeriodLeft <= 0f && periodLoops < maxPeriodLoopsPerTick)
                     {
@@ -376,11 +351,13 @@ namespace GAS
                         periodLoops++;
 
                         ExecuteEffect(spec, active.RuntimeEffectId);
-                        SendCues(spec, GameplayCueEventType.Execute, active.RuntimeEffectId, 0f);
+                        if (active.HasAnyCue)
+                            SendCues(spec, GameplayCueEventType.Execute, active.RuntimeEffectId, 0f);
                     }
                 }
 
-                SendCues(spec, GameplayCueEventType.WhileActive, active.RuntimeEffectId, 0f);
+                if (active.HasWhileActiveCue)
+                    SendCues(active.Spec, GameplayCueEventType.WhileActive, active.RuntimeEffectId, 0f);
 
                 if (active.IsExpired)
                 {
@@ -653,7 +630,7 @@ namespace GAS
 
                 if (handle.IsValid)
                 {
-                    active.ModifierHandles.Add(handle);
+                    active.AddModifierHandle(handle);
                     RecordEffectEvent(
                         active.Spec,
                         GameplayEffectEventType.ModifierAdded,
@@ -671,16 +648,16 @@ namespace GAS
             if (AttributeOwner == null)
                 return;
 
-            for (int i = 0; i < active.ModifierHandles.Count; i++)
+            for (int i = 0; i < active.ModifierHandleCount; i++)
             {
                 RecordEffectEvent(
                     active.Spec,
                     GameplayEffectEventType.ModifierRemoved,
                     active.RuntimeEffectId);
-                AttributeOwner.RemoveModifier(active.ModifierHandles[i]);
+                AttributeOwner.RemoveModifier(active.GetModifierHandleAt(i));
             }
 
-            active.ModifierHandles.Clear();
+            active.ClearModifierHandles();
         }
 
         private void AddGrantedTags(ActiveGameplayEffect active)
@@ -725,12 +702,15 @@ namespace GAS
 
         private void RemoveActiveEffectAt(int index)
         {
+            if (index < 0 || index >= activeEffects.Count)
+                return;
             var active = activeEffects[index];
 
             RemovePersistentModifiers(active);
             RemoveGrantedTags(active);
 
-            SendCues(active.Spec, GameplayCueEventType.Removed, active.RuntimeEffectId, 0f);
+            if (active.HasAnyCue)
+                SendCues(active.Spec, GameplayCueEventType.Removed, active.RuntimeEffectId, 0f);
             RecordEffectEvent(active.Spec, GameplayEffectEventType.EffectRemoved, active.RuntimeEffectId);
 
             if (deterministicMode)
@@ -740,12 +720,6 @@ namespace GAS
             }
 
             int last = activeEffects.Count - 1;
-            if (index == last)
-            {
-                activeEffects.RemoveAt(last);
-                return;
-            }
-
             activeEffects[index] = activeEffects[last];
             activeEffects.RemoveAt(last);
         }
@@ -858,6 +832,26 @@ namespace GAS
             return runtimeContext;
         }
 
+        private static bool MatchesEffectTag(GameplayTag assetTag, GameplayTag queryTag, bool includeChildren)
+        {
+            return includeChildren ? assetTag.Matches(queryTag) : assetTag == queryTag;
+        }
+
+        private GameplayEffectEvent CreateBaseEvent(GameplayEffectSpec spec, GameplayEffectEventType type, int runtimeEffectId)
+        {
+            return new GameplayEffectEvent
+            {
+                Frame = RuntimeContext.CurrentFrame,
+                Type = type,
+                SourceEntityId = spec != null ? spec.SourceEntityId : 0,
+                TargetEntityId = spec != null ? spec.TargetEntityId : EntityId,
+                EffectId = spec != null && spec.Asset != null ? spec.Asset.EffectId : 0,
+                SpecId = spec != null ? spec.SpecId : 0,
+                RuntimeEffectId = runtimeEffectId,
+                Position = spec != null ? spec.Position : default,
+            };
+        }
+
         private void RecordEffectEvent(
             GameplayEffectSpec spec,
             GameplayEffectEventType type,
@@ -870,21 +864,12 @@ namespace GAS
             if (suppressRuntimeEvents)
                 return;
 
-            RuntimeContext.RecordEvent(new GameplayEffectEvent
-            {
-                Frame = RuntimeContext.CurrentFrame,
-                Type = type,
-                SourceEntityId = spec != null ? spec.SourceEntityId : 0,
-                TargetEntityId = spec != null ? spec.TargetEntityId : EntityId,
-                EffectId = spec != null && spec.Asset != null ? spec.Asset.EffectId : 0,
-                SpecId = spec != null ? spec.SpecId : 0,
-                RuntimeEffectId = runtimeEffectId,
-                AttributeId = attributeId,
-                OldValue = oldValue,
-                NewValue = newValue,
-                Delta = delta,
-                Position = spec != null ? spec.Position : default,
-            });
+            var evt = CreateBaseEvent(spec, type, runtimeEffectId);
+            evt.AttributeId = attributeId;
+            evt.OldValue = oldValue;
+            evt.NewValue = newValue;
+            evt.Delta = delta;
+            RuntimeContext.RecordEvent(evt);
         }
 
         private void RecordEffectEvent(
@@ -896,20 +881,9 @@ namespace GAS
             if (suppressRuntimeEvents)
                 return;
 
-            var gameplayEvent = new GameplayEffectEvent
-            {
-                Frame = RuntimeContext.CurrentFrame,
-                Type = type,
-                SourceEntityId = spec != null ? spec.SourceEntityId : 0,
-                TargetEntityId = spec != null ? spec.TargetEntityId : EntityId,
-                EffectId = spec != null && spec.Asset != null ? spec.Asset.EffectId : 0,
-                SpecId = spec != null ? spec.SpecId : 0,
-                RuntimeEffectId = runtimeEffectId,
-                GameplayTag = gameplayTag,
-                Position = spec != null ? spec.Position : default,
-            };
-
-            RuntimeContext.RecordEvent(gameplayEvent);
+            var evt = CreateBaseEvent(spec, type, runtimeEffectId);
+            evt.GameplayTag = gameplayTag;
+            RuntimeContext.RecordEvent(evt);
         }
 
         private void RecordCueEvent(
@@ -921,19 +895,10 @@ namespace GAS
             if (suppressRuntimeEvents)
                 return;
 
-            RuntimeContext.RecordEvent(new GameplayEffectEvent
-            {
-                Frame = RuntimeContext.CurrentFrame,
-                Type = GameplayEffectEventType.CueTriggered,
-                SourceEntityId = spec != null ? spec.SourceEntityId : 0,
-                TargetEntityId = spec != null ? spec.TargetEntityId : EntityId,
-                EffectId = spec != null && spec.Asset != null ? spec.Asset.EffectId : 0,
-                SpecId = spec != null ? spec.SpecId : 0,
-                RuntimeEffectId = runtimeEffectId,
-                CueTag = cueTag,
-                Position = spec != null ? spec.Position : default,
-                Magnitude = magnitude,
-            });
+            var evt = CreateBaseEvent(spec, GameplayEffectEventType.CueTriggered, runtimeEffectId);
+            evt.CueTag = cueTag;
+            evt.Magnitude = magnitude;
+            RuntimeContext.RecordEvent(evt);
         }
 
         public virtual void RestoreActiveEffects(ActiveGameplayEffectState[] states, GameplayDefinitionCatalog catalog)

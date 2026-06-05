@@ -3,13 +3,14 @@
 
 public static class GameplayTags
 {
-    public static readonly GameplayTag GameType = new GameplayTag(0x01000000u, 0xFF000000u);
-    public static readonly GameplayTag GameType_City = new GameplayTag(0x01010000u, 0xFFFF0000u);
-    public static readonly GameplayTag GameType_City_Build = new GameplayTag(0x01010100u, 0xFFFFFF00u);
-    public static readonly GameplayTag GameType_City_InnerPVE = new GameplayTag(0x01010200u, 0xFFFFFF00u);
-    public static readonly GameplayTag GameType_Pve = new GameplayTag(0x01020000u, 0xFFFF0000u);
-    public static readonly GameplayTag GameType_World = new GameplayTag(0x01030000u, 0xFFFF0000u);
-    public static readonly GameplayTag Guide = new GameplayTag(0x02000000u, 0xFF000000u);
-    public static readonly GameplayTag UI = new GameplayTag(0x03000000u, 0xFF000000u);
-    public static readonly GameplayTag UI_Popup = new GameplayTag(0x03010000u, 0xFFFF0000u);
+    public static readonly GameplayTag GameType = new GameplayTag(0x01000000u, 0xFF000000u); // @Tag:GameType
+    public static readonly GameplayTag GameType_City = new GameplayTag(0x01010000u, 0xFFFF0000u); // @Tag:GameType.City
+    public static readonly GameplayTag GameType_City_Build = new GameplayTag(0x01010100u, 0xFFFFFF00u); // @Tag:GameType.City.Build
+    public static readonly GameplayTag GameType_City_InnerPVE = new GameplayTag(0x01010200u, 0xFFFFFF00u); // @Tag:GameType.City.InnerPVE
+    public static readonly GameplayTag GameType_NewPve = new GameplayTag(0x01020000u, 0xFFFF0000u); // @Tag:GameType.NewPve
+    public static readonly GameplayTag GameType_Pve = new GameplayTag(0x01030000u, 0xFFFF0000u); // @Tag:GameType.Pve
+    public static readonly GameplayTag GameType_World = new GameplayTag(0x01040000u, 0xFFFF0000u); // @Tag:GameType.World
+    public static readonly GameplayTag Guide = new GameplayTag(0x02000000u, 0xFF000000u); // @Tag:Guide
+    public static readonly GameplayTag UI = new GameplayTag(0x03000000u, 0xFF000000u); // @Tag:UI
+    public static readonly GameplayTag UI_Popup = new GameplayTag(0x03010000u, 0xFFFF0000u); // @Tag:UI.Popup
 }

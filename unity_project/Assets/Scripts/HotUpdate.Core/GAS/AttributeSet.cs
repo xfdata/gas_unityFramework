@@ -334,7 +334,7 @@ namespace GAS
                         Handle = modifier.Handle,
                         Op = modifier.Op,
                         Value = modifier.Value,
-                        Source = modifier.Source,
+                        Source = null,
                     });
                     modifierAttributeIds[modifier.Handle] = modifier.AttributeId;
                     MarkDirty(modifier.AttributeId);
@@ -353,13 +353,20 @@ namespace GAS
 
         protected virtual float CalculateCurrentValue(int attributeId)
         {
+            if (modifiers.TryGetValue(attributeId, out var list))
+            {
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    if (list[i].Op == AttributeModifierOp.Override)
+                        return ClampAttributeValue(attributeId, list[i].Value);
+                }
+            }
+
             var baseValue = GetBaseValue(attributeId);
             var additive = 0f;
             var multiplier = 1f;
-            var hasOverride = false;
-            var overrideValue = 0f;
 
-            if (modifiers.TryGetValue(attributeId, out var list))
+            if (list != null)
             {
                 for (int i = 0; i < list.Count; i++)
                 {
@@ -374,17 +381,11 @@ namespace GAS
                         case AttributeModifierOp.Multiply:
                             multiplier *= modifier.Value;
                             break;
-
-                        case AttributeModifierOp.Override:
-                            hasOverride = true;
-                            overrideValue = modifier.Value;
-                            break;
                     }
                 }
             }
 
-            var value = hasOverride ? overrideValue : (baseValue + additive) * multiplier;
-            return ClampAttributeValue(attributeId, value);
+            return ClampAttributeValue(attributeId, (baseValue + additive) * multiplier);
         }
 
         protected virtual float PreAttributeBaseChange(int attributeId, float newValue)
@@ -458,7 +459,7 @@ namespace GAS
                         Handle = modifier.Handle,
                         Op = modifier.Op,
                         Value = modifier.Value,
-                        Source = modifier.Source,
+                        SourceRuntimeEffectId = (modifier.Source as ActiveGameplayEffect)?.RuntimeEffectId ?? 0,
                     };
                 }
             }
@@ -576,6 +577,9 @@ namespace GAS
 
             public static void Release(List<T> list)
             {
+                if (list == null)
+                    return;
+
                 list.Clear();
                 Pool.Push(list);
             }
@@ -596,7 +600,7 @@ namespace GAS
         public AttributeModifierHandle Handle;
         public AttributeModifierOp Op;
         public float Value;
-        public object Source;
+        public int SourceRuntimeEffectId;
     }
 
     [Serializable]

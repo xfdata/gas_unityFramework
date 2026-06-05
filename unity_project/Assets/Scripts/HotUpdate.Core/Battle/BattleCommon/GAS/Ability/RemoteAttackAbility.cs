@@ -1,4 +1,6 @@
+using Animancer;
 using UnityEngine;
+using UnityEngine.Timeline;
 
 namespace GAS
 {
@@ -8,7 +10,8 @@ namespace GAS
         private const string DefaultFireEventName = "Fire";
 
         [Header("Animation")]
-        public AnimationClip AttackClip;
+        public ClipTransition AttackClip;
+        public TimelineAsset AttackTimeline;
 
         [Min(0f)]
         public float TransitionDuration = 0.1f;
@@ -34,8 +37,14 @@ namespace GAS
             if (RequireRangedWeapon && !sourceProvider.HasRangedWeapon)
                 return false;
 
-            if (ResolveProjectileDefinition(sourceProvider) == null || DamageEffect == null)
+            var projectileDef = ResolveProjectileDefinition(sourceProvider);
+            if (projectileDef == null || DamageEffect == null)
                 return false;
+
+            if (projectileDef.TargetType == ProjectileTargetType.PositionTarget)
+            {
+                return ResolveTargetPosition(spec).HasValue;
+            }
 
             var target = ResolveTarget(spec);
             return target != null && target.IsValidTarget && target.Effects != null;
@@ -51,13 +60,9 @@ namespace GAS
             StartDelayedEffects(spec);
 
             var sourceProvider = ResolveSourceProvider(spec);
-            var target = ResolveTarget(spec);
             var projectileDefinition = ResolveProjectileDefinition(sourceProvider);
 
             if (sourceProvider == null ||
-                target == null ||
-                !target.IsValidTarget ||
-                target.Effects == null ||
                 projectileDefinition == null ||
                 DamageEffect == null ||
                 sourceProvider.ProjectileRuntime == null ||
@@ -65,6 +70,30 @@ namespace GAS
             {
                 spec.EndAbility(GameplayAbilityEndReason.Failed);
                 return;
+            }
+
+            bool isPositionTarget = projectileDefinition.TargetType == ProjectileTargetType.PositionTarget;
+
+            IRangedTarget target = null;
+            Vector3? targetPosition = null;
+
+            if (isPositionTarget)
+            {
+                targetPosition = ResolveTargetPosition(spec);
+                if (!targetPosition.HasValue)
+                {
+                    spec.EndAbility(GameplayAbilityEndReason.Failed);
+                    return;
+                }
+            }
+            else
+            {
+                target = ResolveTarget(spec);
+                if (target == null || !target.IsValidTarget || target.Effects == null)
+                {
+                    spec.EndAbility(GameplayAbilityEndReason.Failed);
+                    return;
+                }
             }
 
             bool hasFired = false;
@@ -82,12 +111,48 @@ namespace GAS
                     projectileDefinition,
                     DamageEffect,
                     sourceProvider.FirePosition,
-                    target));
+                    isPositionTarget ? null : target,
+                    null,
+                    targetPosition));
 
                 return projectileTask != null && projectileTask.Handle.IsValid;
             }
 
-            if (AttackClip == null)
+            var animationProvider = ResolveAnimationProvider(spec);
+            var attackTimeline = ResolveAbilityTimeline(animationProvider);
+            if (attackTimeline != null && animationProvider?.Director != null)
+            {
+                var timelineTask = spec.AddTask(new AbilityTaskPlayTimeline(attackTimeline));
+                if (timelineTask == null || timelineTask.IsFinished)
+                {
+                    if (!FireProjectile())
+                    {
+                        spec.EndAbility(GameplayAbilityEndReason.Failed);
+                    }
+
+                    return;
+                }
+
+                bool registeredTimelineFireEvent = timelineTask.TryRegisterEvent(
+                    string.IsNullOrEmpty(FireEventName) ? DefaultFireEventName : FireEventName,
+                    () =>
+                    {
+                        if (!FireProjectile())
+                        {
+                            spec.EndAbility(GameplayAbilityEndReason.Failed);
+                        }
+                    });
+
+                if (!registeredTimelineFireEvent && !FireProjectile())
+                {
+                    spec.EndAbility(GameplayAbilityEndReason.Failed);
+                }
+
+                return;
+            }
+
+            var attackClip = ResolveAbilityMontage(animationProvider);
+            if (!IsValidClip(attackClip))
             {
                 if (!FireProjectile())
                 {
@@ -97,7 +162,7 @@ namespace GAS
                 return;
             }
 
-            var montageTask = spec.AddTask(new AbilityTaskPlayMontage(AttackClip, TransitionDuration));
+            var montageTask = spec.AddTask(new AbilityTaskPlayMontage(attackClip, TransitionDuration));
             if (montageTask == null || montageTask.IsFinished)
             {
                 if (!FireProjectile())
@@ -139,12 +204,47 @@ namespace GAS
             return spec?.Source?.AttributeOwner as IRangedAttackSourceProvider;
         }
 
+        private TimelineAsset ResolveAbilityTimeline(IAbilityAnimationProvider animationProvider)
+        {
+            return AttackTimeline != null
+                ? AttackTimeline
+                : animationProvider?.GetAbilityTimeline(this);
+        }
+
+        private ClipTransition ResolveAbilityMontage(IAbilityAnimationProvider animationProvider)
+        {
+            return IsValidClip(AttackClip)
+                ? AttackClip
+                : animationProvider?.GetAbilityMontage(this);
+        }
+
+        private static IAbilityAnimationProvider ResolveAnimationProvider(GameplayAbilitySpec spec)
+        {
+            return spec?.Source?.AttributeOwner as IAbilityAnimationProvider;
+        }
+
+        private static bool IsValidClip(ClipTransition clip)
+        {
+            return clip != null && clip.Clip != null;
+        }
+
         private static IRangedTarget ResolveTarget(GameplayAbilitySpec spec)
         {
             if (spec?.Target?.AttributeOwner is IRangedTarget target)
                 return target;
 
             return spec?.TriggerEventData.UserData as IRangedTarget;
+        }
+
+        private static Vector3? ResolveTargetPosition(GameplayAbilitySpec spec)
+        {
+            if (spec?.TriggerEventData.UserData is Vector3 position)
+                return position;
+
+            if (spec?.Target?.AttributeOwner is IRangedTarget rangedTarget)
+                return rangedTarget.Position;
+
+            return null;
         }
     }
 }

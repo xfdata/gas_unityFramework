@@ -15,7 +15,7 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
     private int _walkableAreaMask;
 
     private Queue<PathRequest> _requestQueue = new Queue<PathRequest>(32);
-    private ObjectPool<PathRequest> _requestPool = new ObjectPool<PathRequest>();
+    private Framework.ObjectPool<PathRequest> _requestPool = new Framework.ObjectPool<PathRequest>();
     private int _processPerFrame = 2;
     private float _updateInterval = 1f / 20f;
     private float _updateTimer;

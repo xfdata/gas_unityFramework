@@ -6,12 +6,6 @@ using UnityEngine.Timeline;
 
 namespace GAS
 {
-    // Timeline bridge kept outside individual gameplay worlds.
-    public interface ITimelineProvider
-    {
-        PlayableDirector Director { get; }
-    }
-
     public class AbilityTaskPlayTimeline : AbilityTask
     {
         private const string EnableCollisionEvent = "EnableCollision";
@@ -47,7 +41,7 @@ namespace GAS
 
         protected override void OnActivate()
         {
-            var provider = AbilitySpec?.Source?.AttributeOwner as ITimelineProvider;
+            var provider = AbilitySpec?.Source?.AttributeOwner as IAbilityAnimationProvider;
             if (provider == null || timelineAsset == null)
             {
                 EndTask();

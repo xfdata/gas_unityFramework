@@ -1,3 +1,4 @@
+using Animancer;
 using UnityEngine;
 using UnityEngine.Timeline;
 
@@ -11,11 +12,16 @@ namespace GAS
         public TimelineAsset BornTimeline;
 
         [Tooltip("出生 Animancer 动画片段（Timeline 不可用时使用）")]
-        public AnimationClip BornClip;
+        public ClipTransition BornClip;
 
         [Tooltip("动画过渡时间")]
         [Min(0f)]
         public float TransitionDuration = 0.1f;
+
+        [Header("Born Presentation")]
+        [Tooltip("Model fade-in duration when the born ability starts. Set to 0 to show immediately.")]
+        [Min(0f)]
+        public float FadeInDuration = 0.35f;
 
         [Header("Born Effects")]
         [Tooltip("出生时对自身施加的效果（如出场 Buff）")]
@@ -38,16 +44,18 @@ namespace GAS
             if (spec.IsEnded)
                 return;
 
-            var timelineProvider = spec.Source?.AttributeOwner as ITimelineProvider;
-            if (BornTimeline != null && timelineProvider?.Director != null)
+            var animationProvider = ResolveAnimationProvider(spec);
+            var bornTimeline = ResolveAbilityTimeline(animationProvider);
+            if (bornTimeline != null && animationProvider?.Director != null)
             {
-                ActivateTimelineBorn(spec, timelineProvider);
+                ActivateTimelineBorn(spec, bornTimeline);
                 return;
             }
 
-            if (BornClip != null)
+            var bornClip = ResolveAbilityMontage(animationProvider);
+            if (IsValidClip(bornClip))
             {
-                ActivateMontageBorn(spec);
+                ActivateMontageBorn(spec, bornClip);
                 return;
             }
 
@@ -64,9 +72,9 @@ namespace GAS
 
         private void ActivateTimelineBorn(
             GameplayAbilitySpec spec,
-            ITimelineProvider timelineProvider)
+            TimelineAsset bornTimeline)
         {
-            var timelineTask = spec.AddTask(new AbilityTaskPlayTimeline(BornTimeline, task =>
+            var timelineTask = spec.AddTask(new AbilityTaskPlayTimeline(bornTimeline, task =>
             {
                 if (spec.IsEnded)
                     return;
@@ -96,9 +104,9 @@ namespace GAS
             }
         }
 
-        private void ActivateMontageBorn(GameplayAbilitySpec spec)
+        private void ActivateMontageBorn(GameplayAbilitySpec spec, ClipTransition bornClip)
         {
-            var montageTask = spec.AddTask(new AbilityTaskPlayMontage(BornClip, TransitionDuration, task =>
+            var montageTask = spec.AddTask(new AbilityTaskPlayMontage(bornClip, TransitionDuration, task =>
             {
                 if (spec.IsEnded)
                     return;
@@ -126,6 +134,30 @@ namespace GAS
                 {
                 };
             }
+        }
+
+        private TimelineAsset ResolveAbilityTimeline(IAbilityAnimationProvider animationProvider)
+        {
+            return BornTimeline != null
+                ? BornTimeline
+                : animationProvider?.GetAbilityTimeline(this);
+        }
+
+        private ClipTransition ResolveAbilityMontage(IAbilityAnimationProvider animationProvider)
+        {
+            return IsValidClip(BornClip)
+                ? BornClip
+                : animationProvider?.GetAbilityMontage(this);
+        }
+
+        private static IAbilityAnimationProvider ResolveAnimationProvider(GameplayAbilitySpec spec)
+        {
+            return spec?.Source?.AttributeOwner as IAbilityAnimationProvider;
+        }
+
+        private static bool IsValidClip(ClipTransition clip)
+        {
+            return clip != null && clip.Clip != null;
         }
     }
 }

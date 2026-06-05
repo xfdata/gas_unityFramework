@@ -46,6 +46,7 @@ namespace GAS
     public enum RangedProjectileEndReason
     {
         Hit,
+        SweepCollided,
         Cancelled,
         TimedOut,
         TargetInvalid,
@@ -100,6 +101,7 @@ namespace GAS
     {
         public GameplayEffectRuntime Source;
         public IRangedTarget Target;
+        public Vector3? TargetPosition;
         public RangedProjectileDefinition Definition;
         public GameplayEffectDefinition DamageEffect;
         public int Level = 1;
@@ -125,11 +127,15 @@ namespace GAS
             if (runtime == null ||
                 request == null ||
                 request.Source == null ||
-                request.Target == null ||
                 request.Definition == null)
                 return RangedProjectileHandle.Invalid;
 
-            if (!ProjectileRuntime.IsTargetValid(request.Target))
+            bool isPositionTarget = request.Definition.TargetType == ProjectileTargetType.PositionTarget;
+
+            if (!isPositionTarget && !ProjectileRuntime.IsTargetValid(request.Target))
+                return RangedProjectileHandle.Invalid;
+
+            if (isPositionTarget && !request.TargetPosition.HasValue)
                 return RangedProjectileHandle.Invalid;
 
             var context = request.Source.RuntimeContext;
@@ -144,6 +150,8 @@ namespace GAS
                 DamageEffect = request.DamageEffect,
                 Level = request.Level,
                 Position = request.StartPosition,
+                StartPosition = request.StartPosition,
+                TargetPosition = request.TargetPosition ?? request.Target?.Position ?? request.StartPosition,
                 UserData = request.UserData,
                 AbilityId = request.AbilityId,
                 AbilitySpecId = request.AbilitySpecId,
@@ -155,7 +163,7 @@ namespace GAS
                 GameplayEffectEventType.ProjectileSpawned,
                 handle,
                 request.Source.EntityId,
-                request.Target.Effects.EntityId,
+                request.Target?.Effects?.EntityId ?? 0,
                 request.Definition,
                 request.DamageEffect,
                 request.AbilityId,
@@ -171,6 +179,10 @@ namespace GAS
     public class ProjectileRuntime
     {
         private readonly List<ProjectileInstance> projectiles = new List<ProjectileInstance>();
+
+        public delegate List<IRangedTarget> CollisionQueryDelegate(Vector3 center, float radius);
+
+        public CollisionQueryDelegate CollisionQuery { get; set; }
 
         public ProjectileRuntime()
         {
@@ -246,10 +258,13 @@ namespace GAS
             {
                 var projectile = projectiles[i];
 
-                if (!IsTargetValid(projectile.Target))
+                if (projectile.Definition.TargetType == ProjectileTargetType.EntityTarget)
                 {
-                    CompleteAt(i, RangedProjectileEndReason.TargetInvalid, true);
-                    continue;
+                    if (!IsTargetValid(projectile.Target))
+                    {
+                        CompleteAt(i, RangedProjectileEndReason.TargetInvalid, true);
+                        continue;
+                    }
                 }
 
                 projectile.Elapsed += deltaTime;
@@ -259,8 +274,46 @@ namespace GAS
                     continue;
                 }
 
-                var targetPosition = projectile.Target.Position;
-                var hitRadius = Mathf.Max(projectile.Definition.HitRadius, projectile.Target.HitRadius);
+                var targetPosition = projectile.Definition.TargetType == ProjectileTargetType.PositionTarget
+                    ? projectile.TargetPosition
+                    : projectile.Target.Position;
+
+                var hitRadius = projectile.Definition.TargetType == ProjectileTargetType.EntityTarget
+                    ? Mathf.Max(projectile.Definition.HitRadius, projectile.Target.HitRadius)
+                    : projectile.Definition.HitRadius;
+
+                int sweepResult = TrySweepCollision(ref projectile, deltaTime);
+                if (sweepResult < 0)
+                {
+                    projectiles[i] = projectile;
+                    CompleteAt(i, RangedProjectileEndReason.SweepCollided, true);
+                    continue;
+                }
+
+                var speed = Mathf.Max(0f, projectile.Definition.Speed);
+                if (speed <= 0f)
+                {
+                    projectiles[i] = projectile;
+                    continue;
+                }
+
+                projectile.Position = projectile.Definition.TrajectoryType == ProjectileTrajectoryType.Parabolic
+                    ? CalculateParabolicPosition(
+                        projectile.StartPosition,
+                        targetPosition,
+                        projectile.Elapsed,
+                        GetTotalTravelTime(projectile.StartPosition, targetPosition, speed),
+                        projectile.Definition.ArcHeight,
+                        projectile.Definition.ParabolicHorizontalWeight)
+                    : Vector3.MoveTowards(projectile.Position, targetPosition, speed * deltaTime);
+
+                sweepResult = TrySweepCollision(ref projectile, deltaTime);
+                if (sweepResult < 0)
+                {
+                    projectiles[i] = projectile;
+                    CompleteAt(i, RangedProjectileEndReason.SweepCollided, true);
+                    continue;
+                }
 
                 if (Vector3.Distance(projectile.Position, targetPosition) <= hitRadius)
                 {
@@ -269,21 +322,7 @@ namespace GAS
                     continue;
                 }
 
-                var speed = Mathf.Max(0f, projectile.Definition.Speed);
-                if (speed > 0f)
-                {
-                    projectile.Position = Vector3.MoveTowards(
-                        projectile.Position,
-                        targetPosition,
-                        speed * deltaTime);
-                }
-
                 projectiles[i] = projectile;
-
-                if (Vector3.Distance(projectile.Position, targetPosition) <= hitRadius)
-                {
-                    CompleteAt(i, RangedProjectileEndReason.Hit, true);
-                }
             }
         }
 
@@ -316,9 +355,22 @@ namespace GAS
 
             if (reason == RangedProjectileEndReason.Hit)
             {
-                ApplyDamage(projectile);
+                if (projectile.Definition.ExplosionRadius > 0f)
+                {
+                    ApplyAOEDamage(projectile, projectile.Position);
+                }
+                else
+                {
+                    ApplyDamage(projectile);
+                }
             }
 
+            if (reason == RangedProjectileEndReason.SweepCollided && projectile.Definition.ExplosionRadius > 0f)
+            {
+                ApplyAOEDamage(projectile, projectile.Position);
+            }
+
+            projectile.SweepHitEntityIds?.Clear();
             projectiles.RemoveAt(index);
 
             if (notify)
@@ -382,6 +434,9 @@ namespace GAS
                 case RangedProjectileEndReason.Hit:
                     return GameplayEffectEventType.ProjectileHit;
 
+                case RangedProjectileEndReason.SweepCollided:
+                    return GameplayEffectEventType.ProjectileHit;
+
                 case RangedProjectileEndReason.Cancelled:
                     return GameplayEffectEventType.ProjectileCancelled;
 
@@ -401,31 +456,132 @@ namespace GAS
             return definition != null ? definition.ProjectileDefinitionId : 0;
         }
 
-        private void ApplyDamage(ProjectileInstance projectile)
+        private static float GetTotalTravelTime(Vector3 start, Vector3 target, float speed)
+        {
+            float distance = Vector3.Distance(start, target);
+            if (speed <= 0f) return float.MaxValue;
+            return distance / speed;
+        }
+
+        private static Vector3 CalculateParabolicPosition(
+            Vector3 start,
+            Vector3 target,
+            float elapsed,
+            float totalTravelTime,
+            float arcHeight,
+            float horizontalWeight)
+        {
+            if (totalTravelTime <= 0f) return target;
+
+            float t = Mathf.Clamp01(elapsed / totalTravelTime);
+
+            float effectiveArcHeight = arcHeight > 0f ? arcHeight : Vector3.Distance(start, target) * 0.25f;
+
+            Vector3 flatStart = new Vector3(start.x, 0f, start.z);
+            Vector3 flatTarget = new Vector3(target.x, 0f, target.z);
+
+            Vector3 horizontalPosition = Vector3.Lerp(flatStart, flatTarget, t);
+
+            float parabolicT = t * 2f - 1f;
+            float verticalOffset = (1f - parabolicT * parabolicT) * effectiveArcHeight;
+
+            float startBaseY = Mathf.Lerp(start.y, target.y, t * horizontalWeight);
+            float height = Mathf.Lerp(start.y, startBaseY + verticalOffset, 1f - horizontalWeight);
+
+            return new Vector3(horizontalPosition.x, height, horizontalPosition.z);
+        }
+
+        private int TrySweepCollision(ref ProjectileInstance projectile, float deltaTime)
+        {
+            if (projectile.Definition.SweepInterval <= 0f || CollisionQuery == null)
+                return 0;
+
+            projectile.SweepTimer += deltaTime;
+
+            if (projectile.SweepTimer < projectile.Definition.SweepInterval)
+                return 0;
+
+            projectile.SweepTimer -= projectile.Definition.SweepInterval;
+
+            var hits = CollisionQuery(projectile.Position, projectile.Definition.SweepRadius);
+            if (hits == null || hits.Count == 0)
+                return 0;
+
+            if (projectile.SweepHitEntityIds == null)
+            {
+                projectile.SweepHitEntityIds = new HashSet<long>();
+            }
+
+            for (int i = 0; i < hits.Count; i++)
+            {
+                var hit = hits[i];
+                if (hit?.Effects == null) continue;
+
+                long entityId = hit.Effects.EntityId;
+                if (entityId == projectile.Source?.EntityId) continue;
+                if (projectile.SweepHitEntityIds.Contains(entityId)) continue;
+
+                projectile.SweepHitEntityIds.Add(entityId);
+
+                if (projectile.Definition.ExplosionRadius > 0f)
+                {
+                    return -1;
+                }
+
+                ApplyDamageToTarget(projectile, hit);
+                return -1;
+            }
+
+            return 0;
+        }
+
+        private void ApplyAOEDamage(ProjectileInstance projectile, Vector3 center)
         {
             if (projectile.Source == null ||
-                projectile.Target == null ||
-                projectile.DamageEffect == null)
+                projectile.DamageEffect == null ||
+                projectile.Definition.ExplosionRadius <= 0f ||
+                CollisionQuery == null)
                 return;
 
-            var targetRuntime = projectile.Target.Effects;
-            if (targetRuntime == null)
+            var hits = CollisionQuery(center, projectile.Definition.ExplosionRadius);
+            if (hits == null || hits.Count == 0) return;
+
+            for (int i = 0; i < hits.Count; i++)
+            {
+                var hit = hits[i];
+                if (hit?.Effects == null) continue;
+                if (hit.Effects.EntityId == projectile.Source?.EntityId) continue;
+
+                ApplyDamageToTarget(projectile, hit);
+            }
+        }
+
+        private void ApplyDamageToTarget(ProjectileInstance projectile, IRangedTarget target)
+        {
+            if (projectile.Source == null || target == null || projectile.DamageEffect == null)
                 return;
+
+            var targetRuntime = target.Effects;
+            if (targetRuntime == null) return;
 
             var effectSpec = projectile.Source.MakeOutgoingSpec(
                 targetRuntime,
                 projectile.DamageEffect,
                 projectile.Level);
 
-            if (effectSpec == null)
-                return;
+            if (effectSpec == null) return;
 
             effectSpec.SourceEntityId = projectile.Source.EntityId;
             effectSpec.TargetEntityId = targetRuntime.EntityId;
             effectSpec.Position = projectile.Position;
-            effectSpec.UserData = projectile.UserData ?? projectile.Target;
+            effectSpec.UserData = projectile.UserData ?? target;
 
             projectile.Source.ApplySpecToTarget(effectSpec, targetRuntime);
+        }
+
+        private void ApplyDamage(ProjectileInstance projectile)
+        {
+            ApplyDamageToTarget(projectile, projectile.Target);
         }
 
         public struct ProjectileInstance
@@ -437,12 +593,16 @@ namespace GAS
             public GameplayEffectDefinition DamageEffect;
             public int Level;
             public Vector3 Position;
+            public Vector3 StartPosition;
+            public Vector3 TargetPosition;
             public float Elapsed;
+            public float SweepTimer;
             public object UserData;
             public int AbilityId;
             public int AbilitySpecId;
             public int AbilityTaskId;
             public Action<RangedProjectileResult> OnCompleted;
+            public HashSet<long> SweepHitEntityIds;
         }
     }
 }

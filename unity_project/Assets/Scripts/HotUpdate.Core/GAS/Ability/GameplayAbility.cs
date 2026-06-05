@@ -7,17 +7,17 @@ namespace GAS
     [CreateAssetMenu(menuName = "PVE/GAS/Gameplay Ability")]
     public class GameplayAbilityDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [Header("AbilityId")]
         public int AbilityId;
         public GameplayTag AbilityTag;
 
-        [Header("Requirements")]
+        [Header("需求")]
         public TagQuery SourceRequiredTags = new TagQuery(TagQueryOp.All);
         public TagQuery SourceBlockedTags = new TagQuery(TagQueryOp.NotAll);
         public TagQuery TargetRequiredTags = new TagQuery(TagQueryOp.All);
         public TagQuery TargetBlockedTags = new TagQuery(TagQueryOp.NotAll);
 
-        [Header("Activation Policy")]
+        [Header("激活策略")]
         public TagQuery ActivationRequiredTags = new TagQuery(TagQueryOp.All);
         public TagQuery ActivationBlockedTags = new TagQuery(TagQueryOp.NotAll);
         public GameplayTagContainer ActivationOwnedTags = new GameplayTagContainer();
@@ -25,17 +25,17 @@ namespace GAS
         public TagQuery BlockAbilitiesWithTag = new TagQuery(TagQueryOp.Any);
         public bool IsIgnoreBlock;
 
-        [Header("Event Trigger")]
+        [Header("事件触发")]
         public List<GameplayTag> AbilityTriggers = new List<GameplayTag>();
 
-        [Header("Commit")]
+        [Header("提交")]
         public List<GameplayEffectDefinition> CostEffects = new List<GameplayEffectDefinition>();
         public List<GameplayEffectDefinition> CooldownEffects = new List<GameplayEffectDefinition>();
 
-        [Header("Effects On Activate")]
+        [Header("激活时的效果")]
         public List<EffectApplication> EffectsOnActivate = new List<EffectApplication>();
 
-        [Header("Delayed Effects")]
+        [Header("延迟效果")]
         public List<DelayedEffectApplication> DelayedEffects = new List<DelayedEffectApplication>();
 
         [Serializable]
@@ -221,7 +221,7 @@ namespace GAS
         public int AbilitySpecId { get; }
         public GameplayAbilityDefinition Ability { get; }
         public GameplayAbilityRuntime AbilityRuntime { get; }
-        // Runtime references are client-side caches. Entity ids below are the authority identity for sync/replay.
+        // 运行时引用是客户端缓存。下面的实体ID是权威标识，用于同步/回放。
         public GameplayEffectRuntime Source { get; }
         public GameplayEffectRuntime Target { get; private set; }
         public int Level { get; }
@@ -388,7 +388,7 @@ namespace GAS
 
                 if (task.IsFinished)
                 {
-                    RemoveTask(task);
+                    RemoveTaskAt(i);
                 }
             }
 
@@ -401,6 +401,13 @@ namespace GAS
         private void RemoveTask(AbilityTask task)
         {
             activeTasks.Remove(task);
+            AbilityRuntime.RecordAbilityTaskEvent(this, task, GameplayEffectEventType.AbilityTaskEnded);
+        }
+
+        private void RemoveTaskAt(int index)
+        {
+            var task = activeTasks[index];
+            activeTasks.RemoveAt(index);
             AbilityRuntime.RecordAbilityTaskEvent(this, task, GameplayEffectEventType.AbilityTaskEnded);
         }
 

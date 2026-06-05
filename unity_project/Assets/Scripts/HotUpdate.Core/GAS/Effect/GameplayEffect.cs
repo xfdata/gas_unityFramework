@@ -7,38 +7,38 @@ namespace GAS
     [CreateAssetMenu(menuName = "PVE/GAS/Gameplay Effect")]
     public class GameplayEffectDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [Header("EffectId")]
         public int EffectId;
         public GameplayTag EffectTag;
 
-        [Header("Duration")]
+        [Header("持续时间")]
         public GameplayEffectDurationPolicy DurationPolicy = GameplayEffectDurationPolicy.Instant;
         [Min(0f)] public float Duration;
         [Min(0f)] public float Period;
         public bool ExecuteOnApply;
 
-        [Header("Stack")]
+        [Header("堆叠")]
         public GameplayEffectStackPolicy StackPolicy = GameplayEffectStackPolicy.None;
         [Min(1)] public int MaxStack = 1;
         public bool RefreshDurationOnStack = true;
         public bool ReapplyModifiersOnStack = true;
 
-        [Header("Tag Requirements")]
+        [Header("标签需求")]
         public TagQuery SourceRequiredTags = new TagQuery(TagQueryOp.All);
         public TagQuery SourceBlockedTags = new TagQuery(TagQueryOp.NotAll);
         public TagQuery TargetRequiredTags = new TagQuery(TagQueryOp.All);
         public TagQuery TargetBlockedTags = new TagQuery(TagQueryOp.NotAll);
 
-        [Header("Granted Tags")]
+        [Header("授予标签")]
         public GameplayTagContainer GrantedTags = new GameplayTagContainer();
 
-        [Header("Modifiers")]
+        [Header("修饰符")]
         public List<Modifier> Modifiers = new List<Modifier>();
 
-        [Header("Executions")]
+        [Header("执行")]
         public List<GameplayEffectExecution> Executions = new List<GameplayEffectExecution>();
 
-        [Header("Gameplay Cues")]
+        [Header("游戏提示")]
         public List<Cue> Cues = new List<Cue>();
 
         [Serializable]

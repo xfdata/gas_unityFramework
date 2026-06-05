@@ -8,6 +8,7 @@ namespace GAS
     {
         private readonly ProjectileRuntime projectileRuntime;
         private readonly IRangedTarget target;
+        private readonly Vector3? targetPosition;
         private readonly RangedProjectileDefinition projectileDefinition;
         private readonly GameplayEffectDefinition damageEffect;
         private readonly Vector3 startPosition;
@@ -27,10 +28,12 @@ namespace GAS
             GameplayEffectDefinition damageEffect,
             Vector3 startPosition,
             object userData = null,
-            Action<AbilityTaskSpawnProjectile, RangedProjectileResult> onCompleted = null)
+            Action<AbilityTaskSpawnProjectile, RangedProjectileResult> onCompleted = null,
+            Vector3? targetPosition = null)
         {
             this.projectileRuntime = projectileRuntime;
             this.target = target;
+            this.targetPosition = targetPosition;
             this.projectileDefinition = projectileDefinition;
             this.damageEffect = damageEffect;
             this.startPosition = startPosition;
@@ -41,9 +44,22 @@ namespace GAS
         protected override void OnActivate()
         {
             if (projectileRuntime == null ||
-                target == null ||
                 projectileDefinition == null ||
                 AbilitySpec?.Source == null)
+            {
+                EndTask();
+                return;
+            }
+
+            bool isPositionTarget = projectileDefinition.TargetType == ProjectileTargetType.PositionTarget;
+
+            if (!isPositionTarget && target == null)
+            {
+                EndTask();
+                return;
+            }
+
+            if (isPositionTarget && !targetPosition.HasValue)
             {
                 EndTask();
                 return;
@@ -53,6 +69,7 @@ namespace GAS
             {
                 Source = AbilitySpec.Source,
                 Target = target,
+                TargetPosition = targetPosition,
                 Definition = projectileDefinition,
                 DamageEffect = damageEffect,
                 Level = AbilitySpec.Level,

@@ -2,13 +2,19 @@ using System;
 using System.Collections.Generic;
 using Animancer;
 using UnityEngine;
+using UnityEngine.Playables;
+using UnityEngine.Timeline;
 
 namespace GAS
 {
     // Presentation bridge usable by combat abilities in multiple gameplay modes.
-    public interface IAnimancerProvider
+    public interface IAbilityAnimationProvider
     {
         AnimancerComponent Animancer { get; }
+        PlayableDirector Director { get; }
+        ClipTransition GetAbilityMontage(GameplayAbilityDefinition ability);
+        TimelineAsset GetAbilityTimeline(GameplayAbilityDefinition ability);
+        void BeginDeathFadeOut(float duration);
     }
 
     public class AbilityTaskPlayMontage : AbilityTask
@@ -16,7 +22,7 @@ namespace GAS
         private const string EnableCollisionEvent = "EnableCollision";
         private const string DisableCollisionEvent = "DisableCollision";
 
-        private readonly AnimationClip clip;
+        private readonly ClipTransition clip;
         private readonly float fadeDuration;
         private readonly Action<AbilityTaskPlayMontage> onCompleted;
 
@@ -32,7 +38,7 @@ namespace GAS
         public event Action OnEnableCollision;
         public event Action OnDisableCollision;
 
-        public AbilityTaskPlayMontage(AnimationClip clip, float fadeDuration, Action<AbilityTaskPlayMontage> onCompleted = null)
+        public AbilityTaskPlayMontage(ClipTransition clip, float fadeDuration, Action<AbilityTaskPlayMontage> onCompleted = null)
         {
             this.clip = clip;
             this.fadeDuration = fadeDuration;
@@ -41,7 +47,7 @@ namespace GAS
 
         protected override void OnActivate()
         {
-            var provider = AbilitySpec?.Source?.AttributeOwner as IAnimancerProvider;
+            var provider = AbilitySpec?.Source?.AttributeOwner as IAbilityAnimationProvider;
             if (provider == null || clip == null)
             {
                 EndTask();

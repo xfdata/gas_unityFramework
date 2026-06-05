@@ -22,8 +22,8 @@ namespace BattleCommon
         Cooldown,
     }
 
-    [CreateAssetMenu(menuName = "BattleCommon/AI Profile")]
-    public class CombatAIProfile : ScriptableObject
+    [System.Serializable]
+    public class CombatAIProfile
     {
         public float DecisionInterval = 0.2f;
         public float RetargetCooldown = 2f;
