@@ -7,13 +7,11 @@ public class QueuedActionScheduler : Disposable
     private const int RunningInitialCapacity = 4;
     private const int InterruptedBufferInitialCapacity = 4;
 
-    private Framework.ObjectPool<ActionExecutionSlot> slotPool = new()
-    {
-        CreateAction = null,
-        DisposeAction = (slot) => slot.CancelCurrent(),
-    };
     private List<IQueuedAction> pendingActions = new(PendingInitialCapacity);
-    private List<ActionExecutionSlot> runningSlots = new(RunningInitialCapacity);
+    private List<IQueuedAction> runningActions = new(RunningInitialCapacity);
+    private List<IQueuedAction> _runningAddList = new(RunningInitialCapacity);
+    private List<IQueuedAction> _runningRemoveList = new(RunningInitialCapacity);
+    private int _runningMutationDepth;
 
     public ActionConflictRule[] ConflictRules;
     public GameplayTagContainer GlobalTagContextTags;
@@ -21,9 +19,9 @@ public class QueuedActionScheduler : Disposable
 
     private bool _isReady = false;
     public int PendingCount => pendingActions.Count;
-    public int RunningCount => runningSlots.Count;
+    public int RunningCount => runningActions.Count + _runningAddList.Count - _runningRemoveList.Count;
 
-    public bool HasRunningSlots => runningSlots.Count > 0;
+    public bool HasRunningSlots => RunningCount > 0;
 
     public void SetReady(bool isReady)
     {
@@ -141,21 +139,12 @@ public class QueuedActionScheduler : Disposable
             return ActionCancelResult.Failed;
         }
 
-        for (int i = runningSlots.Count - 1; i >= 0; i--)
+        if (IsRunningAction(action))
         {
-            var slot = runningSlots[i];
-
-            if (!ReferenceEquals(slot.CurrentAction, action))
-                continue;
-
             try
             {
-                slot.CancelCurrent();
-
-                if (slot.IsEmpty)
-                {
-                    ReturnSlotAt(i);
-                }
+                CancelActionSafely(action);
+                RemoveRunningAction(action);
 
                 return ActionCancelResult.CanceledRunning;
             }
@@ -183,10 +172,17 @@ public class QueuedActionScheduler : Disposable
     public bool HasRunningActionType(int type)
     {
         using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.HasRunningActionType");
-        for (int i = 0; i < runningSlots.Count; i++)
+        for (int i = 0; i < runningActions.Count; i++)
         {
-            var action = runningSlots[i].CurrentAction;
-            if (action != null && action.ActionType == type && !action.IsEnded && !action.IsDisposed)
+            var action = runningActions[i];
+            if (IsActiveRunningAction(action) && action.ActionType == type)
+                return true;
+        }
+
+        for (int i = 0; i < _runningAddList.Count; i++)
+        {
+            var action = _runningAddList[i];
+            if (IsActiveRunningAction(action) && action.ActionType == type)
                 return true;
         }
 
@@ -197,11 +193,20 @@ public class QueuedActionScheduler : Disposable
         where TAction : class, IQueuedAction
     {
         using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.HasRunningAction");
-        for (int i = 0; i < runningSlots.Count; i++)
+        for (int i = 0; i < runningActions.Count; i++)
         {
-            if (runningSlots[i].CurrentAction is not TAction action ||
-                action.IsEnded ||
-                action.IsDisposed)
+            if (runningActions[i] is not TAction action || !IsActiveRunningAction(action))
+            {
+                continue;
+            }
+
+            if (filter == null || filter(action))
+                return true;
+        }
+
+        for (int i = 0; i < _runningAddList.Count; i++)
+        {
+            if (_runningAddList[i] is not TAction action || !IsActiveRunningAction(action))
             {
                 continue;
             }
@@ -275,31 +280,43 @@ public class QueuedActionScheduler : Disposable
 
         var result = ActionCancelResult.NotFound;
 
-        for (int i = runningSlots.Count - 1; i >= 0; i--)
+        BeginRunningMutation();
+        try
         {
-            var slot = runningSlots[i];
-            var action = slot.CurrentAction;
-
-            if (action == null || action.ActionType != type)
-                continue;
-
-            try
+            for (int i = runningActions.Count - 1; i >= 0; i--)
             {
-                slot.CancelCurrent();
+                var action = runningActions[i];
+                if (action == null || action.ActionType != type || !IsRunningAction(action))
+                    continue;
 
-                if (slot.IsEmpty)
-                {
-                    ReturnSlotAt(i);
-                }
-
+                CancelActionSafely(action);
+                RemoveRunningAction(action);
                 result = ActionCancelResult.CanceledRunning;
             }
-            catch (Exception e)
+
+            for (int i = _runningAddList.Count - 1; i >= 0; i--)
             {
-                Framework.Log.Error($"[QueuedActionScheduler] TryCancelActionType running action exception. type={type}");
-                Framework.Log.Error(e);
-                return ActionCancelResult.Failed;
+                if (i >= _runningAddList.Count)
+                    continue;
+
+                var action = _runningAddList[i];
+                if (action == null || action.ActionType != type || !IsRunningAction(action))
+                    continue;
+
+                CancelActionSafely(action);
+                RemoveRunningAction(action);
+                result = ActionCancelResult.CanceledRunning;
             }
+        }
+        catch (Exception e)
+        {
+            Framework.Log.Error($"[QueuedActionScheduler] TryCancelActionType running action exception. type={type}");
+            Framework.Log.Error(e);
+            return ActionCancelResult.Failed;
+        }
+        finally
+        {
+            EndRunningMutation();
         }
 
         for (int i = pendingActions.Count - 1; i >= 0; i--)
@@ -344,29 +361,42 @@ public class QueuedActionScheduler : Disposable
         using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.Tick");
         if (IsDisposed || !_isReady) return;
 
-        for (int i = runningSlots.Count - 1; i >= 0; i--)
+        var shouldDispatch = false;
+        BeginRunningMutation();
+        try
         {
-            var slot = runningSlots[i];
-            try
+            for (int i = runningActions.Count - 1; i >= 0; i--)
             {
-                // using var actionProfiler = QueuedActionBase.ProfileAction("SlotTick", slot.CurrentAction);
-                slot.Tick(deltaTime);
-            }
-            catch (Exception e)
-            {
-                Framework.Log.Error("[BehaviourQueue] Slot tick exception.");
-                Framework.Log.Error(e);
-                slot.CancelCurrent();
-            }
+                var action = runningActions[i];
+                if (!IsRunningAction(action))
+                    continue;
 
-            if (slot.IsEmpty)
-            {
-                ReturnSlotAt(i);
-                DispatchAvailableActions();
-                if (IsDisposed) return;
+                try
+                {
+                    TickActionSafely(action, deltaTime);
+                }
+                catch (Exception e)
+                {
+                    Framework.Log.Error("[BehaviourQueue] Running action tick exception.");
+                    Framework.Log.Error(e);
+                    CancelActionSafely(action);
+                }
+
+                if (action == null || action.IsEnded || action.IsDisposed)
+                {
+                    RemoveRunningAction(action);
+                    shouldDispatch = true;
+                    if (IsDisposed) return;
+                }
             }
         }
+        finally
+        {
+            EndRunningMutation();
+        }
 
+        if (shouldDispatch)
+            DispatchAvailableActions();
         DispatchAvailableActions();
     }
 
@@ -389,13 +419,7 @@ public class QueuedActionScheduler : Disposable
         }
         pendingActions.Clear();
 
-        for (int i = 0; i < runningSlots.Count; i++)
-        {
-            var slot = runningSlots[i];
-            slot.CancelCurrent();
-        }
-        runningSlots.Clear();
-        slotPool.Clear();
+        CancelAllRunningActionsSafely();
     }
 
     private bool TryDispatch()
@@ -463,26 +487,26 @@ public class QueuedActionScheduler : Disposable
         using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.RunAction");
         using (QueuedActionBase.ProfileAction("Run", action))
         {
-            var slot = slotPool.Get();
-            slot.RunAction(action);
-            runningSlots.Add(slot);
+            if (RunActionSafely(action))
+            {
+                AddRunningAction(action);
+            }
         }
     }
-    private List<ActionExecutionSlot> _interruptedSlotsBuffer = new(InterruptedBufferInitialCapacity);
+    private List<IQueuedAction> _interruptedActionsBuffer = new(InterruptedBufferInitialCapacity);
     private bool HandleConflicts(IQueuedAction incoming, bool ignoreReject = false)
     {
         using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.HandleConflicts");
-        if (runningSlots.Count == 0)
+        if (runningActions.Count == 0)
             return true;
 
         try
         {
-            _interruptedSlotsBuffer.Clear();
-            for (int i = 0; i < runningSlots.Count; i++)
+            _interruptedActionsBuffer.Clear();
+            for (int i = 0; i < runningActions.Count; i++)
             {
-                var slot = runningSlots[i];
-                var running = slot.CurrentAction;
-                if (running == null) continue;
+                var running = runningActions[i];
+                if (!IsRunningAction(running)) continue;
 
                 var result = ResolveConflict(incoming, running);
 
@@ -492,16 +516,36 @@ public class QueuedActionScheduler : Disposable
                 }
 
                 if (result == ActionConflictResult.Interrupt)
-                    _interruptedSlotsBuffer.Add(slot);
+                    _interruptedActionsBuffer.Add(running);
             }
 
-            for (int i = 0; i < _interruptedSlotsBuffer.Count; i++)
-                _interruptedSlotsBuffer[i].CancelCurrent();
+            for (int i = 0; i < _runningAddList.Count; i++)
+            {
+                var running = _runningAddList[i];
+                if (!IsRunningAction(running)) continue;
+
+                var result = ResolveConflict(incoming, running);
+
+                if (result is ActionConflictResult.Reject && !ignoreReject)
+                {
+                    return false;
+                }
+
+                if (result == ActionConflictResult.Interrupt)
+                    _interruptedActionsBuffer.Add(running);
+            }
+
+            for (int i = 0; i < _interruptedActionsBuffer.Count; i++)
+            {
+                var interruptedAction = _interruptedActionsBuffer[i];
+                CancelActionSafely(interruptedAction);
+                RemoveRunningAction(interruptedAction);
+            }
             return true;
         }
         finally
         {
-            _interruptedSlotsBuffer.Clear();
+            _interruptedActionsBuffer.Clear();
         }
     }
 
@@ -625,12 +669,285 @@ public class QueuedActionScheduler : Disposable
         return true;
     }
 
-    private void ReturnSlotAt(int index)
+    private void BeginRunningMutation()
     {
-        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.ReturnSlotAt");
-        var slot = runningSlots[index];
-        runningSlots.RemoveAt(index);
-        slotPool.Return(slot);
+        _runningMutationDepth++;
+    }
+
+    private void EndRunningMutation()
+    {
+        _runningMutationDepth--;
+        if (_runningMutationDepth > 0)
+            return;
+
+        FlushRunningActionChanges();
+    }
+
+    private void FlushRunningActionChanges()
+    {
+        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.FlushRunningActionChanges");
+        for (int i = 0; i < _runningRemoveList.Count; i++)
+        {
+            RemoveRunningActionImmediately(_runningRemoveList[i]);
+        }
+        _runningRemoveList.Clear();
+
+        for (int i = 0; i < _runningAddList.Count; i++)
+        {
+            AddRunningActionImmediately(_runningAddList[i]);
+        }
+        _runningAddList.Clear();
+    }
+
+    private void AddRunningAction(IQueuedAction action)
+    {
+        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.AddRunningAction");
+        if (action == null)
+            return;
+
+        if (_runningMutationDepth > 0)
+        {
+            RemoveFromList(_runningRemoveList, action);
+            if (!ContainsAction(runningActions, action) && !ContainsAction(_runningAddList, action))
+                _runningAddList.Add(action);
+            return;
+        }
+
+        AddRunningActionImmediately(action);
+    }
+
+    private void AddRunningActionImmediately(IQueuedAction action)
+    {
+        if (action == null || ContainsAction(runningActions, action))
+            return;
+
+        runningActions.Add(action);
+    }
+
+    private bool RemoveRunningAction(IQueuedAction action)
+    {
+        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.RemoveRunningAction");
+        if (action == null)
+            return false;
+
+        if (_runningMutationDepth > 0)
+        {
+            var removedPendingAdd = RemoveFromList(_runningAddList, action);
+            var isRunning = ContainsAction(runningActions, action);
+            if (isRunning && !ContainsAction(_runningRemoveList, action))
+                _runningRemoveList.Add(action);
+
+            return removedPendingAdd || isRunning;
+        }
+
+        return RemoveRunningActionImmediately(action);
+    }
+
+    private bool RemoveRunningActionImmediately(IQueuedAction action)
+    {
+        for (int i = runningActions.Count - 1; i >= 0; i--)
+        {
+            if (!ReferenceEquals(runningActions[i], action))
+                continue;
+
+            runningActions.RemoveAt(i);
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsRunningAction(IQueuedAction action)
+    {
+        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.IsRunningAction");
+        if (action == null)
+            return false;
+
+        if (ContainsAction(_runningRemoveList, action))
+            return false;
+
+        for (int i = 0; i < runningActions.Count; i++)
+        {
+            if (ReferenceEquals(runningActions[i], action))
+                return true;
+        }
+
+        return ContainsAction(_runningAddList, action);
+    }
+
+    private bool IsActiveRunningAction(IQueuedAction action)
+    {
+        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.IsActiveRunningAction");
+        return IsRunningAction(action) && !action.IsEnded && !action.IsDisposed;
+    }
+
+    private static bool ContainsAction(List<IQueuedAction> actions, IQueuedAction action)
+    {
+        if (actions == null || action == null)
+            return false;
+
+        for (int i = 0; i < actions.Count; i++)
+        {
+            if (ReferenceEquals(actions[i], action))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool RemoveFromList(List<IQueuedAction> actions, IQueuedAction action)
+    {
+        if (actions == null || action == null)
+            return false;
+
+        for (int i = actions.Count - 1; i >= 0; i--)
+        {
+            if (!ReferenceEquals(actions[i], action))
+                continue;
+
+            actions.RemoveAt(i);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void CancelAllRunningActionsSafely()
+    {
+        using var profiler = new Framework.AutoProfiler("BehaviourQueue.Scheduler.CancelAllRunningActionsSafely");
+        BeginRunningMutation();
+        try
+        {
+            for (int i = 0; i < runningActions.Count; i++)
+            {
+                var action = runningActions[i];
+                if (!IsRunningAction(action))
+                    continue;
+
+                CancelActionSafely(action);
+            }
+
+            for (int i = _runningAddList.Count - 1; i >= 0; i--)
+            {
+                if (i >= _runningAddList.Count)
+                    continue;
+
+                var action = _runningAddList[i];
+                if (!IsRunningAction(action))
+                    continue;
+
+                CancelActionSafely(action);
+            }
+        }
+        finally
+        {
+            _runningMutationDepth--;
+            runningActions.Clear();
+            _runningAddList.Clear();
+            _runningRemoveList.Clear();
+        }
+    }
+
+    private static bool RunActionSafely(IQueuedAction action)
+    {
+        try
+        {
+            action.Execute();
+            return true;
+        }
+        catch (Exception e)
+        {
+            LogActionException("Execute", action, e);
+            FaultAndDisposeActionSafely(action);
+            return false;
+        }
+    }
+
+    private static void TickActionSafely(IQueuedAction action, float deltaTime)
+    {
+        if (action == null) return;
+
+        try
+        {
+#if ENABLE_PROFILER
+            UnityEngine.Profiling.Profiler.BeginSample(action is QueuedActionBase queuedAction
+                ? queuedAction.SchedulerTickProfilerName
+                : "BehaviourQueue.Scheduler.Tick");
+#endif
+            try
+            {
+                action.Tick(deltaTime);
+            }
+            finally
+            {
+#if ENABLE_PROFILER
+                UnityEngine.Profiling.Profiler.EndSample();
+#endif
+            }
+        }
+        catch (Exception e)
+        {
+            LogActionException("Tick", action, e);
+            FaultAndDisposeActionSafely(action);
+            return;
+        }
+
+        if (action.IsEnded || action.IsDisposed)
+        {
+            DisposeActionSafely(action);
+        }
+    }
+
+    private static void CancelActionSafely(IQueuedAction action)
+    {
+        if (action == null) return;
+
+        try
+        {
+            action.End(ActionEndReason.Canceled);
+        }
+        catch (Exception e)
+        {
+            LogActionException("End(Canceled)", action, e);
+        }
+
+        DisposeActionSafely(action);
+    }
+
+    private static void FaultAndDisposeActionSafely(IQueuedAction action)
+    {
+        if (action == null) return;
+
+        try
+        {
+            action.End(ActionEndReason.Faulted);
+        }
+        catch (Exception e)
+        {
+            LogActionException("End(Faulted)", action, e);
+        }
+
+        DisposeActionSafely(action);
+    }
+
+    private static void DisposeActionSafely(IQueuedAction action)
+    {
+        if (action == null) return;
+
+        try
+        {
+            action.Dispose();
+        }
+        catch (Exception e)
+        {
+            LogActionException("Dispose", action, e);
+        }
+    }
+
+    private static void LogActionException(string stage, IQueuedAction action, Exception e)
+    {
+        Framework.Log.Error($"[QueuedActionScheduler {stage} Exception] {action?.Name ?? "UnknownAction"}");
+        Framework.Log.Error(e);
     }
 
     private static void  AbortActionSafely(
@@ -679,13 +996,8 @@ public class QueuedActionScheduler : Disposable
             RemovePendingAt(i, action, "QueueClear", ActionEndReason.Canceled);
         }
 
-        for (int i = runningSlots.Count - 1; i >= 0; i--)
-        {
-            var slot = runningSlots[i];
-            slot.CancelCurrent();
-            ReturnSlotAt(i);
-        }
+        CancelAllRunningActionsSafely();
 
-        _interruptedSlotsBuffer.Clear();
+        _interruptedActionsBuffer.Clear();
     }
 }
