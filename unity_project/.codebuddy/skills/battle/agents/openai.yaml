@@ -1,0 +1,4 @@
+interface:
+  display_name: "Battle"
+  short_description: "Create battle systems, combat skills, and GAS effects."
+  default_prompt: "Use $battle to create a battle system, combat ability, or gameplay effect in this Unity project."
