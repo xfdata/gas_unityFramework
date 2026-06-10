@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Framework;
 
 namespace GAS
 {
@@ -30,7 +31,10 @@ namespace GAS
             if (!IsActive || IsFinished)
                 return;
 
-            OnTick(deltaTime);
+            using (new AutoProfiler("GAS.AbilityTask.Tick"))
+            {
+                OnTick(deltaTime);
+            }
         }
 
         public void EndTask()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 
 namespace GAS
 {
@@ -227,10 +228,21 @@ namespace GAS
             GameplayAbilitySystem target = null,
             int level = 1)
         {
+            return ActivateAbility(
+                ability,
+                target != null ? target.Effects : null,
+                level);
+        }
+
+        public GameplayAbilitySpec ActivateAbility(
+            GameplayAbilityDefinition ability,
+            GameplayEffectRuntime target,
+            int level = 1)
+        {
             EnsureInitialized();
             return abilityRuntime.ActivateAbility(
                 ability,
-                target != null ? target.Effects : null,
+                target,
                 level);
         }
 
@@ -372,17 +384,20 @@ namespace GAS
 
             EnsureInitialized();
 
-            if (advanceRuntimeFrame)
+            using (new AutoProfiler("GAS.GameplayAbilitySystem.Tick"))
             {
-                RuntimeContext.BeginTick(deltaTime);
-            }
+                if (advanceRuntimeFrame)
+                {
+                    RuntimeContext.BeginTick(deltaTime);
+                }
 
-            effectRuntime.Tick(deltaTime, false);
-            abilityRuntime.Tick(deltaTime);
+                effectRuntime.Tick(deltaTime, false);
+                abilityRuntime.Tick(deltaTime);
 
-            if (advanceRuntimeFrame)
-            {
-                RuntimeContext.EndTick();
+                if (advanceRuntimeFrame)
+                {
+                    RuntimeContext.EndTick();
+                }
             }
         }
 

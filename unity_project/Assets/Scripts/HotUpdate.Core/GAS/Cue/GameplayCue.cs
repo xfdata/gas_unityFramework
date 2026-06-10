@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Framework;
 
 namespace GAS
 {
@@ -32,23 +33,26 @@ namespace GAS
             in GameplayCuePayload payload
         )
         {
-            switch (eventType)
+            using (new AutoProfiler("GAS.GameplayCueNotify.HandleCue"))
             {
-                case GameplayCueEventType.Execute:
-                    OnExecute(payload);
-                    break;
+                switch (eventType)
+                {
+                    case GameplayCueEventType.Execute:
+                        OnExecute(payload);
+                        break;
 
-                case GameplayCueEventType.OnActive:
-                    OnActive(payload);
-                    break;
+                    case GameplayCueEventType.OnActive:
+                        OnActive(payload);
+                        break;
 
-                case GameplayCueEventType.WhileActive:
-                    WhileActive(payload);
-                    break;
+                    case GameplayCueEventType.WhileActive:
+                        WhileActive(payload);
+                        break;
 
-                case GameplayCueEventType.Removed:
-                    OnRemove(payload);
-                    break;
+                    case GameplayCueEventType.Removed:
+                        OnRemove(payload);
+                        break;
+                }
             }
         }
 
@@ -113,14 +117,17 @@ namespace GAS
             if (!cueTag.IsValid)
                 return;
 
-            for (int i = 0; i < runtimeEntries.Count; i++)
+            using (new AutoProfiler("GAS.GameplayCueManager.HandleCue"))
             {
-                var entry = runtimeEntries[i];
+                for (int i = 0; i < runtimeEntries.Count; i++)
+                {
+                    var entry = runtimeEntries[i];
 
-                if (!cueTag.Matches(entry.CueTag))
-                    continue;
+                    if (!cueTag.Matches(entry.CueTag))
+                        continue;
 
-                entry.Notify.HandleCue(eventType, payload);
+                    entry.Notify.HandleCue(eventType, payload);
+                }
             }
         }
     }

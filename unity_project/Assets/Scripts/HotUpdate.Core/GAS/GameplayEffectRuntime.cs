@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 
 namespace GAS
 {
@@ -138,68 +139,71 @@ namespace GAS
             if (spec == null || spec.Asset == null)
                 return GameplayEffectApplyResult.Failed;
 
-            var context = EnsureRuntimeContext();
-
-            spec.Target = this;
-            spec.TargetEntityId = EntityId;
-            spec.RuntimeContext = context;
-
-            if (spec.Source != null)
+            using (new AutoProfiler("GAS.GameplayEffectRuntime.ApplySpecToSelf"))
             {
-                spec.SourceEntityId = spec.Source.EntityId;
+                var context = EnsureRuntimeContext();
+
+                spec.Target = this;
+                spec.TargetEntityId = EntityId;
+                spec.RuntimeContext = context;
+
+                if (spec.Source != null)
+                {
+                    spec.SourceEntityId = spec.Source.EntityId;
+                }
+
+                if (spec.SpecId == 0)
+                {
+                    spec.SpecId = context.NewSpecId();
+                }
+
+                if (!CanApply(spec))
+                    return GameplayEffectApplyResult.Failed;
+
+                var asset = spec.Asset;
+
+                if (asset.DurationPolicy == GameplayEffectDurationPolicy.Instant)
+                {
+                    ExecuteEffect(spec, 0);
+                    SendCues(spec, GameplayCueEventType.Execute, 0, 0f);
+                    return GameplayEffectApplyResult.InstantEffect();
+                }
+
+                var existing = FindStackableEffect(spec);
+
+                if (existing != null)
+                {
+                    ApplyStack(existing, spec);
+                    SendCues(existing.Spec, GameplayCueEventType.OnActive, existing.RuntimeEffectId, 0f);
+                    return GameplayEffectApplyResult.ActiveEffect(existing.RuntimeEffectId);
+                }
+
+                var runtimeEffectId = context.NewRuntimeEffectId();
+                var active = new ActiveGameplayEffect(
+                    runtimeEffectId,
+                    spec,
+                    asset.DurationPolicy == GameplayEffectDurationPolicy.Duration
+                        ? spec.Duration
+                        : float.PositiveInfinity,
+                    spec.Period
+                );
+
+                activeEffects.Add(active);
+
+                RecordEffectEvent(active.Spec, GameplayEffectEventType.EffectApplied, active.RuntimeEffectId);
+                AddGrantedTags(active);
+                AddPersistentModifiers(active);
+
+                if (asset.ExecuteOnApply)
+                {
+                    ExecuteEffect(spec, active.RuntimeEffectId);
+                    SendCues(spec, GameplayCueEventType.Execute, active.RuntimeEffectId, 0f);
+                }
+
+                SendCues(spec, GameplayCueEventType.OnActive, active.RuntimeEffectId, 0f);
+
+                return GameplayEffectApplyResult.ActiveEffect(runtimeEffectId);
             }
-
-            if (spec.SpecId == 0)
-            {
-                spec.SpecId = context.NewSpecId();
-            }
-
-            if (!CanApply(spec))
-                return GameplayEffectApplyResult.Failed;
-
-            var asset = spec.Asset;
-
-            if (asset.DurationPolicy == GameplayEffectDurationPolicy.Instant)
-            {
-                ExecuteEffect(spec, 0);
-                SendCues(spec, GameplayCueEventType.Execute, 0, 0f);
-                return GameplayEffectApplyResult.InstantEffect();
-            }
-
-            var existing = FindStackableEffect(spec);
-
-            if (existing != null)
-            {
-                ApplyStack(existing, spec);
-                SendCues(existing.Spec, GameplayCueEventType.OnActive, existing.RuntimeEffectId, 0f);
-                return GameplayEffectApplyResult.ActiveEffect(existing.RuntimeEffectId);
-            }
-
-            var runtimeEffectId = context.NewRuntimeEffectId();
-            var active = new ActiveGameplayEffect(
-                runtimeEffectId,
-                spec,
-                asset.DurationPolicy == GameplayEffectDurationPolicy.Duration
-                    ? spec.Duration
-                    : float.PositiveInfinity,
-                spec.Period
-            );
-
-            activeEffects.Add(active);
-
-            RecordEffectEvent(active.Spec, GameplayEffectEventType.EffectApplied, active.RuntimeEffectId);
-            AddGrantedTags(active);
-            AddPersistentModifiers(active);
-
-            if (asset.ExecuteOnApply)
-            {
-                ExecuteEffect(spec, active.RuntimeEffectId);
-                SendCues(spec, GameplayCueEventType.Execute, active.RuntimeEffectId, 0f);
-            }
-
-            SendCues(spec, GameplayCueEventType.OnActive, active.RuntimeEffectId, 0f);
-
-            return GameplayEffectApplyResult.ActiveEffect(runtimeEffectId);
         }
 
         public virtual bool CanApplySpecToSelf(GameplayEffectSpec spec)
@@ -318,56 +322,59 @@ namespace GAS
             if (deltaTime <= 0f)
                 return;
 
-            var context = EnsureRuntimeContext();
-
-            if (advanceRuntimeFrame)
+            using (new AutoProfiler("GAS.GameplayEffectRuntime.Tick"))
             {
-                context.BeginTick(deltaTime);
-            }
+                var context = EnsureRuntimeContext();
 
-            for (int i = activeEffects.Count - 1; i >= 0; i--)
-            {
-                var active = activeEffects[i];
-                float effectDeltaTime = deltaTime;
-
-                if (active.HasDuration)
+                if (advanceRuntimeFrame)
                 {
-                    effectDeltaTime = active.TimeLeft > 0f
-                        ? Math.Min(deltaTime, active.TimeLeft)
-                        : 0f;
-                    active.TimeLeft -= deltaTime;
+                    context.BeginTick(deltaTime);
                 }
 
-                if (active.HasPeriod && effectDeltaTime > 0f)
+                for (int i = activeEffects.Count - 1; i >= 0; i--)
                 {
-                    active.PeriodLeft -= effectDeltaTime;
-                    var spec = active.Spec;
-                    int periodLoops = 0;
-                    const int maxPeriodLoopsPerTick = 64;
+                    var active = activeEffects[i];
+                    float effectDeltaTime = deltaTime;
 
-                    while (active.PeriodLeft <= 0f && periodLoops < maxPeriodLoopsPerTick)
+                    if (active.HasDuration)
                     {
-                        active.PeriodLeft += spec.Period;
-                        periodLoops++;
+                        effectDeltaTime = active.TimeLeft > 0f
+                            ? Math.Min(deltaTime, active.TimeLeft)
+                            : 0f;
+                        active.TimeLeft -= deltaTime;
+                    }
 
-                        ExecuteEffect(spec, active.RuntimeEffectId);
-                        if (active.HasAnyCue)
-                            SendCues(spec, GameplayCueEventType.Execute, active.RuntimeEffectId, 0f);
+                    if (active.HasPeriod && effectDeltaTime > 0f)
+                    {
+                        active.PeriodLeft -= effectDeltaTime;
+                        var spec = active.Spec;
+                        int periodLoops = 0;
+                        const int maxPeriodLoopsPerTick = 64;
+
+                        while (active.PeriodLeft <= 0f && periodLoops < maxPeriodLoopsPerTick)
+                        {
+                            active.PeriodLeft += spec.Period;
+                            periodLoops++;
+
+                            ExecuteEffect(spec, active.RuntimeEffectId);
+                            if (active.HasAnyCue)
+                                SendCues(spec, GameplayCueEventType.Execute, active.RuntimeEffectId, 0f);
+                        }
+                    }
+
+                    if (active.HasWhileActiveCue)
+                        SendCues(active.Spec, GameplayCueEventType.WhileActive, active.RuntimeEffectId, 0f);
+
+                    if (active.IsExpired)
+                    {
+                        RemoveActiveEffectAt(i);
                     }
                 }
 
-                if (active.HasWhileActiveCue)
-                    SendCues(active.Spec, GameplayCueEventType.WhileActive, active.RuntimeEffectId, 0f);
-
-                if (active.IsExpired)
+                if (advanceRuntimeFrame)
                 {
-                    RemoveActiveEffectAt(i);
+                    context.EndTick();
                 }
-            }
-
-            if (advanceRuntimeFrame)
-            {
-                context.EndTick();
             }
         }
 

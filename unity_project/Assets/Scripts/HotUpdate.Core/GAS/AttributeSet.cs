@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 
 namespace GAS
 {
@@ -30,16 +31,19 @@ namespace GAS
 
         public float GetAttribute(int attributeId)
         {
-            if (!dirtyAttributes.Contains(attributeId) &&
-                cachedValues.TryGetValue(attributeId, out var cachedValue))
+            using (new AutoProfiler("GAS.AttributeSet.GetAttribute"))
             {
-                return cachedValue;
-            }
+                if (!dirtyAttributes.Contains(attributeId) &&
+                    cachedValues.TryGetValue(attributeId, out var cachedValue))
+                {
+                    return cachedValue;
+                }
 
-            var value = CalculateCurrentValue(attributeId);
-            cachedValues[attributeId] = value;
-            dirtyAttributes.Remove(attributeId);
-            return value;
+                var value = CalculateCurrentValue(attributeId);
+                cachedValues[attributeId] = value;
+                dirtyAttributes.Remove(attributeId);
+                return value;
+            }
         }
 
         public float GetBaseValue(int attributeId)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 
 namespace GAS
 {
@@ -195,10 +196,13 @@ namespace GAS
             if (deltaTime <= 0f)
                 return;
 
-            for (int i = activeAbilities.Count - 1; i >= 0; i--)
+            using (new AutoProfiler("GAS.GameplayAbilityRuntime.Tick"))
             {
-                var spec = activeAbilities[i];
-                spec.Tick(deltaTime);
+                for (int i = activeAbilities.Count - 1; i >= 0; i--)
+                {
+                    var spec = activeAbilities[i];
+                    spec.Tick(deltaTime);
+                }
             }
         }
 
@@ -318,17 +322,20 @@ namespace GAS
             if (!eventTag.IsValid)
                 return;
 
-            foreach (var ability in grantedAbilities)
+            using (new AutoProfiler("GAS.GameplayAbilityRuntime.HandleGameplayEvent"))
             {
-                if (ability == null || ability.AbilityTriggers == null)
-                    continue;
-
-                for (int i = 0; i < ability.AbilityTriggers.Count; i++)
+                foreach (var ability in grantedAbilities)
                 {
-                    if (eventTag.Matches(ability.AbilityTriggers[i]))
+                    if (ability == null || ability.AbilityTriggers == null)
+                        continue;
+
+                    for (int i = 0; i < ability.AbilityTriggers.Count; i++)
                     {
-                        ActivateAbility(ability, null, 1, eventData);
-                        break;
+                        if (eventTag.Matches(ability.AbilityTriggers[i]))
+                        {
+                            ActivateAbility(ability, null, 1, eventData);
+                            break;
+                        }
                     }
                 }
             }

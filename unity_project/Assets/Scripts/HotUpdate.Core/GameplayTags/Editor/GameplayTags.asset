@@ -16,6 +16,7 @@ MonoBehaviour:
   - GameType.City
   - GameType.City.Build
   - GameType.City.InnerPVE
+  - GameType.NewPve
   - GameType.Pve
   - GameType.World
   - Guide
