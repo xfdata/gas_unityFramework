@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Animancer;
+using Framework;
 using UnityEngine;
 using BattleFoundation;
 using UnityEngine.Playables;
@@ -37,7 +38,10 @@ public class AnimationTimeScaleSystem : IBattleSystem
 
     public void Update(float deltaTime)
     {
-        ApplyTimeScale();
+        using (new AutoProfiler("BattleCommon.AnimationTimeScale.Update"))
+        {
+            ApplyTimeScale();
+        }
     }
 
     public void LateUpdate(float deltaTime)

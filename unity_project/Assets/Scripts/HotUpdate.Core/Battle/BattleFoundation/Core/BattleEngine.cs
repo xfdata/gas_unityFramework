@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 using UnityEngine;
 
 namespace BattleFoundation
@@ -110,28 +111,31 @@ namespace BattleFoundation
 
         public void UpdateFromUnity(float unityDeltaTime)
         {
-            float scaledDeltaTime = Mathf.Max(0f, unityDeltaTime) * Mathf.Max(0f, TimeScale);
-
-            if (Phase == EBattlePhase.Replaying)
+            using (new AutoProfiler("BattleFoundation.BattleEngine.UpdateFromUnity"))
             {
-                Playback?.Update(scaledDeltaTime);
-                return;
-            }
+                float scaledDeltaTime = Mathf.Max(0f, unityDeltaTime) * Mathf.Max(0f, TimeScale);
 
-            if (Phase != EBattlePhase.Running || IsPaused)
-                return;
+                if (Phase == EBattlePhase.Replaying)
+                {
+                    Playback?.Update(scaledDeltaTime);
+                    return;
+                }
 
-            switch (TickMode)
-            {
-                case EBattleTickMode.FrameSync:
-                    UpdateFrameSync(scaledDeltaTime);
-                    break;
-                case EBattleTickMode.TurnBased:
-                    break;
-                case EBattleTickMode.RealTime:
-                default:
-                    TickSimulation(scaledDeltaTime);
-                    break;
+                if (Phase != EBattlePhase.Running || IsPaused)
+                    return;
+
+                switch (TickMode)
+                {
+                    case EBattleTickMode.FrameSync:
+                        UpdateFrameSync(scaledDeltaTime);
+                        break;
+                    case EBattleTickMode.TurnBased:
+                        break;
+                    case EBattleTickMode.RealTime:
+                    default:
+                        TickSimulation(scaledDeltaTime);
+                        break;
+                }
             }
         }
 
@@ -164,20 +168,23 @@ namespace BattleFoundation
 
         private void TickSimulation(float deltaTime)
         {
-            DeltaTime = deltaTime;
-            ElapsedTime += deltaTime;
-            FrameIndex++;
+            using (new AutoProfiler("BattleFoundation.BattleEngine.TickSimulation"))
+            {
+                DeltaTime = deltaTime;
+                ElapsedTime += deltaTime;
+                FrameIndex++;
 
-            ExecutePendingCommands();
-            Context.Update(deltaTime);
-            OnUpdate(deltaTime);
-            Context.LateUpdate(deltaTime);
-            OnLateUpdate(deltaTime);
+                ExecutePendingCommands();
+                Context.Update(deltaTime);
+                OnUpdate(deltaTime);
+                Context.LateUpdate(deltaTime);
+                OnLateUpdate(deltaTime);
 
-            if (Phase == EBattlePhase.Running)
-                CheckEndConditions();
+                if (Phase == EBattlePhase.Running)
+                    CheckEndConditions();
 
-            Recorder?.RecordFrame(FrameRecordData.Create(FrameIndex, ElapsedTime, Context, ReplayAdapter));
+                Recorder?.RecordFrame(FrameRecordData.Create(FrameIndex, ElapsedTime, Context, ReplayAdapter));
+            }
         }
 
         protected virtual void OnUpdate(float deltaTime) { }

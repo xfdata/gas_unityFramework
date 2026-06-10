@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 using UnityEngine;
 
 namespace BattleFoundation
@@ -139,8 +140,11 @@ namespace BattleFoundation
 
         public void RecordFrame(FrameRecordData frame)
         {
-            if (IsRecording && frame != null)
-                _record.Frames.Add(frame);
+            using (new AutoProfiler("BattleFoundation.BattleRecorder.RecordFrame"))
+            {
+                if (IsRecording && frame != null)
+                    _record.Frames.Add(frame);
+            }
         }
 
         public void StopRecording(EBattleResult result)
@@ -203,9 +207,12 @@ namespace BattleFoundation
 
         public void Update(float deltaTime)
         {
-            if (!IsPlaying) return;
-            _time += Mathf.Max(0f, deltaTime);
-            ApplyDueFrames();
+            using (new AutoProfiler("BattleFoundation.BattlePlayback.Update"))
+            {
+                if (!IsPlaying) return;
+                _time += Mathf.Max(0f, deltaTime);
+                ApplyDueFrames();
+            }
         }
 
         public void Stop()

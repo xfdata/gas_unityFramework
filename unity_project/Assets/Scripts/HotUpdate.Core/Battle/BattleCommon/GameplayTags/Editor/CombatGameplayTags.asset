@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48f8782555ea4c56979150090dc14a9f, type: 3}
+  m_Name: CombatGameplayTags
+  m_EditorClassIdentifier: 
+  generatedCodePath: Assets/Scripts/HotUpdate.Game/BattleCommon/GameplayTags
+  tags:
+  - Ability.Attack
+  - Ability.Born
+  - Ability.Death
+  - Ability.Skill
+  - Ability.Block
+  - Cue.Hit
+  - Cue.Poison
+  - State.Attacking
+  - State.Casting
+  - State.Dead
+  - State.Hit
+  - State.Invincible
+  - State.Moving
+  - State.Poisoned
+  - State.BlockCooldown
+  - State.BornInvincible
+  - Trigger.OnDamageTaken
+  - Trigger.OnKill

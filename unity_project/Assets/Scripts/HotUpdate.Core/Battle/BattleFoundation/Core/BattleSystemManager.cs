@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 
 namespace BattleFoundation
 {
@@ -74,19 +75,25 @@ namespace BattleFoundation
 
         public void Update(float deltaTime)
         {
-            int count = _orderedSystems.Count;
-            for (int i = 0; i < count; i++)
+            using (new AutoProfiler("BattleFoundation.BattleSystemManager.Update"))
             {
-                _orderedSystems[i]?.Update(deltaTime);
+                int count = _orderedSystems.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    _orderedSystems[i]?.Update(deltaTime);
+                }
             }
         }
 
         public void LateUpdate(float deltaTime)
         {
-            int count = _orderedSystems.Count;
-            for (int i = 0; i < count; i++)
+            using (new AutoProfiler("BattleFoundation.BattleSystemManager.LateUpdate"))
             {
-                _orderedSystems[i]?.LateUpdate(deltaTime);
+                int count = _orderedSystems.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    _orderedSystems[i]?.LateUpdate(deltaTime);
+                }
             }
         }
 

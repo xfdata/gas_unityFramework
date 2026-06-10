@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 using UnityEngine;
 
 namespace BattleFoundation
@@ -97,33 +98,36 @@ namespace BattleFoundation
 
         public void Emit<T>(int eventId, T data)
         {
-            // 使用缓存加速频繁查询的事件
-            HandlerSet set;
-            if (_cachedEventId == eventId && _cachedHandlerSet != null)
+            using (new AutoProfiler("BattleFoundation.BattleEventBus.Emit"))
             {
-                set = _cachedHandlerSet;
-            }
-            else if (!_handlers.TryGetValue(eventId, out set))
-                return;
-            else
-            {
-                _cachedEventId = eventId;
-                _cachedHandlerSet = set;
-            }
-
-            EnsurePayloadType<T>(eventId, set);
-            
-            // 获取缓存的处理器数组，避免 ToArray() 产生GC
-            var handlers = set.GetHandlers();
-            for (int i = 0; i < set.CachedCount; i++)
-            {
-                try
+                // 使用缓存加速频繁查询的事件
+                HandlerSet set;
+                if (_cachedEventId == eventId && _cachedHandlerSet != null)
                 {
-                    ((Action<T>)handlers[i]).Invoke(data);
+                    set = _cachedHandlerSet;
                 }
-                catch (Exception e)
+                else if (!_handlers.TryGetValue(eventId, out set))
+                    return;
+                else
                 {
-                    Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
+                    _cachedEventId = eventId;
+                    _cachedHandlerSet = set;
+                }
+
+                EnsurePayloadType<T>(eventId, set);
+                
+                // 获取缓存的处理器数组，避免 ToArray() 产生GC
+                var handlers = set.GetHandlers();
+                for (int i = 0; i < set.CachedCount; i++)
+                {
+                    try
+                    {
+                        ((Action<T>)handlers[i]).Invoke(data);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
+                    }
                 }
             }
         }

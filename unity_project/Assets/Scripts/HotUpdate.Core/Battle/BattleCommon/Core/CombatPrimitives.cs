@@ -1,5 +1,12 @@
 namespace BattleCommon
 {
+    public enum AttackType
+    {
+        Auto,
+        Melee,
+        Ranged,
+    }
+
     public enum CombatTargetPriority
     {
         Nearest,

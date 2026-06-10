@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Framework;
 using UnityEngine;
@@ -44,6 +45,7 @@ public class CombatAssetCache : Disposable
 
     private List<UniTask> _preloadTasks = new List<UniTask>();
     private HashSet<string> _pendingAssets = new HashSet<string>();
+    private readonly CancellationTokenSource _disposeCts = new CancellationTokenSource();
 
     private int _modelCapacity;
     private int _particleCapacity;
@@ -154,6 +156,8 @@ public class CombatAssetCache : Disposable
 
     public async UniTask StartPreloadAsync(IProgress<float> progress = null)
     {
+        if (IsDisposed) return;
+
         _preloadTasks.Clear();
         progress?.Report(0f);
 
@@ -170,12 +174,14 @@ public class CombatAssetCache : Disposable
         _pendingAssets.Clear();
 
         await UniTask.WhenAll(_preloadTasks);
+        if (IsDisposed) return;
+
         progress?.Report(1f);
     }
 
     public async UniTask<GameObject> LoadAssetLazyAsync(string path)
     {
-        if (string.IsNullOrEmpty(path)) return null;
+        if (string.IsNullOrEmpty(path) || IsDisposed) return null;
 
         if (_modelEntries.TryGetValue(path, out var existing))
         {
@@ -195,6 +201,9 @@ public class CombatAssetCache : Disposable
             var handle = Addressables.LoadAssetAsync<GameObject>(path);
             entry.Handle = handle;
             await handle.Task;
+
+            if (!CanUseLoadedEntry(entry, _modelEntries))
+                return null;
 
             if (handle.Status == AsyncOperationStatus.Succeeded)
             {
@@ -225,7 +234,7 @@ public class CombatAssetCache : Disposable
 
     public async UniTask<GameObject> LoadParticleLazyAsync(string path)
     {
-        if (string.IsNullOrEmpty(path)) return null;
+        if (string.IsNullOrEmpty(path) || IsDisposed) return null;
 
         if (_particleEntries.TryGetValue(path, out var existing))
         {
@@ -245,6 +254,9 @@ public class CombatAssetCache : Disposable
             var handle = Addressables.LoadAssetAsync<GameObject>(path);
             entry.Handle = handle;
             await handle.Task;
+
+            if (!CanUseLoadedEntry(entry, _particleEntries))
+                return null;
 
             if (handle.Status == AsyncOperationStatus.Succeeded)
             {
@@ -372,7 +384,7 @@ public class CombatAssetCache : Disposable
 
     public async UniTask LoadParticleAsync(string path)
     {
-        if (string.IsNullOrEmpty(path)) return;
+        if (string.IsNullOrEmpty(path) || IsDisposed) return;
 
         if (_particleEntries.TryGetValue(path, out var existing))
         {
@@ -393,6 +405,9 @@ public class CombatAssetCache : Disposable
             entry.Handle = handle;
             await handle.Task;
 
+            if (!CanUseLoadedEntry(entry, _particleEntries))
+                return;
+
             if (handle.Status == AsyncOperationStatus.Succeeded)
             {
                 entry.Prefab = handle.Result;
@@ -411,7 +426,7 @@ public class CombatAssetCache : Disposable
 
     private async UniTask LoadAssetPinnedAsync(string path)
     {
-        if (string.IsNullOrEmpty(path)) return;
+        if (string.IsNullOrEmpty(path) || IsDisposed) return;
 
         if (_modelEntries.TryGetValue(path, out var existing))
         {
@@ -431,6 +446,9 @@ public class CombatAssetCache : Disposable
             var handle = Addressables.LoadAssetAsync<GameObject>(path);
             entry.Handle = handle;
             await handle.Task;
+
+            if (!CanUseLoadedEntry(entry, _modelEntries))
+                return;
 
             if (handle.Status == AsyncOperationStatus.Succeeded)
             {
@@ -467,6 +485,12 @@ public class CombatAssetCache : Disposable
         try
         {
             await entry.Handle.Task;
+
+            if (IsDisposed)
+            {
+                entry.ReleaseHandle();
+                return null;
+            }
 
             if (entry.Handle.Status == AsyncOperationStatus.Succeeded)
             {
@@ -542,9 +566,8 @@ public class CombatAssetCache : Disposable
     {
         while (_modelLRUCount > _modelCapacity)
         {
-            var first = _modelHead.Next;
-            if (first == _modelTail) break;
-            EvictEntry(first, _modelEntries, ref _modelLRUCount);
+            if (!TryEvictOldestUnused(_modelHead, _modelTail, _modelEntries, ref _modelLRUCount))
+                break;
         }
     }
 
@@ -552,9 +575,8 @@ public class CombatAssetCache : Disposable
     {
         while (_particleLRUCount > _particleCapacity)
         {
-            var first = _particleHead.Next;
-            if (first == _particleTail) break;
-            EvictEntry(first, _particleEntries, ref _particleLRUCount);
+            if (!TryEvictOldestUnused(_particleHead, _particleTail, _particleEntries, ref _particleLRUCount))
+                break;
         }
     }
 
@@ -608,24 +630,59 @@ public class CombatAssetCache : Disposable
 
     private void EvictEntry(AssetCacheEntry entry, Dictionary<string, AssetCacheEntry> entries, ref int count)
     {
+        if (entry == null) return;
         RemoveFromLRU(entry, ref count);
-        entries.Remove(entry.Path);
+        if (!string.IsNullOrEmpty(entry.Path) &&
+            entries.TryGetValue(entry.Path, out var current) &&
+            ReferenceEquals(current, entry))
+        {
+            entries.Remove(entry.Path);
+        }
         entry.ReleaseHandle();
+    }
+
+    private bool TryEvictOldestUnused(AssetCacheEntry head, AssetCacheEntry tail, Dictionary<string, AssetCacheEntry> entries, ref int count)
+    {
+        var current = head.Next;
+        while (current != tail)
+        {
+            var next = current.Next;
+            if (!current.IsPinned && current.RefCount <= 0)
+            {
+                EvictEntry(current, entries, ref count);
+                return true;
+            }
+            current = next;
+        }
+        return false;
     }
 
     private void RemoveModelEntry(AssetCacheEntry entry)
     {
         if (entry == null) return;
 
+        bool isCurrent = !string.IsNullOrEmpty(entry.Path) &&
+                         _modelEntries.TryGetValue(entry.Path, out var current) &&
+                         ReferenceEquals(current, entry);
+        bool isLinked = entry.Prev != null && entry.Next != null;
+        if (!isCurrent && !isLinked)
+        {
+            entry.ReleaseHandle();
+            return;
+        }
+
         if (!entry.IsPinned)
         {
             RemoveFromLRU(entry, ref _modelLRUCount);
         }
-        else
+        else if (isCurrent)
         {
             ModelPinnedCount = Mathf.Max(0, ModelPinnedCount - 1);
         }
-        _modelEntries.Remove(entry.Path);
+        if (isCurrent)
+        {
+            _modelEntries.Remove(entry.Path);
+        }
         entry.ReleaseHandle();
     }
 
@@ -633,20 +690,57 @@ public class CombatAssetCache : Disposable
     {
         if (entry == null) return;
 
+        bool isCurrent = !string.IsNullOrEmpty(entry.Path) &&
+                         _particleEntries.TryGetValue(entry.Path, out var current) &&
+                         ReferenceEquals(current, entry);
+        bool isLinked = entry.Prev != null && entry.Next != null;
+        if (!isCurrent && !isLinked)
+        {
+            entry.ReleaseHandle();
+            return;
+        }
+
         if (!entry.IsPinned)
         {
             RemoveFromLRU(entry, ref _particleLRUCount);
         }
-        else
+        else if (isCurrent)
         {
             ParticlePinnedCount = Mathf.Max(0, ParticlePinnedCount - 1);
         }
-        _particleEntries.Remove(entry.Path);
+        if (isCurrent)
+        {
+            _particleEntries.Remove(entry.Path);
+        }
         entry.ReleaseHandle();
+    }
+
+    private bool CanUseLoadedEntry(AssetCacheEntry entry, Dictionary<string, AssetCacheEntry> entries)
+    {
+        if (entry == null)
+            return false;
+
+        if (IsDisposed || _disposeCts.IsCancellationRequested)
+        {
+            entry.ReleaseHandle();
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(entry.Path) ||
+            !entries.TryGetValue(entry.Path, out var current) ||
+            !ReferenceEquals(current, entry))
+        {
+            entry.ReleaseHandle();
+            return false;
+        }
+
+        return true;
     }
 
     protected override void OnDispose()
     {
+        _disposeCts.Cancel();
+
         foreach (var entry in _modelEntries.Values)
         {
             entry.ReleaseHandle();
@@ -665,6 +759,7 @@ public class CombatAssetCache : Disposable
         _particleLRUCount = 0;
         ModelPinnedCount = 0;
         ParticlePinnedCount = 0;
+        _disposeCts.Dispose();
     }
 }
 

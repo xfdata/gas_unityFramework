@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 using UnityEngine;
 
 namespace BattleFoundation
@@ -105,28 +106,31 @@ namespace BattleFoundation
 
         public void Emit<T>(int eventId, T data)
         {
-            if (!_handlers.TryGetValue(eventId, out var set))
-                return;
-
-            EnsurePayloadType<T>(eventId, set);
-            var handlers = set.GetCachedHandlers(out int count);
-            try
+            using (new AutoProfiler("BattleFoundation.BattleEventBus.Emit"))
             {
-                for (int i = 0; i < count; i++)
+                if (!_handlers.TryGetValue(eventId, out var set))
+                    return;
+
+                EnsurePayloadType<T>(eventId, set);
+                var handlers = set.GetCachedHandlers(out int count);
+                try
                 {
-                    try
+                    for (int i = 0; i < count; i++)
                     {
-                        ((Action<T>)handlers[i]).Invoke(data);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
+                        try
+                        {
+                            ((Action<T>)handlers[i]).Invoke(data);
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
+                        }
                     }
                 }
-            }
-            finally
-            {
-                set.ReleaseCachedHandlers();
+                finally
+                {
+                    set.ReleaseCachedHandlers();
+                }
             }
         }
 

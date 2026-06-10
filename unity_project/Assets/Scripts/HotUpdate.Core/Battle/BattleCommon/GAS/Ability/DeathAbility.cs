@@ -25,9 +25,6 @@ namespace GAS
 
         public override void ActivateAbility(GameplayAbilitySpec spec)
         {
-            if (DeathStateTag.IsValid)
-                spec.Source?.OwnedTags?.AddTag(DeathStateTag);
-
             ApplyConfiguredEffects(spec);
 
             if (spec.IsEnded)

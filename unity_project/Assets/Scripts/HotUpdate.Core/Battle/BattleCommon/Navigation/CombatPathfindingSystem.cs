@@ -36,11 +36,14 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
 
     public void Update(float deltaTime)
     {
-        _updateTimer += deltaTime;
-        while (_updateTimer >= _updateInterval)
+        using (new AutoProfiler("BattleCommon.CombatPathfinding.Update"))
         {
-            _updateTimer -= _updateInterval;
-            ProcessRequests();
+            _updateTimer += deltaTime;
+            while (_updateTimer >= _updateInterval)
+            {
+                _updateTimer -= _updateInterval;
+                ProcessRequests();
+            }
         }
     }
 
@@ -52,13 +55,13 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
             var request = _requestQueue.Dequeue();
             if (request.IsCancelled)
             {
-                _requestPool.Return(request);
+                ReturnRequest(request, true);
                 continue;
             }
 
             bool success = CalculatePath(request.Start, request.End, request.ResultPath);
             request.Callback?.Invoke(success, request.ResultPath);
-            _requestPool.Return(request);
+            ReturnRequest(request, false);
             processed++;
         }
     }
@@ -109,7 +112,10 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
         var request = _requestPool.Get();
         request.Start = start;
         request.End = end;
-        request.ResultPath = new List<Vector3>();
+        if (request.ResultPath == null)
+            request.ResultPath = new List<Vector3>();
+        else
+            request.ResultPath.Clear();
         request.Callback = callback;
         request.IsCancelled = false;
         _requestQueue.Enqueue(request);
@@ -133,9 +139,12 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
 
     public Vector3 GetRandomPointOnNavMesh(Vector3 center, float radius)
     {
+        if (_context?.Random == null)
+            return center;
+
         for (int i = 0; i < 30; i++)
         {
-            Vector3 randomDirection = (_context?.Random?.InsideUnitSphere() ?? UnityEngine.Random.insideUnitSphere) * radius;
+            Vector3 randomDirection = _context.Random.InsideUnitSphere() * radius;
             randomDirection += center;
             if (NavMesh.SamplePosition(randomDirection, out var hit, radius, NavMesh.AllAreas))
             {
@@ -152,8 +161,17 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
         while (_requestQueue.Count > 0)
         {
             var req = _requestQueue.Dequeue();
-            req.ResultPath?.Clear();
+            ReturnRequest(req, true);
         }
+    }
+
+    private void ReturnRequest(PathRequest request, bool clearResultPath)
+    {
+        if (request == null)
+            return;
+
+        request.Reset(clearResultPath);
+        _requestPool.Return(request);
     }
 
     private class PathRequest
@@ -163,6 +181,16 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
         public List<Vector3> ResultPath;
         public Action<bool, List<Vector3>> Callback;
         public bool IsCancelled;
+
+        public void Reset(bool clearResultPath)
+        {
+            Start = Vector3.zero;
+            End = Vector3.zero;
+            Callback = null;
+            IsCancelled = false;
+            if (clearResultPath)
+                ResultPath?.Clear();
+        }
     }
 }
 

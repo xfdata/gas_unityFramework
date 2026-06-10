@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 using UnityEngine;
 
 namespace GAS
@@ -180,7 +181,7 @@ namespace GAS
     {
         private readonly List<ProjectileInstance> projectiles = new List<ProjectileInstance>();
 
-        public delegate List<IRangedTarget> CollisionQueryDelegate(Vector3 center, float radius);
+        public delegate List<IRangedTarget> CollisionQueryDelegate(GameplayEffectRuntime source, Vector3 center, float radius);
 
         public CollisionQueryDelegate CollisionQuery { get; set; }
 
@@ -254,7 +255,9 @@ namespace GAS
             if (deltaTime < 0f)
                 deltaTime = 0f;
 
-            for (int i = projectiles.Count - 1; i >= 0; i--)
+            using (new AutoProfiler("BattleCommon.ProjectileRuntime.Tick"))
+            {
+                for (int i = projectiles.Count - 1; i >= 0; i--)
             {
                 var projectile = projectiles[i];
 
@@ -323,6 +326,7 @@ namespace GAS
                 }
 
                 projectiles[i] = projectile;
+                }
             }
         }
 
@@ -503,7 +507,7 @@ namespace GAS
 
             projectile.SweepTimer -= projectile.Definition.SweepInterval;
 
-            var hits = CollisionQuery(projectile.Position, projectile.Definition.SweepRadius);
+            var hits = CollisionQuery(projectile.Source, projectile.Position, projectile.Definition.SweepRadius);
             if (hits == null || hits.Count == 0)
                 return 0;
 
@@ -543,7 +547,7 @@ namespace GAS
                 CollisionQuery == null)
                 return;
 
-            var hits = CollisionQuery(center, projectile.Definition.ExplosionRadius);
+            var hits = CollisionQuery(projectile.Source, center, projectile.Definition.ExplosionRadius);
             if (hits == null || hits.Count == 0) return;
 
             for (int i = 0; i < hits.Count; i++)
@@ -559,6 +563,8 @@ namespace GAS
         private void ApplyDamageToTarget(ProjectileInstance projectile, IRangedTarget target)
         {
             if (projectile.Source == null || target == null || projectile.DamageEffect == null)
+                return;
+            if (!IsTargetValid(target))
                 return;
 
             var targetRuntime = target.Effects;

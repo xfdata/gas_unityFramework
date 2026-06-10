@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Framework;
 using UnityEngine;
 
 namespace BattleFoundation
@@ -31,28 +32,31 @@ namespace BattleFoundation
 
         public void AddEntity(BattleEntity entity)
         {
-            if (entity == null) return;
-
-            if (entity.Id == 0)
-                entity.SetId(GenerateId());
-
-            if (_idToEntity.ContainsKey(entity.Id))
+            using (new AutoProfiler("BattleFoundation.EntityManager.AddEntity"))
             {
-                Debug.LogWarning($"[EntityManager] Entity with Id={entity.Id} already exists, skipping.");
-                return;
-            }
+                if (entity == null) return;
 
-            entity.Engine = _context.Engine;
-            _idToEntity[entity.Id] = entity;
-            if (!_campToEntities.TryGetValue(entity.Camp, out var campList))
-            {
-                campList = new List<BattleEntity>();
-                _campToEntities[entity.Camp] = campList;
-            }
-            campList.Add(entity);
-            _allEntities.Add(entity);
+                if (entity.Id == 0)
+                    entity.SetId(GenerateId());
 
-            _context.EventBus.Emit(BattleEventIds.EntityCreated, entity);
+                if (_idToEntity.ContainsKey(entity.Id))
+                {
+                    Debug.LogWarning($"[EntityManager] Entity with Id={entity.Id} already exists, skipping.");
+                    return;
+                }
+
+                entity.Engine = _context.Engine;
+                _idToEntity[entity.Id] = entity;
+                if (!_campToEntities.TryGetValue(entity.Camp, out var campList))
+                {
+                    campList = new List<BattleEntity>();
+                    _campToEntities[entity.Camp] = campList;
+                }
+                campList.Add(entity);
+                _allEntities.Add(entity);
+
+                _context.EventBus.Emit(BattleEventIds.EntityCreated, entity);
+            }
         }
 
         public void AddEntityFromPool(BattleEntity entity)

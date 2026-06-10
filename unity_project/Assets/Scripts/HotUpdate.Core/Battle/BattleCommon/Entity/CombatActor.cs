@@ -30,7 +30,7 @@ namespace BattleCommon
         public AnimancerComponent Animancer => ResolveAnimancer();
         public PlayableDirector Director => ResolveDirector();
         public virtual float HitRadius { get; protected set; } = 0.5f;
-        public bool IsValidTarget => IsAlive;
+        public virtual bool IsValidTarget => IsAlive;
         public Vector3 MeleeOrigin => Position;
         public Vector3 MeleeForward => Transform != null ? Transform.forward : Rotation * Vector3.forward;
 
@@ -65,7 +65,7 @@ namespace BattleCommon
         }
 
         public virtual AttributeSet AttributeSet => Get<CombatAttributeComponent>()?.AttributeSet;
-        public virtual GameplayEffectRuntime Effects => Get<CombatAbilityComponent>()?.GAS?.Effects;
+        public virtual GameplayEffectRuntime Effects => Get<CombatAbilityComponent>()?.Effects;
         public virtual float GetAttribute(int attributeId) => Get<CombatAttributeComponent>()?.GetAttribute(attributeId) ?? 0f;
         public virtual void AddAttributeBaseValue(int attributeId, float delta) => Get<CombatAttributeComponent>()?.AddAttributeBaseValue(attributeId, delta);
         public virtual AttributeModifierHandle AddModifier(int attributeId, AttributeModifierOp op, float value, object source)
