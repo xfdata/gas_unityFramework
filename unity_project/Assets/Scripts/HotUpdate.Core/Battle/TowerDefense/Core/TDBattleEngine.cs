@@ -5,14 +5,14 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// TD鎴樻枟寮曟搸 鈥?濉旈槻妯″紡鐨勫叆鍙ｅ紩鎿庛€?
-    /// 缁ф壙BattleEngine锛屽湪OnInitialize涓敞鍐孴D涓撳睘System鍜孯ule銆?
+    /// TD战斗引擎 — 塔防模式的入口引擎。
+    /// 继承BattleEngine，在OnInitialize中注册TD专属System和Rule。
     /// 
-    /// 浣跨敤鏂瑰紡锛?
+    /// 使用方式：
     ///   var engine = new TDBattleEngine(tdGlobalConfig);
     ///   engine.Initialize();
     ///   engine.StartBattle();
-    ///   // 姣忓抚锛歟ngine.UpdateFromUnity(Time.deltaTime);
+    ///   // 每帧：engine.UpdateFromUnity(Time.deltaTime);
     /// </summary>
     public class TDBattleEngine : BattleEngine
     {
@@ -20,12 +20,12 @@ namespace TowerDefense
         private TowerDefenseGlobalConfig _tdConfig;
 
         /// <summary>
-        /// TD鍏ㄥ眬閰嶇疆锛堟尝娆°€佽矾寰勩€佸垵濮嬮噾甯佺瓑锛?
+        /// TD全局配置（波次、路径、初始金币等）
         /// </summary>
         public TowerDefenseGlobalConfig TDConfig => _tdConfig;
 
         /// <summary>
-        /// 鏁屼汉宸ュ巶渚挎嵎璁块棶
+        /// 敌人工厂便捷访问
         /// </summary>
         public EnemyFactory EnemyFactory => ((TDBattleContext)Context)?.EnemyFactory;
 
@@ -61,46 +61,46 @@ namespace TowerDefense
         {
             var ctx = (TDBattleContext)Context;
 
-            // ===== 娉ㄥ唽TD System锛堟寜鎵ц椤哄簭锛?=====
-            // 1. 璺緞璺熼殢锛氶┍鍔ㄦ墍鏈夋晫浜烘部璺緞绉诲姩
+            // ===== 注册TD System（按执行顺序） =====
+            // 1. 路径跟随：驱动所有敌人沿路径移动
             ctx.AddSystem(new PathFollowerSystem());
 
-            // 2. 涓诲煄绯荤粺锛氱鐞嗕富鍩庣敓鍛藉懆鏈熷拰浼ゅ鎺ユ敹
+            // 2. 主城系统：管理主城生命周期和伤害接收
             ctx.AddSystem(new MainCitySystem());
 
-            // 3. 鍩庡競鏀诲嚮鑰呯郴缁燂細椹卞姩鏁屼汉鎸佺画鏀诲嚮涓诲煄
+            // 3. 城市攻击者系统：驱动敌人持续攻击主城
             ctx.AddSystem(new CityAttackerSystem());
 
-            // 4. 鎶曞皠鐗╃郴缁燂細椹卞姩鎵€鏈夐槻寰″/鐜╁鎶曞皠鐗╅琛屼笌鍛戒腑锛堝繀椤诲湪TowerPlacementSystem涔嬪墠锛?
+            // 4. 投射物系统：驱动所有防御塔/玩家投射物飞行与命中（必须在TowerPlacementSystem之前）
             ctx.AddSystem(new CombatProjectileSystem());
 
-            // 5. 闃插尽濉旀斁缃郴缁燂細绠＄悊濉旂殑寤洪€?鍗囩骇/鍑哄敭鍜屾敾鍑婚┍鍔?
+            // 5. 防御塔放置系统：管理塔的建造/升级/出售和攻击驱动
             ctx.AddSystem(new TowerPlacementSystem());
-            // 6. 鐜╁绉诲姩绯荤粺
+            // 6. 玩家移动系统
             ctx.AddSystem(new TDPlayerMovementSystem());
-            // 7. 鐜╁鎶€鑳借緭鍏ョ郴缁?
+            // 7. 玩家技能输入系统
             ctx.AddSystem(new TDPlayerSkillInputSystem());
-            // 8. 浜嬩欢缁熻绯荤粺
+            // 8. 事件统计系统
             ctx.AddSystem(new TDEventSystem());
-            // 9. 缁忔祹绠＄悊绯荤粺 (Phase 5)锛氱洃鍚?EnemyKilled 璁＄畻閲戝竵濂栧姳
+            // 9. 经济管理系统 (Phase 5)：监听 EnemyKilled 计算金币奖励
             ctx.AddSystem(new EconomySystem());
-            // 10. Build娴佹淳鍗忓悓绯荤粺 (Phase 5)锛氬鏁伴噺闃堝€艰Е鍙戝鐩?
+            // 10. Build流派协同系统 (Phase 5)：塔数量阈值触发增益
             ctx.AddSystem(new BuildSynergySystem());
-            // 11. 缃楀悏灏斿己鍖栭€夋嫨绯荤粺 (Phase 5)锛氭尝闂存殏鍋溿€?閫?銆佸簲鐢ㄥ己鍖?
+            // 11. 罗吉尔强化选择系统 (Phase 5)：波间暂停、3选1、应用强化
             ctx.AddSystem(new RoguelikeChoiceSystem());
-            // 12. 娉㈡绠＄悊绯荤粺锛堝繀椤诲湪 RoguelikeChoiceSystem 涔嬪悗锛屼互渚块挬瀛愮敓鏁堬級
+            // 12. 波次管理系统（必须在 RoguelikeChoiceSystem 之后，以便钩子生效）
             ctx.AddSystem(new WaveManagerSystem());
-            // 13. 鎴樻枟闃舵绠＄悊绯荤粺 (Phase 6)锛歅repare鈫扖ombat鈫扺aveEnd鈫扖hoice 寰幆
+            // 13. 战斗阶段管理系统 (Phase 6)：Prepare→Combat→WaveEnd→Choice 循环
             ctx.AddSystem(new TDBattlePhaseSystem());
-            // 14. 鑳滃埄鏉′欢妫€鏌ョ郴缁?
+            // 14. 胜利条件检查系统
             ctx.AddSystem(new VictoryCheckSystem());
 
-            // ===== 鍒濆鍖朤D鍏ㄥ眬閰嶇疆 =====
+            // ===== 初始化TD全局配置 =====
             if (_tdConfig != null)
             {
                 ctx.PlayerGold = _tdConfig.StartingGold;
 
-                // 棰勫垱寤烘晫浜哄璞℃睜
+                // 预创建敌人对象池
                 if (_tdConfig.EnemyPreWarmConfigs != null)
                 {
                     foreach (var preWarmEntry in _tdConfig.EnemyPreWarmConfigs)
@@ -110,7 +110,7 @@ namespace TowerDefense
                 }
             }
 
-            // ===== 娉ㄥ唽BattleRule =====
+            // ===== 注册BattleRule =====
             AddRule(new MainCityDestroyedRule());
             AddRule(new AllWavesClearedRule());
         }
@@ -121,10 +121,10 @@ namespace TowerDefense
 
             var ctx = (TDBattleContext)Context;
 
-            // ===== Phase 7: Meta娉ㄥ叆锛堝眬澶栧ぉ璧?鈫?灞€鍐呮暟鍊硷級 =====
+            // ===== Phase 7: Meta注入（局外天赋 → 局内数值） =====
             if (_tdConfig?.TalentTreeConfig != null)
             {
-                // 纭繚 MetaTalentManager 宸插垵濮嬪寲
+                // 确保 MetaTalentManager 已初始化
                 if (MetaTalentManager.Instance.Config == null)
                     MetaTalentManager.Instance.Initialize(_tdConfig.TalentTreeConfig);
                 MetaToRunBridge.ApplyToBattleContext(ctx, _tdConfig);
@@ -144,13 +144,13 @@ namespace TowerDefense
                 LevelManager.Instance.ApplyToBattleEngine(this);
             }
 
-            // ===== 鐢熸垚涓诲煄 =====
+            // ===== 生成主城 =====
             var mainCitySystem = ctx.GetSystem<MainCitySystem>();
             mainCitySystem?.SpawnMainCity(_tdConfig?.MainCityConfig, Vector3.zero);
 
-            // ===== 寮€濮嬫尝娆″簭鍒?=====
+            // ===== 开始波次序列 =====
             var waveManager = ctx.GetSystem<WaveManagerSystem>();
-            // LevelConfig 鍙兘宸茶鐩栨尝娆￠厤缃紝妫€鏌ユ槸鍚﹀凡鏈夋尝娆?
+            // LevelConfig 可能已覆盖波次配置，检查是否已有波次
             if (waveManager?.State == ETDWaveState.Idle && _tdConfig?.WaveConfigs != null && _tdConfig.WaveConfigs.Length > 0)
             {
                 if (_tdConfig.DefaultPath != null)
@@ -159,7 +159,7 @@ namespace TowerDefense
             }
             else if (waveManager?.State != ETDWaveState.Idle)
             {
-                // LevelManager 宸插惎鍔ㄦ尝娆?
+                // LevelManager 已启动波次
                 Debug.Log("[TDBattleEngine] Waves already started by LevelManager.");
             }
             else
@@ -176,14 +176,14 @@ namespace TowerDefense
 
             var ctx = (TDBattleContext)Context;
 
-            // ===== Phase 7: Meta 缁熻璁板綍 =====
+            // ===== Phase 7: Meta 统计记录 =====
             bool victory = result == EBattleResult.Win;
             int waveReached = ctx?.WaveManager?.CurrentWaveIndex ?? 0;
             int totalGold = ctx?.PlayerGold ?? 0;
 
             LevelManager.Instance.OnBattleEnded(victory, waveReached, totalGold);
 
-            // 娓呯悊
+            // 清理
             ctx?.EnemyFactory?.RecycleAll();
             ctx?.ClearServices();
             Debug.Log($"[TDBattleEngine] Battle ended: {result}. Meta stats recorded.");
@@ -191,7 +191,7 @@ namespace TowerDefense
 
         protected override void OnUpdate(float deltaTime)
         {
-            // TD涓撳睘鐨勫叏灞€Update閫昏緫锛堝鏈夐渶瑕佸湪姝ゆ坊鍔狅級
+            // TD专属的全局Update逻辑（如有需要在此添加）
         }
 
         protected override void OnDispose()

@@ -4,8 +4,8 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// 闃插尽濉旈厤缃甋criptableObject銆?
-    /// 瀹氫箟闃插尽濉旂被鍨嬨€佹敾鍑诲睘鎬с€佸缓閫犳秷鑰椼€佸崌绾ч摼銆?
+    /// 防御塔配置ScriptableObject。
+    /// 定义防御塔类型、攻击属性、建造消耗、升级链。
     /// </summary>
     [CreateAssetMenu(fileName = "TowerConfig", menuName = "TowerDefense/Tower Config", order = 140)]
     public class TowerConfig : ScriptableObject
@@ -13,46 +13,46 @@ namespace TowerDefense
         [Header("Identity")]
         [SerializeField] private string _towerName = "Tower";
         [SerializeField] private ETDTowerType _towerType = ETDTowerType.ArrowTower;
-        [Tooltip("濉旂殑鏄剧ず绛夌骇锛?=鍩虹锛?=涓骇锛?=楂樼骇锛?")]
+        [Tooltip("塔的显示等级（1=基础，2=中级，3=高级）")]
         [SerializeField] private int _towerLevel = 1;
 
         [Header("Visual")]
         [SerializeField] private GameObject _prefab;
 
         [Header("Placement")]
-        [Tooltip("寤洪€犳秷鑰楅噾甯?")]
+        [Tooltip("建造消耗金币")]
         [SerializeField] private int _buildCost = 50;
-        [Tooltip("鍗囩骇鍒颁笅涓€绾ч渶瑕佺殑閲戝竵")]
+        [Tooltip("升级到下一级需要的金币")]
         [SerializeField] private int _upgradeCost = 75;
 
         [Header("Combat")]
-        [Tooltip("鏀诲嚮璺濈")]
+        [Tooltip("攻击距离")]
         [SerializeField] private float _attackRange = 5f;
-        [Tooltip("鏀诲嚮闂撮殧锛堢锛?")]
+        [Tooltip("攻击间隔（秒）")]
         [SerializeField] private float _attackInterval = 1f;
-        [Tooltip("鍗曟鏀诲嚮浼ゅ")]
+        [Tooltip("单次攻击伤害")]
         [SerializeField] private float _attackDamage = 20f;
-        [Tooltip("鏄惁绌块€忔敾鍑伙紙娉曞锛?")]
+        [Tooltip("是否穿透攻击（法塔）")]
         [SerializeField] private bool _isPiercing;
-        [Tooltip("AOE鐖嗙偢鍗婂緞锛?=闈濧OE锛?")]
+        [Tooltip("AOE爆炸半径（0=非AOE）")]
         [SerializeField] private float _aoeRadius;
-        [Tooltip("鍛戒腑鏂藉姞鍑忛€熺櫨鍒嗘瘮锛堝啺濉旓級锛?=鏃犲噺閫?")]
+        [Tooltip("命中施加减速百分比（冰塔），0=无减速")]
         [SerializeField] private float _slowPercent;
 
         [Header("Projectile")]
-        [Tooltip("鏀诲嚮鎶€鑳斤紙RemoteAttackAbilityDefinition锛夛紝閫氳繃GAS婵€娲诲彂灏勬姇灏勭墿")]
+        [Tooltip("攻击技能（RemoteAttackAbilityDefinition），通过GAS激活发射投射物")]
         [SerializeField] private RemoteAttackAbilityDefinition _attackAbility;
-        [Tooltip("鎶曞皠鐗╁畾涔夛紙绠/鐐浣跨敤鎶涚墿绾挎垨鐩寸嚎椋炶锛?")]
+        [Tooltip("投射物定义（箭塔/炮塔使用抛物线或直线飞行）")]
         [SerializeField] private RangedProjectileDefinition _projectileDefinition;
-        [Tooltip("绱㈡晫绛栫暐")]
+        [Tooltip("索敌策略")]
         [SerializeField] private ETDTargetPriority _targetPriority = ETDTargetPriority.MostProgressed;
 
         [Header("Special Effects")]
-        [Tooltip("鍑忛€?鎺у埗鏁堟灉锛堝啺濉旂敤锛夛紝鍛戒腑鍚庢柦鍔犲埌鐩爣銆侱urationPolicy=Duration鏃舵寔缁敓鏁堛€?")]
+        [Tooltip("减速/控制效果（冰塔用），命中后施加到目标。DurationPolicy=Duration时持续生效。")]
         [SerializeField] private GameplayEffectDefinition _slowEffect;
 
         [Header("Upgrade")]
-        [Tooltip("鍗囩骇鍚庣殑閰嶇疆锛坣ull=涓嶅彲鍗囩骇锛?")]
+        [Tooltip("升级后的配置（null=不可升级）")]
         [SerializeField] private TowerConfig _upgradeConfig;
 
         public string TowerName => _towerName;

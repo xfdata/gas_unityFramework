@@ -4,17 +4,17 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// 鍏冲崱閰嶇疆 ScriptableObject 鈥?瀹氫箟涓€灞€娓告垙鐨勫叏閮ㄥ弬鏁般€?
+    /// 关卡配置 ScriptableObject — 定义一局游戏的全部参数。
     /// 
-    /// 缁勫悎锛?
-    /// - 鍦板浘锛圡apConfig锛?
-    /// - 娉㈡锛圵aveConfig[]锛?
-    /// - Boss锛圔ossConfig锛?
-    /// - 闅惧害鏇茬嚎
-    /// - 璧峰璧勬簮
-    /// - 鍙敤闃插尽濉?
+    /// 组合：
+    /// - 地图（MapConfig）
+    /// - 波次（WaveConfig[]）
+    /// - Boss（BossConfig）
+    /// - 难度曲线
+    /// - 起始资源
+    /// - 可用防御塔
     /// 
-    /// 鏁版嵁椹卞姩锛氭柊鍏冲崱 = 鏂板缓姝?ScriptableObject銆?
+    /// 数据驱动：新关卡 = 新建此 ScriptableObject。
     /// </summary>
     [CreateAssetMenu(fileName = "LevelConfig", menuName = "TowerDefense/Level Config", order = 221)]
     public class LevelConfig : ScriptableObject
@@ -25,50 +25,50 @@ namespace TowerDefense
         public string Description;
 
         [Header("Map")]
-        [Tooltip("鏈叧鍗′娇鐢ㄧ殑鍦板浘閰嶇疆")]
+        [Tooltip("本关卡使用的地图配置")]
         public MapConfig Map;
 
         [Header("Economy")]
-        [Tooltip("鍒濆閲戝竵锛堣鐩?GlobalConfig.StartingGold锛?")]
+        [Tooltip("初始金币（覆盖 GlobalConfig.StartingGold）")]
         public int OverrideStartingGold = -1;
 
-        [Tooltip("璧峰鐢熷懡鏁帮紙0=浣跨敤涓诲煄榛樿琛€閲忥級")]
+        [Tooltip("起始生命数（0=使用主城默认血量）")]
         public int StartingLives;
 
         [Header("Available Towers")]
-        [Tooltip("鏈叧鍗″厑璁稿缓閫犵殑闃插尽濉旓紙绌?鍏ㄥ眬閰嶇疆锛?")]
+        [Tooltip("本关卡允许建造的防御塔（空=全局配置）")]
         public TowerConfig[] AvailableTowers = Array.Empty<TowerConfig>();
 
         [Header("Tower Mods")]
-        [Tooltip("鏈叧鍗″彲鐢ㄧ殑濉旀彃浠讹紙绌?鍏ㄥ眬閰嶇疆锛?")]
+        [Tooltip("本关卡可用的塔插件（空=全局配置）")]
         public TowerModConfig[] AvailableMods = Array.Empty<TowerModConfig>();
 
         [Header("Wave Configs")]
-        [Tooltip("鏈叧鍗＄殑娉㈡閰嶇疆鍒楄〃")]
+        [Tooltip("本关卡的波次配置列表")]
         public WaveConfig[] WaveConfigs = Array.Empty<WaveConfig>();
 
         [Header("Difficulty Curve")]
-        [Tooltip("娉㈡鎴愰暱鍊嶇巼锛堟瘡杩囦竴娉紝鏁屼汉HP 脳 姝ゅ€硷級")]
+        [Tooltip("波次成长倍率（每过一波，敌人HP × 此值）")]
         public float WaveHpScale = 1.1f;
 
-        [Tooltip("娉㈡鎴愰暱閫熷害鍊嶇巼")]
+        [Tooltip("波次成长速度倍率")]
         public float WaveSpeedScale = 1f;
 
-        [Tooltip("娉㈡鍑绘潃閲戝竵鍊嶇巼")]
+        [Tooltip("波次击杀金币倍率")]
         public float WaveGoldScale = 1.05f;
 
         [Header("Boss")]
-        [Tooltip("Boss閰嶇疆锛堝嚭鐜板湪鏈€缁堟尝娆℃垨鐗瑰畾娉㈡锛?")]
+        [Tooltip("Boss配置（出现在最终波次或特定波次）")]
         public BossConfig[] BossConfigs = Array.Empty<BossConfig>();
 
         [Header("Meta Rewards")]
-        [Tooltip("閫氬叧澶╄祴鐐瑰鍔?")]
+        [Tooltip("通关天赋点奖励")]
         public int WinTalentPoints = 3;
 
-        [Tooltip("澶辫触澶╄祴鐐规儵缃氾紙閫氬父 < WinTalentPoints锛?")]
+        [Tooltip("失败天赋点惩罚（通常 < WinTalentPoints）")]
         public int LoseTalentPoints = 1;
 
-        // 渚挎嵎鏂规硶
+        // 便捷方法
         public int EffectiveStartingGold(TowerDefenseGlobalConfig globalConfig)
         {
             if (OverrideStartingGold >= 0)

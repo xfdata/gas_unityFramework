@@ -4,64 +4,64 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// 寮哄寲閫夋嫨閰嶇疆 ScriptableObject銆?
-    /// 瀹氫箟鍗曚釜缃楀悏灏旈€夐」妯℃澘锛氱被鍒€佸睍绀轰俊鎭€佹秷鑰椼€佺洰鏍囪繃婊ゃ€佹柦鍔犵殑GAS鏁堟灉銆侀殢鏈烘潈閲嶃€?
+    /// 强化选择配置 ScriptableObject。
+    /// 定义单个罗吉尔选项模板：类别、展示信息、消耗、目标过滤、施加的GAS效果、随机权重。
     /// 
-    /// 浣跨敤鏂瑰紡锛?
-    /// - 鍦?Asset 鏁版嵁搴撲腑鍒涘缓 ChoiceConfig 璧勪骇锛岄厤缃弬鏁?
-    /// - 鎸傝浇鍒?TowerDefenseGlobalConfig.RoguelikeChoicePool 涓?
-    /// - RoguelikeChoiceSystem 鍦ㄦ瘡娉㈢粨鏉熸椂浠庢睜涓寜鏉冮噸闅忔満鎶藉彇3涓?
+    /// 使用方式：
+    /// - 在 Asset 数据库中创建 ChoiceConfig 资产，配置参数
+    /// - 挂载到 TowerDefenseGlobalConfig.RoguelikeChoicePool 中
+    /// - RoguelikeChoiceSystem 在每波结束时从池中按权重随机抽取3个
     /// 
-    /// 鎵╁睍鏂扮被鍨嬶細鍙渶鍒涘缓鏂扮殑 ChoiceConfig 璧勪骇锛屾棤闇€淇敼浠ｇ爜銆?
+    /// 扩展新类型：只需创建新的 ChoiceConfig 资产，无需修改代码。
     /// </summary>
     [CreateAssetMenu(fileName = "ChoiceConfig", menuName = "TowerDefense/Roguelike/Choice Config", order = 200)]
     public class ChoiceConfig : ScriptableObject
     {
         [Header("Identity")]
-        [Tooltip("鍞竴鏍囪瘑锛岀敤浜庡洖鏀?鏃ュ織杩借釜")]
+        [Tooltip("唯一标识，用于回溯/日志追踪")]
         public string ChoiceId;
 
-        [Tooltip("寮哄寲绫诲埆")]
+        [Tooltip("强化类别")]
         public EChoiceCategory Category = EChoiceCategory.TowerBuff;
 
-        [Header("Display (UI鏁版嵁灞?")]
-        [Tooltip("灞曠ず鏍囬")]
-        public string Title = "寮哄寲閫夐」";
+        [Header("Display (UI数据层)")]
+        [Tooltip("展示标题")]
+        public string Title = "强化选项";
 
-        [Tooltip("灞曠ず鎻忚堪")]
+        [Tooltip("展示描述")]
         [TextArea(2, 4)]
-        public string Description = "Choose a reinforcement effect";
+        public string Description = "选择一个强化效果";
 
         [Header("Economy")]
-        [Tooltip("娑堣€楅噾甯侊紙0=鍏嶈垂锛?")]
+        [Tooltip("消耗金币（0=免费）")]
         [Min(0)]
         public int Cost;
 
         [Header("Target Filter")]
-        [Tooltip("鐩爣杩囨护绫诲瀷")]
+        [Tooltip("目标过滤类型")]
         public EChoiceTarget TargetType = EChoiceTarget.AllTowers;
 
-        [Tooltip("Optional target tag filter.")]
+        [Tooltip("可选的Tag过滤")]
         public string TargetTag = string.Empty;
 
         [Header("GAS Effect")]
-        [Tooltip("鏂藉姞鐨?GameplayEffectDefinition銆侱urationPolicy=Infinite 琛ㄧず姘镐箙寮哄寲锛孌urationPolicy=Duration 琛ㄧず闄愭椂寮哄寲銆?")]
+        [Tooltip("施加的 GameplayEffectDefinition。DurationPolicy=Infinite 表示永久强化，DurationPolicy=Duration 表示限时强化。")]
         public GameplayEffectDefinition AppliedEffect;
 
-        [Tooltip("鏁板€间慨楗帮紙濡?1.3 琛ㄧず鏀婚€?30%锛?.8 琛ㄧず鍐峰嵈-20%锛夈€傜敱绯荤粺鎸夐渶浣跨敤")]
+        [Tooltip("数值修饰（如 1.3 表示攻速+30%，0.8 表示冷却-20%）。由系统按需使用")]
         public float ValueModifier = 1f;
 
         [Header("Random")]
-        [Tooltip("闅忔満鏉冮噸銆傛暟鍊艰秺澶ц鎶戒腑姒傜巼瓒婇珮銆?=姘镐笉鍑虹幇")]
+        [Tooltip("随机权重。数值越大被抽中概率越高。0=永不出现")]
         [Min(0)]
         public int Weight = 10;
 
         [Header("Prerequisite")]
-        [Tooltip("鍓嶇疆鏉′欢鏍囩銆備粎褰撴垬鍦轰腑瀛樺湪鍖归厤鏍囩鐨勫/鐜╁鏃舵墠鍙€夈€傜┖鏁扮粍=鏃犳潯浠?")]
+        [Tooltip("前置条件标签。仅当战场中存在匹配标签的塔/玩家时才可选。空数组=无条件。")]
         public string[] RequiredTags = System.Array.Empty<string>();
 
         /// <summary>
-        /// 鏄惁鍏嶈垂锛圕ost=0锛夈€?
+        /// 是否免费（Cost=0）。
         /// </summary>
         public bool IsFree => Cost <= 0;
 

@@ -4,84 +4,84 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// 鍏ㄥ眬鏁板€煎钩琛￠厤缃?ScriptableObject銆?
+    /// 全局数值平衡配置 ScriptableObject。
     /// 
-    /// 闆嗕腑绠＄悊鎵€鏈夋垬鏂楀叕寮忓弬鏁板拰鎴愰暱鏇茬嚎寮曠敤銆?
-    /// 鎵€鏈夋暟鍊肩粺涓€鏉ユ簮锛屼笉鍏佽鏁ｈ惤鍦ㄤ唬鐮佷腑銆?
+    /// 集中管理所有战斗公式参数和成长曲线引用。
+    /// 所有数值统一来源，不允许散落在代码中。
     /// 
-    /// 閰嶇疆椹卞姩锛氫慨鏀规 ScriptableObject 鍗冲彲璋冨钩娓告垙鏁板€笺€?
+    /// 配置驱动：修改此 ScriptableObject 即可调平游戏数值。
     /// </summary>
     [CreateAssetMenu(fileName = "BalanceConfig", menuName = "TowerDefense/Balance Config", order = 240)]
     public class BalanceConfig : ScriptableObject
     {
         [Header("=== Damage Formula ===")]
-        [Tooltip("浼ゅ鍏紡锛欴amage = Atk 脳 (1 - Def/(Def + K))")]
+        [Tooltip("伤害公式：Damage = Atk × (1 - Def/(Def + K))")]
         public float DefenseK = 100f;
 
-        [Tooltip("鏈€灏忎激瀹崇郴鏁帮紙淇濊瘉浣庢敾楂橀槻鏃朵粛閫犳垚浼ゅ锛?")]
+        [Tooltip("最小伤害系数（保证低攻高防时仍造成伤害）")]
         [Range(0f, 1f)]
         public float MinDamageRatio = 0.1f;
 
         [Header("=== Critical Formula ===")]
-        [Tooltip("鏆村嚮浼ゅ鍊嶇巼锛欳ritDamage = Damage 脳 (1 + CritDamageMul)")]
+        [Tooltip("暴击伤害倍率：CritDamage = Damage × (1 + CritDamageMul)")]
         public float CritDamageMultiplier = 1.5f;
 
-        [Tooltip("鏆村嚮鐜囦笂闄?")]
+        [Tooltip("暴击率上限")]
         [Range(0f, 1f)]
         public float MaxCritRate = 0.75f;
 
         [Header("=== Tower Attributes ===")]
-        [Tooltip("闃插尽濉旀敾鍑绘垚闀挎洸绾匡紙Attack 脳 Level ^ Exponent锛?")]
+        [Tooltip("防御塔攻击成长曲线（Attack × Level ^ Exponent）")]
         public float TowerAttackGrowthExponent = 1.3f;
 
-        [Tooltip("闃插尽濉旀敾閫烥rowth锛圓ttackInterval 脳 (1 - SpeedGrowthPerLevel 脳 Level))")]
+        [Tooltip("防御塔攻速Growth（AttackInterval × (1 - SpeedGrowthPerLevel × Level))")]
         [Range(0f, 0.5f)]
         public float TowerSpeedGrowthPerLevel = 0.1f;
 
         [Header("=== Enemy Scaling ===")]
-        [Tooltip("鏁屼汉 HP 鎴愰暱鏇茬嚎閰嶇疆")]
+        [Tooltip("敌人 HP 成长曲线配置")]
         public EnemyCurveConfig EnemyHpCurve;
 
-        [Tooltip("鏁屼汉閫熷害鎴愰暱鏇茬嚎")]
+        [Tooltip("敌人速度成长曲线")]
         public EnemyCurveConfig EnemySpeedCurve;
 
-        [Tooltip("鏁屼汉鍑绘潃閲戝竵鎴愰暱鏇茬嚎")]
+        [Tooltip("敌人击杀金币成长曲线")]
         public EnemyCurveConfig EnemyGoldCurve;
 
         [Header("=== Wave Scaling ===")]
-        [Tooltip("娉㈡鏁屾柟鏁伴噺澧為暱鍏紡锛欱aseCount 脳 (1 + WaveScale 脳 WaveIndex)")]
+        [Tooltip("波次敌方数量增长公式：BaseCount × (1 + WaveScale × WaveIndex)")]
         public float WaveEnemyCountScale = 0.15f;
 
-        [Tooltip("娉㈡鏁屾柟HP澧為暱鍊嶇巼锛堟瘡娉級")]
+        [Tooltip("波次敌方HP增长倍率（每波）")]
         public float WaveEnemyHpMultiplier = 1.1f;
 
         [Header("=== Economy ===")]
-        [Tooltip("鍑绘潃閲戝竵鍏紡锛欱aseGold 脳 (1 + EnemyGoldCurve)")]
+        [Tooltip("击杀金币公式：BaseGold × (1 + EnemyGoldCurve)")]
         public float BaseKillGoldMultiplier = 1f;
 
-        [Tooltip("寤哄璐圭敤澧為暱锛堟瘡搴у悓绫诲瀷濉旈€掑锛夛細BuildCost 脳 (1 + SameTowerCount 脳 Tax)")]
+        [Tooltip("建塔费用增长（每座同类型塔递增）：BuildCost × (1 + SameTowerCount × Tax)")]
         [Range(0f, 0.5f)]
         public float SameTowerBuildTax = 0f;
 
         [Header("=== Main City ===")]
-        [Tooltip("涓诲煄 HP 鎴愰暱鍏紡锛欱aseHP 脳 (1 + HPGrowthPerWave 脳 WaveIndex)")]
+        [Tooltip("主城 HP 成长公式：BaseHP × (1 + HPGrowthPerWave × WaveIndex)")]
         [Range(0f, 0.5f)]
         public float MainCityHPGrowthPerWave = 0.05f;
 
         [Header("=== Roguelike ===")]
-        [Tooltip("寮哄寲閫夋嫨閫夐」鏁伴噺")]
+        [Tooltip("强化选择选项数量")]
         public int RoguelikeChoiceCount = 3;
 
-        [Tooltip("寮哄寲閫夋嫨鍏嶈垂閫夐」姒傜巼")]
+        [Tooltip("强化选择免费选项概率")]
         [Range(0f, 1f)]
         public float FreeChoiceProbability = 0.3f;
     }
 
     /// <summary>
-    /// 鏁屼汉鎴愰暱鏇茬嚎閰嶇疆 ScriptableObject銆?
+    /// 敌人成长曲线配置 ScriptableObject。
     /// 
-    /// 瀹氫箟娉㈡/绛夌骇瀵瑰睘鎬х殑澧為暱鏇茬嚎銆?
-    /// 鏀寔绾挎€?鎸囨暟/鑷畾涔夋洸绾裤€?
+    /// 定义波次/等级对属性的增长曲线。
+    /// 支持线性/指数/自定义曲线。
     /// </summary>
     [CreateAssetMenu(fileName = "EnemyCurveConfig", menuName = "TowerDefense/Enemy Curve Config", order = 241)]
     public class EnemyCurveConfig : ScriptableObject
@@ -90,18 +90,18 @@ namespace TowerDefense
         public ECurveType CurveType = ECurveType.Linear;
 
         [Header("Linear Parameters")]
-        [Tooltip("绾挎€у闀跨郴鏁帮細Value = Base 脳 (1 + Slope 脳 Level)")]
+        [Tooltip("线性增长系数：Value = Base × (1 + Slope × Level)")]
         public float Slope = 0.1f;
 
         [Header("Exponential Parameters")]
-        [Tooltip("鎸囨暟澧為暱绯绘暟锛歏alue = Base 脳 (Exponent ^ Level)")]
+        [Tooltip("指数增长系数：Value = Base × (Exponent ^ Level)")]
         public float Exponent = 1.15f;
 
         [Header("Custom Curve")]
-        [Tooltip("鑷畾涔?AnimationCurve锛圶=绛夌骇, Y=鍊嶇巼锛?")]
+        [Tooltip("自定义 AnimationCurve（X=等级, Y=倍率）")]
         public AnimationCurve CustomCurve = AnimationCurve.Linear(0, 1, 100, 10);
 
-        /// <summary>鏍规嵁绛夌骇璁＄畻鍊嶇巼</summary>
+        /// <summary>根据等级计算倍率</summary>
         public float Evaluate(int level, float baseValue)
         {
             if (level <= 0) return baseValue;
@@ -118,7 +118,7 @@ namespace TowerDefense
         }
     }
 
-    /// <summary>鎴愰暱鏇茬嚎绫诲瀷</summary>
+    /// <summary>成长曲线类型</summary>
     public enum ECurveType
     {
         Linear,

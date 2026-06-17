@@ -4,119 +4,119 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// 澶╄祴鑺傜偣绫诲瀷锛堝喅瀹氭晥鏋滀綔鐢ㄥ煙锛?
+    /// 天赋节点类型（决定效果作用域）
     /// </summary>
     public enum ETalentType
     {
-        // === 鎴樻枟寮哄寲绫?===
-        /// <summary>鍒濆閲戝竵澧炲姞</summary>
+        // === 战斗强化类 ===
+        /// <summary>初始金币增加</summary>
         StartingGoldBonus,
-        /// <summary>涓诲煄鍒濆琛€閲?%</summary>
+        /// <summary>主城初始血量+%</summary>
         MainCityHPBonus,
-        /// <summary>鍏ㄥ眬濉旀敾鍑诲姏+%</summary>
+        /// <summary>全局塔攻击力+%</summary>
         TowerAttackBonus,
 
-        // === 濉旂郴寮哄寲绫?===
-        /// <summary>绠鏀婚€?%</summary>
+        // === 塔系强化类 ===
+        /// <summary>箭塔攻速+%</summary>
         ArrowTowerAttackSpeed,
-        /// <summary>鐐鑼冨洿+%</summary>
+        /// <summary>炮塔范围+%</summary>
         CannonTowerRange,
-        /// <summary>鍐板鍑忛€熸晥鏋?%</summary>
+        /// <summary>冰塔减速效果+%</summary>
         IceTowerSlowBonus,
 
-        // === 缁忔祹绫?===
-        /// <summary>鍑绘潃閲戝竵+%</summary>
+        // === 经济类 ===
+        /// <summary>击杀金币+%</summary>
         KillGoldBonus,
-        /// <summary>寤洪€犳垚鏈檷浣?</summary>
+        /// <summary>建造成本降低%</summary>
         BuildCostReduction,
     }
 
     /// <summary>
-    /// 澶╄祴鑺傜偣鐨勮В閿佺姸鎬?
+    /// 天赋节点的解锁状态
     /// </summary>
     public enum ETalentNodeState
     {
-        /// <summary>鏈В閿侊紙涓斾笉鍙В閿侊級</summary>
+        /// <summary>未解锁（且不可解锁）</summary>
         Locked,
-        /// <summary>鍙互瑙ｉ攣锛堝墠缃潯浠舵弧瓒筹紝鏈夊緟娑堣€楃殑澶╄祴鐐癸級</summary>
+        /// <summary>可以解锁（前置条件满足，有待消耗的天赋点）</summary>
         Available,
-        /// <summary>宸茶В閿?/summary>
+        /// <summary>已解锁</summary>
         Unlocked,
     }
 
     /// <summary>
-    /// 澶╄祴鏍戦厤缃?ScriptableObject銆?
-    /// 瀹氫箟鎵€鏈夊ぉ璧嬭妭鐐圭殑鏍戠粨鏋勶紙鑺傜偣鍒楄〃 + 鍓嶇疆渚濊禆鍏崇郴锛夈€?
+    /// 天赋树配置 ScriptableObject。
+    /// 定义所有天赋节点的树结构（节点列表 + 前置依赖关系）。
     /// 
-    /// 鏁版嵁椹卞姩锛氫笉鍦ㄤ唬鐮佷腑鍐欐浠讳綍澶╄祴鑺傜偣閫昏緫銆?
-    /// 鏁堟灉閫氳繃 TalentNode.EffectType + Value 椹卞姩銆?
+    /// 数据驱动：不在代码中写死任何天赋节点逻辑。
+    /// 效果通过 TalentNode.EffectType + Value 驱动。
     /// </summary>
     [CreateAssetMenu(fileName = "TalentTreeConfig", menuName = "TowerDefense/Meta/Talent Tree Config", order = 200)]
     public class TalentTreeConfig : ScriptableObject
     {
-        [Tooltip("澶╄祴鏍戝悕绉?")]
+        [Tooltip("天赋树名称")]
         public string TreeName = "Default Talent Tree";
 
-        [Tooltip("澶╄祴鑺傜偣鍒楄〃")]
+        [Tooltip("天赋节点列表")]
         public TalentNodeDefinition[] Nodes = Array.Empty<TalentNodeDefinition>();
     }
 
     /// <summary>
-    /// 鍗曚釜澶╄祴鑺傜偣閰嶇疆锛圫criptableObject 搴忓垪鍖栵級
+    /// 单个天赋节点配置（ScriptableObject 序列化）
     /// </summary>
     [Serializable]
     public class TalentNodeDefinition
     {
-        [Tooltip("鍞竴鏍囪瘑")]
+        [Tooltip("唯一标识")]
         public string NodeId;
 
-        [Tooltip("灞曠ず鍚嶇О")]
+        [Tooltip("展示名称")]
         public string DisplayName;
 
-        [Tooltip("鎻忚堪")]
+        [Tooltip("描述")]
         public string Description;
 
-        [Tooltip("澶╄祴绫诲瀷")]
+        [Tooltip("天赋类型")]
         public ETalentType TalentType;
 
-        [Tooltip("鏁板€硷紙濡?30 琛ㄧず+30% 璧峰閲戝竵锛?")]
+        [Tooltip("数值（如 30 表示+30% 起始金币）")]
         public float Value;
 
-        [Tooltip("瑙ｉ攣娑堣€楀ぉ璧嬬偣")]
+        [Tooltip("解锁消耗天赋点")]
         public int Cost = 1;
 
-        [Tooltip("鏈€澶у彲鎶曞叆鐐规暟锛?=涓嶅彲鍗囩骇锛?=鍗曟瑙ｉ攣锛孨=鍙娆℃姇鍏ワ級")]
+        [Tooltip("最大可投入点数（0=不可升级，1=单次解锁，N=可多次投入）")]
         public int MaxLevel = 1;
 
-        [Tooltip("鍓嶇疆鑺傜偣ID鍒楄〃锛堝繀椤诲叏閮ㄨВ閿佹墠鑳借В閿佹湰鑺傜偣锛?")]
+        [Tooltip("前置节点ID列表（必须全部解锁才能解锁本节点）")]
         public string[] PrerequisiteIds = Array.Empty<string>();
 
-        [Tooltip("UI灞傚垎缁勶紙鐢ㄤ簬缃戞牸鎺掑垪灞曠ず锛?")]
+        [Tooltip("UI层分组（用于网格排列展示）")]
         public int Column;
-        [Tooltip("UI灞傝")]
+        [Tooltip("UI层行")]
         public int Row;
     }
 
     /// <summary>
-    /// 澶╄祴鑺傜偣杩愯鏃剁姸鎬侊紙瀛樻。鏁版嵁鐨勪竴閮ㄥ垎锛?
+    /// 天赋节点运行时状态（存档数据的一部分）
     /// </summary>
     [Serializable]
     public class TalentNodeState
     {
         public string NodeId;
-        public int CurrentLevel;     // 褰撳墠鎶曞叆鐐规暟
+        public int CurrentLevel;     // 当前投入点数
         public bool IsUnlocked => CurrentLevel > 0;
     }
 
     /// <summary>
-    /// 澶╄祴鑺傜偣杩愯鏃舵暟鎹紙鍙紦瀛樼殑璁＄畻缁撴灉锛?
+    /// 天赋节点运行时数据（可缓存的计算结果）
     /// </summary>
     public readonly struct TalentNodeRuntime
     {
         public readonly string NodeId;
         public readonly string DisplayName;
         public readonly ETalentType TalentType;
-        public readonly float Value;           // 鍗曠偣鏁板€?
+        public readonly float Value;           // 单点数值
         public readonly int CurrentLevel;
         public readonly int MaxLevel;
         public readonly ETalentNodeState State;

@@ -1,40 +1,40 @@
 ﻿namespace TowerDefense
 {
     /// <summary>
-    /// 杩愯鏃堕€夋嫨鏁版嵁缁撴瀯锛坰truct锛屾爤鍒嗛厤锛岄浂GC锛夈€?
-    /// 渚沀I灞傛秷璐癸紝鍖呭惈閫夋嫨閰嶇疆鐨勮В鏋愬悗鏁版嵁銆?
-    /// UI灞傞€氳繃 RoguelikeChoiceSystem.GetCurrentChoices() 鑾峰彇姝ゆ暟鎹€?
+    /// 运行时选择数据结构（struct，栈分配，零GC）。
+    /// 供UI层消费，包含选择配置的解析后数据。
+    /// UI层通过 RoguelikeChoiceSystem.CurrentChoices 获取此数据。
     /// </summary>
     public readonly struct ChoiceData
     {
-        /// <summary>鏉ユ簮閰嶇疆寮曠敤</summary>
+        /// <summary>来源配置引用</summary>
         public readonly ChoiceConfig SourceConfig;
 
-        /// <summary>灞曠ず鏍囬</summary>
+        /// <summary>展示标题</summary>
         public readonly string Title;
 
-        /// <summary>灞曠ず鎻忚堪</summary>
+        /// <summary>展示描述</summary>
         public readonly string Description;
 
-        /// <summary>娑堣€楅噾甯?/summary>
+        /// <summary>消耗金币</summary>
         public readonly int Cost;
 
-        /// <summary>鏄惁鍏嶈垂</summary>
+        /// <summary>是否免费</summary>
         public readonly bool IsFree;
 
-        /// <summary>棰勮鏂囨湰锛堝 "鏀婚€?+30%"銆?鑼冨洿 +20%"銆?鍑忛€熸晥鏋滃寮?锛?/summary>
+        /// <summary>预览文本（如 "攻速 +30%"、"范围 +20%"、"减速效果增强"）</summary>
         public readonly string PreviewText;
 
-        /// <summary>寮哄寲绫诲埆</summary>
+        /// <summary>强化类别</summary>
         public readonly EChoiceCategory Category;
 
-        /// <summary>鐩爣绫诲瀷</summary>
+        /// <summary>目标类型</summary>
         public readonly EChoiceTarget TargetType;
 
-        /// <summary>鏁板€间慨楗帮紙鍘熷鍊硷紝鏈В鏋愶級</summary>
+        /// <summary>数值修饰（原始值，未解析）</summary>
         public readonly float ValueModifier;
 
-        /// <summary>鍞竴鏍囪瘑</summary>
+        /// <summary>唯一标识</summary>
         public readonly string ChoiceId;
 
         public ChoiceData(ChoiceConfig config)
@@ -52,7 +52,7 @@
         }
 
         /// <summary>
-        /// 鏍规嵁閰嶇疆鐢熸垚棰勮鏂囨湰
+        /// 根据配置生成预览文本
         /// </summary>
         private static string BuildPreviewText(ChoiceConfig config)
         {

@@ -5,36 +5,36 @@ using UnityEngine;
 namespace TowerDefense
 {
     /// <summary>
-    /// 濉旀彃浠?Mod绫诲瀷鏋氫妇
+    /// 塔插件/Mod类型枚举
     /// </summary>
     public enum ETowerModType
     {
-        /// <summary>鏆村嚮鎻掍欢锛堝鍔犳毚鍑荤巼鍜屾毚鍑讳激瀹筹級</summary>
+        /// <summary>暴击插件（增加暴击率和暴击伤害）</summary>
         Crit,
-        /// <summary>鍐板喕闄勫姞锛堟敾鍑婚檮甯﹀噺閫熸晥鏋滐級</summary>
+        /// <summary>冰冻附加（攻击附带减速效果）</summary>
         Freeze,
-        /// <summary>婧呭皠锛圓OE浼ゅ锛?/summary>
+        /// <summary>溅射（AOE伤害）</summary>
         Splash,
-        /// <summary>绌块€忥紙鏀诲嚮绌块€忓涓晫浜猴級</summary>
+        /// <summary>穿透（攻击穿透多个敌人）</summary>
         Pierce,
-        /// <summary>鐢熷懡鍋峰彇锛堥€犳垚浼ゅ鍥炲HP锛?/summary>
+        /// <summary>生命偷取（造成伤害回复HP）</summary>
         LifeSteal,
-        /// <summary>鏀婚€熸彁鍗囷紙绾睘鎬у姞鎴愶級</summary>
+        /// <summary>攻速提升（纯属性加成）</summary>
         AttackSpeed,
-        /// <summary>鑼冨洿鎵╁睍</summary>
+        /// <summary>范围扩展</summary>
         RangeBoost,
-        /// <summary>鑷畾涔夛紙瀹屽叏閫氳繃 GameplayEffect 椹卞姩锛?/summary>
+        /// <summary>自定义（完全通过 GameplayEffect 驱动）</summary>
         Custom,
     }
 
     /// <summary>
-    /// 濉旀彃浠?Mod 閰嶇疆 ScriptableObject銆?
+    /// 塔插件/Mod 配置 ScriptableObject。
     /// 
-    /// 姣忎釜 Mod 鍙€変袱绉嶇敓鏁堟柟寮忥細
-    /// 1. 灞炴€т慨鏀瑰櫒锛圡odifierEntry[]锛夛細鐩存帴淇敼 CombatAttributeComponent
-    /// 2. GameplayEffect锛氶€氳繃 GAS 鏂藉姞鎸佺画鏁堟灉锛堟敮鎸佸鏉侭uff鏈哄埗锛?
+    /// 每个 Mod 可选两种生效方式：
+    /// 1. 属性修改器（ModifierEntry[]）：直接修改 CombatAttributeComponent
+    /// 2. GameplayEffect：通过 GAS 施加持续效果（支持复杂Buff机制）
     /// 
-    /// Mod 鍙犲姞瑙勫垯锛氬悓涓€绫诲瀷 Mod 鍙兘鎸傝浇涓€涓紙闃叉互鐢級锛屼笉鍚岀被鍨嬪彲鍙犲姞銆?
+    /// Mod 叠加规则：同一类型 Mod 只能挂载一个（防滥用），不同类型可叠加。
     /// </summary>
     [CreateAssetMenu(fileName = "TowerModConfig", menuName = "TowerDefense/Tower Mod Config", order = 210)]
     public class TowerModConfig : ScriptableObject
@@ -46,32 +46,32 @@ namespace TowerDefense
         public ETowerModType ModType;
 
         [Header("Restrictions")]
-        [Tooltip("鍙寕杞界殑濉旂被鍨嬶紙绌?鎵€鏈夌被鍨嬶級")]
+        [Tooltip("可挂载的塔类型（空=所有类型）")]
         public ETDTowerType[] AllowedTowerTypes = Array.Empty<ETDTowerType>();
 
-        [Tooltip("鏄惁鍞竴锛堝悓涓€濉斿彧鑳芥寕杞戒竴涓悓绫籑od锛?")]
+        [Tooltip("是否唯一（同一塔只能挂载一个同类Mod）")]
         public bool IsUnique = true;
 
-        [Tooltip("鎸傝浇娑堣€楅噾甯?")]
+        [Tooltip("挂载消耗金币")]
         public int Cost;
 
         [Header("Attribute Modifiers (Direct)")]
-        [Tooltip("鐩存帴灞炴€т慨鏀瑰櫒锛圕ombatAttributeComponent锛?")]
+        [Tooltip("直接属性修改器（CombatAttributeComponent）")]
         public ModifierEntry[] AttributeModifiers = Array.Empty<ModifierEntry>();
 
         [Header("GAS Effect (Advanced)")]
-        [Tooltip("閫氳繃 GAS 鏂藉姞鐨勬寔缁晥鏋滐紙Buff/鎶€鑳借Е鍙戠瓑锛?")]
+        [Tooltip("通过 GAS 施加的持续效果（Buff/技能触发等）")]
         public GameplayEffectDefinition AppliedEffect;
 
-        /// <summary>鍗曚釜灞炴€т慨鏀归」</summary>
+        /// <summary>单个属性修改项</summary>
         [Serializable]
         public class ModifierEntry
         {
-            [Tooltip("灞炴€D (瑙?CombatAttributeIds)")]
+            [Tooltip("属性ID (见 CombatAttributeIds)")]
             public int AttributeId;
-            [Tooltip("鎿嶄綔绫诲瀷")]
+            [Tooltip("操作类型")]
             public AttributeModifierOp Op = AttributeModifierOp.Add;
-            [Tooltip("鍊?")]
+            [Tooltip("值")]
             public float Value;
         }
     }

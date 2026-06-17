@@ -7,30 +7,30 @@ using UnityEngine.UI;
 namespace TowerDefense
 {
     /// <summary>
-    /// 鎴樻枟HUD鐣岄潰 鈥?鏄剧ず涓诲煄HP銆佸綋鍓嶆尝娆°€侀噾甯併€佹垬鏂楅樁娈点€?
+    /// 战斗HUD界面 — 显示主城HP、当前波次、金币、战斗阶段。
     /// 
-    /// 鏁版嵁娴侊細
-    ///   BattleEvent 鈫?OnOpen娉ㄥ唽 鈫?鍥炶皟鏇存柊UI 鈫?OnClose鍙嶆敞鍐?
+    /// 数据流：
+    ///   BattleEvent → OnOpen注册 → 回调更新UI → OnClose反注册
     /// 
-    /// UI灞傜害鏉燂紙Phase 6锛夛細
-    /// - 涓嶇洿鎺ユ煡璇㈡垬鏂楅€昏緫
-    /// - 鎵€鏈夋暟鎹€氳繃 BattleEvent 椹卞姩鏇存柊
-    /// - 閫氳繃 TDBattleUIBridge 璁㈤槄/鍙嶈闃呬簨浠?
+    /// UI层约束（Phase 6）：
+    /// - 不直接查询战斗逻辑
+    /// - 所有数据通过 BattleEvent 驱动更新
+    /// - 通过 TDBattleUIBridge 订阅/反订阅事件
     /// 
-    /// 寤鸿 Prefab 灞傜骇缁撴瀯锛堣嚜鍔ㄧ粦瀹氱敤锛夛細
+    /// 建议 Prefab 层级结构（自动绑定用）：
     ///   TDHudView (root)
-    ///   鈹溾攢鈹€ Txt_MainCityHP (TextMeshProUGUI)
-    ///   鈹溾攢鈹€ Img_HPFill (Image: fillAmount)
-    ///   鈹溾攢鈹€ Txt_WaveInfo (TextMeshProUGUI)  鈥?"绗?/10娉?
-    ///   鈹溾攢鈹€ Txt_Gold (TextMeshProUGUI)
-    ///   鈹溾攢鈹€ Txt_PhaseLabel (TextMeshProUGUI) 鈥?"鍑嗗闃舵"/"鎴樻枟涓?/"閫夋嫨寮哄寲"
-    ///   鈹斺攢鈹€ Btn_StartWave (Button) 鈥?Combat闃舵闅愯棌
+    ///   ├── Txt_MainCityHP (TextMeshProUGUI)
+    ///   ├── Img_HPFill (Image: fillAmount)
+    ///   ├── Txt_WaveInfo (TextMeshProUGUI)  — "第3/10波"
+    ///   ├── Txt_Gold (TextMeshProUGUI)
+    ///   ├── Txt_PhaseLabel (TextMeshProUGUI) — "准备阶段"/"战斗中"/"选择强化"
+    ///   └── Btn_StartWave (Button) — Combat阶段隐藏
     /// </summary>
     public class TDHudView : ViewBase<TDBattleUIBridge>
     {
         private TDBattleUIBridge _bridge;
 
-        // ===== 鑷姩缁戝畾锛堝悕绉伴渶鍖归厤 Prefab 鑺傜偣锛?=====
+        // ===== 自动绑定（名称需匹配 Prefab 节点） =====
         [UI] private TextMeshProUGUI Txt_MainCityHP;
         [UI] private Image Img_HPFill;
         [UI] private TextMeshProUGUI Txt_WaveInfo;
@@ -38,7 +38,7 @@ namespace TowerDefense
         [UI] private TextMeshProUGUI Txt_PhaseLabel;
         [UI] private Button Btn_StartWave;
 
-        // ===== 璁㈤槄寮曠敤锛堢敤浜?OnClose 鍙嶆敞鍐岋級 =====
+        // ===== 订阅引用（用于 OnClose 反注册） =====
         private IDisposable _goldSub;
         private IDisposable _phaseSub;
         private IDisposable _cityDamageSub;
@@ -54,13 +54,13 @@ namespace TowerDefense
                 return UniTask.CompletedTask;
             }
 
-            // 鍒濆鍒锋柊锛堜竴娆℃€ц鍙栧綋鍓嶅€硷級
+            // 初始刷新（一次性读取当前值）
             RefreshGold(bridge.PlayerGold);
             RefreshMainCityHP(bridge.MainCityHP, bridge.MainCityMaxHP);
             RefreshWaveInfo(bridge.CurrentWaveIndex, bridge.TotalWaveCount);
             RefreshPhase(bridge.CurrentPhase);
 
-            // ===== 璁㈤槄 BattleEvent 椹卞姩鏇存柊 =====
+            // ===== 订阅 BattleEvent 驱动更新 =====
             _goldSub = bridge.Subscribe<PlayerGoldChangedEvent>(
                 TDEventIds.PlayerGoldChanged, OnGoldChanged);
 
@@ -76,7 +76,7 @@ namespace TowerDefense
             _waveStartedSub = bridge.Subscribe<int>(
                 TDEventIds.WaveStarted, OnWaveStarted);
 
-            // 鎸夐挳缁戝畾
+            // 按钮绑定
             BindClick(Btn_StartWave, OnStartWaveClicked);
 
             return UniTask.CompletedTask;
@@ -91,7 +91,7 @@ namespace TowerDefense
             return UniTask.CompletedTask;
         }
 
-        // ===== 浜嬩欢鍥炶皟锛堜富绾跨▼瀹夊叏锛?=====
+        // ===== 事件回调（主线程安全） =====
 
         private void OnGoldChanged(PlayerGoldChangedEvent evt)
         {
@@ -120,7 +120,7 @@ namespace TowerDefense
 
         private async UniTask OnStartWaveClicked()
         {
-            // 閫氳繃 EventBus 鍙戝皠 UI 璇锋眰锛堜笉鐩存帴璋冪敤鎴樻枟閫昏緫锛?
+            // 通过 EventBus 发射 UI 请求（不直接调用战斗逻辑）
             var bridge = GetBridge();
             if (bridge == null || !bridge.IsValid) return;
 
@@ -133,18 +133,18 @@ namespace TowerDefense
             await UniTask.CompletedTask;
         }
 
-        // ===== UI 鍒锋柊 =====
+        // ===== UI 刷新 =====
 
         private void RefreshGold(int gold)
         {
             if (Txt_Gold != null)
-                Txt_Gold.text = $"閲戝竵: {gold}";
+                Txt_Gold.text = $"金币: {gold}";
         }
 
         private void RefreshMainCityHP(float hp, float maxHp)
         {
             if (Txt_MainCityHP != null)
-                Txt_MainCityHP.text = $"涓诲煄: {Mathf.CeilToInt(hp)}/{Mathf.CeilToInt(maxHp)}";
+                Txt_MainCityHP.text = $"主城: {Mathf.CeilToInt(hp)}/{Mathf.CeilToInt(maxHp)}";
 
             if (Img_HPFill != null && maxHp > 0)
                 Img_HPFill.fillAmount = Mathf.Clamp01(hp / maxHp);
@@ -174,7 +174,7 @@ namespace TowerDefense
                 };
             }
 
-            // StartWave 鎸夐挳锛氫粎鍦?Prepare 闃舵鏄剧ず
+            // StartWave 按钮：仅在 Prepare 阶段显示
             if (Btn_StartWave != null)
             {
                 Btn_StartWave.gameObject.SetActive(phase == EBattlePhase.Prepare);
@@ -188,9 +188,9 @@ namespace TowerDefense
         }
 
         /// <summary>
-        /// 鑾峰彇褰撳墠 Bridge锛圴iewBase 鍐呴儴閫氳繃 param 淇濆瓨闇€瑕佺敤瀛楁锛?
-        /// 浣?ViewBase 妗嗘灦鍙湪 OnOpen 鏃朵紶鍏ワ紝姝ゅ閫氳繃閬嶅巻鏂瑰紡鑾峰彇銆?
-        /// 鏇翠紭闆呯殑鏂瑰紡鏄湪娲剧敓绫讳腑鑷淇濆瓨寮曠敤銆?
+        /// 获取当前 Bridge（ViewBase 内部通过 param 保存需要用字段，但
+        /// ViewBase 框架只在 OnOpen 时传入，此处通过遍历方式获取。
+        /// 更优雅的方式是在派生类中自行保存引用。
         /// </summary>
         private TDBattleUIBridge GetBridge()
         {
@@ -199,12 +199,12 @@ namespace TowerDefense
     }
 
     /// <summary>
-    /// 甯?Bridge 缂撳瓨鐨?HUD 瑙嗗浘锛堟帹鑽愪娇鐢ㄦ鐗堟湰锛夈€?
+    /// 带 Bridge 缓存的 HUD 视图（推荐使用此版本）。
     /// 
-    /// 浣跨敤鏂瑰紡锛?
-    ///   1. 鍦?UIViewConfigTable 涓敞鍐?TDHudViewBridged
-    ///   2. Prefab 鍛藉悕鎸?[UI] 灞炴€ц嚜鍔ㄧ粦瀹?
-    ///   3. 鎵撳紑锛歎IRuntime.Instance.Open<TDHudViewBridged>(bridge)
+    /// 使用方式：
+    ///   1. 在 UIViewConfigTable 中注册 TDHudViewBridged
+    ///   2. Prefab 命名按 [UI] 属性自动绑定
+    ///   3. 打开：UIRuntime.Instance.Open<TDHudViewBridged>(bridge)
     /// </summary>
     public class TDHudViewBridged : ViewBase<TDBattleUIBridge>
     {
@@ -263,13 +263,13 @@ namespace TowerDefense
 
         private void RefreshGold(int gold)
         {
-            if (Txt_Gold != null) Txt_Gold.text = $"閲戝竵: {gold}";
+            if (Txt_Gold != null) Txt_Gold.text = $"金币: {gold}";
         }
 
         private void RefreshCityHP(float hp, float maxHp)
         {
             if (Txt_MainCityHP != null)
-                Txt_MainCityHP.text = $"涓诲煄: {Mathf.CeilToInt(hp)}/{Mathf.CeilToInt(maxHp)}";
+                Txt_MainCityHP.text = $"主城: {Mathf.CeilToInt(hp)}/{Mathf.CeilToInt(maxHp)}";
             if (Img_HPFill != null && maxHp > 0)
                 Img_HPFill.fillAmount = Mathf.Clamp01(hp / maxHp);
         }
