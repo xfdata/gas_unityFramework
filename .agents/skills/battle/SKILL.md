@@ -30,6 +30,8 @@ Prefer extending `BattleCommon/GAS` for combat-specific abilities/effects before
 
 For player state work, prefer representing state through `GameplayTag` definitions first. If the behavior can be implemented through GAS abilities, effects, tags, cues, or executions, prefer the GAS path before adding bespoke battle-state fields or systems.
 
+When a feature needs a **new** GameplayTag path, follow the `gameplay-tags` skill: **only edit the `GameplayTagDatabase` asset, then Generate** (`BuildGameplayTags` / menu / Inspector). Do not invent tags with `new GameplayTag(...)` or by hand-editing `*Def.gen.cs`.
+
 ## Workflows
 
 When creating or changing a battle runtime:

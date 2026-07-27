@@ -85,13 +85,14 @@ public class GameplayRuntime : System.IDisposable
 
     public UniTask<GameplaySwitchResult> EnterPveAsync(int chapterId, int sectionId, bool startImmediately = false)
     {
-        return _flow.SwitchToAsync(
-            GameplaySwitchRequest
-                .To(GameplayModeId.Pve, GameplaySwitchReason.UserAction)
-                .Set("ChapterId", chapterId)
-                .Set("SectionId", sectionId)
-                .Set("StartImmediately", startImmediately)
-                .SetDebugName($"Enter PVE {chapterId}-{sectionId}"));
+        var request = GameplaySwitchRequest
+            .To(GameplayModeId.Pve, GameplaySwitchReason.UserAction)
+            .Set("ChapterId", chapterId)
+            .Set("SectionId", sectionId)
+            .Set("StartImmediately", startImmediately)
+            .SetDebugName($"Enter PVE {chapterId}-{sectionId}");
+
+        return _flow.SwitchToAsync(request);
     }
 
     public UniTask<GameplaySwitchResult> ExitPveAsync(GameplayModeId returnMode = GameplayModeId.City)

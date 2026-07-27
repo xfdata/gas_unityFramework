@@ -16,7 +16,7 @@ namespace TowerDefense
         private void OnEnable()
         {
             if (Current != null && Current != this)
-                Debug.LogWarning("[TowerDefenseSceneConfig] Multiple scene configs found, using the latest enabled one.");
+                BattleLog.SceneConfigWarning("Multiple scene configs found, using the latest enabled one.");
 
             Current = this;
         }

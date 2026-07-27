@@ -20,7 +20,6 @@ MonoBehaviour:
       m_SubObjectType: 
       m_EditorAssetChanged: 0
     Layer: 60
-    Mode: 0
     CacheMode: 0
     FullScreen: 1
     EnterPopupStack: 1
@@ -33,9 +32,6 @@ MonoBehaviour:
     CloseWhenSceneChange: 1
     SafeAreaMode: 0
     SortOffset: 0
-    OpenAudioId: 0
-    CloseAudioId: 0
-    Group: 
   - ViewTypeName: LoadingView, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
       PublicKeyToken=null
     PrefabReference:
@@ -44,7 +40,6 @@ MonoBehaviour:
       m_SubObjectType: 
       m_EditorAssetChanged: 0
     Layer: 60
-    Mode: 0
     CacheMode: 0
     FullScreen: 0
     EnterPopupStack: 1
@@ -54,9 +49,6 @@ MonoBehaviour:
     MaskMode: 0
     CloseByEsc: 1
     CloseByMask: 0
-    CloseWhenSceneChange: 1
+    CloseWhenSceneChange: 0
     SafeAreaMode: 0
     SortOffset: 0
-    OpenAudioId: 0
-    CloseAudioId: 0
-    Group: 

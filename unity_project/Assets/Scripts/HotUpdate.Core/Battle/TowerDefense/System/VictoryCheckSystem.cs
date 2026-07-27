@@ -50,15 +50,18 @@ namespace TowerDefense
         /// </summary>
         private bool CheckVictoryCondition()
         {
-            // 条件1：所有波次已清除
-            if (_waveManager == null || !_waveManager.AllWavesCleared)
+            bool allWavesCleared = _waveManager != null && _waveManager.AllWavesCleared;
+            int aliveEnemies = _entityManager.AliveCountByCamp(EEntityCamp.Enemy);
+
+            BattleLog.BattleEnd($"CheckVictory: AllWavesCleared={allWavesCleared} (State={_waveManager?.State}, CurrentIdx={_waveManager?.CurrentWaveIndex}, TotalWaves={_waveManager?.TotalWaves}), aliveEnemies={aliveEnemies}");
+
+            if (!allWavesCleared)
                 return false;
 
-            // 条件2：场上无存活敌人
-            int aliveEnemies = _entityManager.AliveCountByCamp(EEntityCamp.Enemy);
             if (aliveEnemies > 0)
                 return false;
 
+            BattleLog.BattleEndWarning($"BOTH conditions met → TRIGGERING VICTORY! (State={_waveManager?.State}, TotalWaves={_waveManager?.TotalWaves})");
             return true;
         }
 
@@ -67,7 +70,7 @@ namespace TowerDefense
         /// </summary>
         private void TriggerVictory()
         {
-            Debug.Log("[VictoryCheckSystem] Victory condition met! Triggering battle win...");
+            BattleLog.BattleEnd("Victory condition met! Triggering battle win...");
             
             // 发射胜利事件
             _context.EventBus.Emit(TDEventIds.AllWavesCleared, 0); // 参数暂无意义

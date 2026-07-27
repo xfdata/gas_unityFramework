@@ -77,6 +77,7 @@ namespace TowerDefense
         private void OnAllWavesCleared(int dummy)
         {
             if (IsTriggered) return;
+            BattleLog.BattleEndWarning($"AllWavesClearedRule.OnAllWavesCleared → Trigger(EBattleResult.Win)! EndBattle will be called.");
             Trigger(EBattleResult.Win);
         }
 

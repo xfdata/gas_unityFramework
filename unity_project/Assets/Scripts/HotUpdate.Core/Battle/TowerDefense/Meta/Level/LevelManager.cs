@@ -47,8 +47,8 @@ namespace TowerDefense
             // 1. 地图设置
             if (CurrentLevel.Map != null)
             {
-                if (globalConfig != null && CurrentLevel.Map.DefaultPath != null)
-                    globalConfig.GetType().GetField("DefaultPath")?.SetValue(globalConfig, CurrentLevel.Map.DefaultPath);
+                // DefaultPath 已不再使用（改为NavMesh寻路到主城）
+                // 主城目标位置由 TDBattleEngine 在 ApplyToBattleEngine 之前已设置
             }
 
             // 2. 经济覆盖
@@ -74,10 +74,7 @@ namespace TowerDefense
                 var waveManager = ctx.WaveManager;
                 if (waveManager != null)
                 {
-                    // LevelConfig 带路径信息时设置默认路径
-                    if (CurrentLevel.Map?.DefaultPath != null)
-                        waveManager.SetDefaultPath(CurrentLevel.Map.DefaultPath);
-
+                    // 主城目标已由 TDBattleEngine 设置，直接启动波次
                     waveManager.StartWaves(CurrentLevel.WaveConfigs);
                 }
             }

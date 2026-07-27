@@ -1,8 +1,10 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -19,10 +21,91 @@ public static class GameplayTagCodeGenerator
 
     private const string DefaultOutputPathPattern = "Assets/Scripts/HotUpdate.Core/GameplayTags/{0}Def.gen.cs";
 
-    public static void BuildGameplayTags(GameplayTagDatabase db)
+    private static readonly Regex GeneratedTagLineRegex = new Regex(
+        @"new\s+GameplayTag\s*\(\s*Domain\s*,\s*0x(?<value>[0-9A-Fa-f]+)u\s*,\s*0x(?<mask>[0-9A-Fa-f]+)u\s*\)\s*;\s*//\s*@Tag:(?<path>.+)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    [MenuItem("Tools/GAS/GameplayTags/Generate All Databases")]
+    public static void GenerateAllDatabasesMenu()
+    {
+        try
+        {
+            GenerateAllDatabases(force: false);
+            EditorUtility.DisplayDialog(
+                "Generate GameplayTags",
+                "已为所有 GameplayTagDatabase 生成代码（含漂移保护）。",
+                "OK");
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+            EditorUtility.DisplayDialog("Generate GameplayTags Failed", e.Message, "OK");
+        }
+    }
+
+    [MenuItem("Tools/GAS/GameplayTags/Generate Selected Database")]
+    public static void GenerateSelectedDatabaseMenu()
+    {
+        var db = Selection.activeObject as GameplayTagDatabase;
+        if (db == null)
+        {
+            EditorUtility.DisplayDialog(
+                "Generate GameplayTags",
+                "请先在 Project 窗口选中一个 GameplayTagDatabase 资产。",
+                "OK");
+            return;
+        }
+
+        try
+        {
+            BuildGameplayTags(db, force: false, rebuildCatalog: true);
+            EditorUtility.DisplayDialog(
+                "Generate GameplayTags",
+                $"已生成: {db.name} (Domain={db.Domain})，并刷新 Catalog。",
+                "OK");
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+            EditorUtility.DisplayDialog("Generate GameplayTags Failed", e.Message, "OK");
+        }
+    }
+
+    /// <summary>
+    /// Generate every GameplayTagDatabase in the project.
+    /// </summary>
+    public static void GenerateAllDatabases(bool force = false)
+    {
+        var databases = GameplayTagDomainValidator.FindAllDatabases();
+        if (databases.Count == 0)
+        {
+            Debug.LogWarning("未找到任何 GameplayTagDatabase。");
+            return;
+        }
+
+        for (int i = 0; i < databases.Count; i++)
+        {
+            BuildGameplayTags(databases[i], force, rebuildCatalog: false);
+        }
+
+        RebuildGameplayTagCatalog();
+    }
+
+    /// <param name="force">
+    /// When false, generation aborts if any existing path's value/mask would change.
+    /// When true, skips the stability check (use only after intentional id migration).
+    /// </param>
+    public static void BuildGameplayTags(GameplayTagDatabase db, bool force = false, bool rebuildCatalog = true)
     {
         if (db == null)
             throw new ArgumentNullException(nameof(db));
+
+        db.EnsureMigrated();
+
+        if (db.Domain == GameplayTagDomain.None)
+            throw new InvalidOperationException($"GameplayTagDatabase '{db.name}' 的 Domain 不能为 None");
+
+        GameplayTagDomainValidator.ValidateOrThrow(db);
 
         string className = ToCSharpIdentifier(db.name, "GameplayTags");
         string buildPath = ResolveOutputPath(db, className);
@@ -31,20 +114,222 @@ public static class GameplayTagCodeGenerator
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             Directory.CreateDirectory(directory);
 
-        var tree = BuildTree(db.Tags);
-        AssignIds(tree);
+        var tree = BuildTree(db);
+        ValidateStableIds(tree);
 
-        string code = GenerateCode(tree, className);
+        string code = GenerateCode(tree, className, db.Domain);
+
+        if (!force && File.Exists(buildPath))
+        {
+            ValidateAgainstExistingGenerated(buildPath, tree, out var driftError);
+            if (!string.IsNullOrEmpty(driftError))
+            {
+                throw new InvalidOperationException(
+                    driftError +
+                    "\n\n若确认要覆盖（会破坏已序列化 Tag value），请使用 Force Generate。");
+            }
+        }
 
         File.WriteAllText(buildPath, code, new UTF8Encoding(false));
 
         AssetDatabase.ImportAsset(buildPath);
-        AssetDatabase.Refresh();
 
-        Debug.Log($"GameplayTags generated: {buildPath}");
+        if (rebuildCatalog)
+            RebuildGameplayTagCatalog();
+        else
+            AssetDatabase.Refresh();
+
+        GameplayTagOdinUtility.ClearCache();
+        GameplayTagLegacyFixup.ClearLookupCache();
+        GameplayTagDebug.ClearCache();
+
+        Debug.Log($"GameplayTags generated: {buildPath} (Domain={db.Domain}, force={force})");
     }
 
-    private static TagNode BuildTree(IReadOnlyList<string> tags)
+    private const string CatalogOutputPath =
+        "Assets/Scripts/HotUpdate.Core/GameplayTags/GameplayTagCatalog.gen.cs";
+
+    /// <summary>
+    /// Rebuilds the flat catalog used by debug paths and editor dropdowns from all Databases.
+    /// </summary>
+    public static void RebuildGameplayTagCatalog()
+    {
+        var databases = GameplayTagDomainValidator.FindAllDatabases();
+        var sb = new StringBuilder(8192);
+
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("// AUTO GENERATED. DO NOT EDIT.");
+        sb.AppendLine("// Regenerated when any GameplayTagDatabase generates code.");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Flat catalog of all known tags for debug paths and editor dropdowns.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("public static class GameplayTagCatalog");
+        sb.AppendLine("{");
+        sb.AppendLine("    public readonly struct Entry");
+        sb.AppendLine("    {");
+        sb.AppendLine("        public readonly GameplayTagDomain Domain;");
+        sb.AppendLine("        public readonly uint Value;");
+        sb.AppendLine("        public readonly uint Mask;");
+        sb.AppendLine("        public readonly string Path;");
+        sb.AppendLine("        public readonly string Library;");
+        sb.AppendLine("        public readonly string FieldName;");
+        sb.AppendLine();
+        sb.AppendLine("        public Entry(");
+        sb.AppendLine("            GameplayTagDomain domain,");
+        sb.AppendLine("            uint value,");
+        sb.AppendLine("            uint mask,");
+        sb.AppendLine("            string path,");
+        sb.AppendLine("            string library,");
+        sb.AppendLine("            string fieldName)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            Domain = domain;");
+        sb.AppendLine("            Value = value;");
+        sb.AppendLine("            Mask = mask;");
+        sb.AppendLine("            Path = path;");
+        sb.AppendLine("            Library = library;");
+        sb.AppendLine("            FieldName = fieldName;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public GameplayTag ToTag() => new GameplayTag(Domain, Value, Mask);");
+        sb.AppendLine();
+        sb.AppendLine("        public string DisplayName => Domain + \"/\" + Library + \"/\" + FieldName;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    public static readonly Entry[] All =");
+        sb.AppendLine("    {");
+
+        var entries = new List<(GameplayTagDomain domain, string library, string path, string field, uint value, uint mask)>();
+
+        for (int d = 0; d < databases.Count; d++)
+        {
+            var db = databases[d];
+            if (db == null || db.Domain == GameplayTagDomain.None)
+                continue;
+
+            db.EnsureMigrated();
+            string library = ToCSharpIdentifier(db.name, "GameplayTags");
+            var tree = BuildTree(db);
+            CollectCatalogEntries(tree, db.Domain, library, entries);
+        }
+
+        entries.Sort((a, b) =>
+        {
+            int c = a.domain.CompareTo(b.domain);
+            if (c != 0) return c;
+            c = string.CompareOrdinal(a.library, b.library);
+            if (c != 0) return c;
+            return string.CompareOrdinal(a.path, b.path);
+        });
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            sb.AppendLine(
+                $"        new Entry(GameplayTagDomain.{e.domain}, 0x{e.value:X8}u, 0x{e.mask:X8}u, \"{e.path}\", \"{e.library}\", \"{e.field}\"),");
+        }
+
+        sb.AppendLine("    };");
+        sb.AppendLine("}");
+
+        string catalogDir = Path.GetDirectoryName(CatalogOutputPath);
+        if (!string.IsNullOrEmpty(catalogDir) && !Directory.Exists(catalogDir))
+            Directory.CreateDirectory(catalogDir);
+
+        File.WriteAllText(CatalogOutputPath, sb.ToString(), new UTF8Encoding(false));
+        AssetDatabase.ImportAsset(CatalogOutputPath);
+        AssetDatabase.Refresh();
+        GameplayTagDebug.ClearCache();
+        GameplayTagOdinUtility.ClearCache();
+
+        Debug.Log($"GameplayTagCatalog generated: {CatalogOutputPath} ({entries.Count} tags)");
+    }
+
+    private static void CollectCatalogEntries(
+        TagNode node,
+        GameplayTagDomain domain,
+        string library,
+        List<(GameplayTagDomain domain, string library, string path, string field, uint value, uint mask)> list)
+    {
+        if (node.Parent != null)
+        {
+            BuildValueAndMask(node, out uint value, out uint mask);
+            string field = node.FullPath.Replace(".", "_");
+            list.Add((domain, library, node.FullPath, field, value, mask));
+        }
+
+        foreach (var child in node.Children.Values)
+            CollectCatalogEntries(child, domain, library, list);
+    }
+
+    /// <summary>
+    /// Fails when an existing generated path would change value or mask.
+    /// Removed paths only produce a log warning.
+    /// </summary>
+    private static void ValidateAgainstExistingGenerated(string buildPath, TagNode tree, out string error)
+    {
+        error = null;
+        var existing = ParseGeneratedTagEntries(buildPath);
+        if (existing.Count == 0)
+            return;
+
+        var newByPath = new Dictionary<string, (uint value, uint mask)>(StringComparer.Ordinal);
+        CollectGeneratedValues(tree, newByPath);
+
+        var drifts = new List<string>();
+        var removed = new List<string>();
+
+        for (int i = 0; i < existing.Count; i++)
+        {
+            var item = existing[i];
+            if (!newByPath.TryGetValue(item.path, out var neu))
+            {
+                removed.Add(item.path);
+                continue;
+            }
+
+            if (neu.value != item.value || neu.mask != item.mask)
+            {
+                drifts.Add(
+                    $"  {item.path}: " +
+                    $"was 0x{item.value:X8}/0x{item.mask:X8} -> " +
+                    $"now 0x{neu.value:X8}/0x{neu.mask:X8}");
+            }
+        }
+
+        if (removed.Count > 0)
+        {
+            Debug.LogWarning(
+                $"GameplayTags generate: {removed.Count} path(s) removed from generated code " +
+                $"(assets may still reference old values): {string.Join(", ", removed)}");
+        }
+
+        if (drifts.Count == 0)
+            return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Generate 被拒绝：已有 Tag 的 value/mask 发生漂移（稳定 Id 被破坏）。");
+        int limit = Math.Min(drifts.Count, 20);
+        for (int i = 0; i < limit; i++)
+            sb.AppendLine(drifts[i]);
+        if (drifts.Count > limit)
+            sb.AppendLine($"  ... 另有 {drifts.Count - limit} 处");
+        error = sb.ToString();
+    }
+
+    private static void CollectGeneratedValues(TagNode node, Dictionary<string, (uint value, uint mask)> map)
+    {
+        if (node.Parent != null)
+        {
+            BuildValueAndMask(node, out uint value, out uint mask);
+            map[node.FullPath] = (value, mask);
+        }
+
+        foreach (var child in node.Children.Values)
+            CollectGeneratedValues(child, map);
+    }
+
+    private static TagNode BuildTree(GameplayTagDatabase db)
     {
         var root = new TagNode
         {
@@ -52,31 +337,50 @@ public static class GameplayTagCodeGenerator
             FullPath = ""
         };
 
-        foreach (string tag in tags)
+        foreach (var entry in db.Entries)
         {
+            string tag = entry.path;
             if (!GameplayTagDatabase.IsValidTagPath(tag, out var error))
                 throw new InvalidOperationException($"非法 GameplayTag: {tag}, reason: {error}");
+
+            if (entry.siblingId < 1 || entry.siblingId > GameplayTagDatabase.MaxSiblingId)
+            {
+                throw new InvalidOperationException(
+                    $"非法 siblingId: {tag}={entry.siblingId}（有效范围 1..{GameplayTagDatabase.MaxSiblingId}）");
+            }
 
             var parts = tag.Split('.');
             var current = root;
             string full = "";
 
-            foreach (var part in parts)
+            for (int depth = 0; depth < parts.Length; depth++)
             {
-                full = string.IsNullOrEmpty(full)
-                    ? part
-                    : full + "." + part;
+                string part = parts[depth];
+                full = depth == 0 ? part : full + "." + part;
 
                 if (!current.Children.TryGetValue(part, out var child))
                 {
+                    // Leaf/intermediate nodes must exist in entries with their own siblingId.
+                    if (!db.TryGetSiblingId(full, out int siblingId))
+                    {
+                        throw new InvalidOperationException(
+                            $"缺少节点 siblingId: {full}（请重新添加该 Tag 或 Restore from Code）");
+                    }
+
                     child = new TagNode
                     {
                         Name = part,
                         FullPath = full,
-                        Parent = current
+                        Parent = current,
+                        Id = siblingId
                     };
 
                     current.Children.Add(part, child);
+                }
+                else if (depth == parts.Length - 1 && child.Id != entry.siblingId)
+                {
+                    throw new InvalidOperationException(
+                        $"siblingId 不一致: {full} database={entry.siblingId}, tree={child.Id}");
                 }
 
                 current = child;
@@ -86,26 +390,40 @@ public static class GameplayTagCodeGenerator
         return root;
     }
 
-    private static void AssignIds(TagNode root)
+    private static void ValidateStableIds(TagNode root)
     {
-        AssignRecursive(root);
+        ValidateRecursive(root);
     }
 
-    private static void AssignRecursive(TagNode node)
+    private static void ValidateRecursive(TagNode node)
     {
-        int index = 1;
+        var used = new HashSet<int>();
 
         foreach (var child in node.Children.Values)
         {
-            if (index > 255)
-                throw new InvalidOperationException($"同级 GameplayTag 数量超过 255: {node.FullPath}");
+            if (child.Id < 1 || child.Id > GameplayTagDatabase.MaxSiblingId)
+            {
+                throw new InvalidOperationException(
+                    $"非法 siblingId: {child.FullPath}={child.Id}");
+            }
 
-            child.Id = index++;
-            AssignRecursive(child);
+            if (!used.Add(child.Id))
+            {
+                throw new InvalidOperationException(
+                    $"同级 siblingId 冲突: parent='{FormatParent(node.FullPath)}', id={child.Id}, path={child.FullPath}");
+            }
+
+            ValidateRecursive(child);
+        }
+
+        if (node.Children.Count > GameplayTagDatabase.MaxSiblingId)
+        {
+            throw new InvalidOperationException(
+                $"同级 GameplayTag 数量超过 {GameplayTagDatabase.MaxSiblingId}: {FormatParent(node.FullPath)}");
         }
     }
 
-    private static string GenerateCode(TagNode root, string className)
+    private static string GenerateCode(TagNode root, string className, GameplayTagDomain domain)
     {
         var sb = new StringBuilder(4096);
 
@@ -114,6 +432,8 @@ public static class GameplayTagCodeGenerator
         sb.AppendLine();
         sb.AppendLine($"public static class {className}");
         sb.AppendLine("{");
+        sb.AppendLine($"    public const GameplayTagDomain Domain = GameplayTagDomain.{domain};");
+        sb.AppendLine();
 
         foreach (var child in root.Children.Values)
         {
@@ -132,7 +452,8 @@ public static class GameplayTagCodeGenerator
 
         string fieldName = node.FullPath.Replace(".", "_");
 
-        sb.AppendLine($"{ind}public static readonly GameplayTag {fieldName} = new GameplayTag(0x{value:X8}u, 0x{mask:X8}u); // @Tag:{node.FullPath}");
+        sb.AppendLine(
+            $"{ind}public static readonly GameplayTag {fieldName} = new GameplayTag(Domain, 0x{value:X8}u, 0x{mask:X8}u); // @Tag:{node.FullPath}");
 
         foreach (var child in node.Children.Values)
         {
@@ -142,25 +463,42 @@ public static class GameplayTagCodeGenerator
 
     public static List<string> ParseTagsFromGeneratedCode(string filePath)
     {
-        var tags = new List<string>();
+        var parsed = ParseGeneratedTagEntries(filePath);
+        var tags = new List<string>(parsed.Count);
+        for (int i = 0; i < parsed.Count; i++)
+            tags.Add(parsed[i].path);
+        return tags;
+    }
+
+    public static List<(string path, uint value, uint mask)> ParseGeneratedTagEntries(string filePath)
+    {
+        var result = new List<(string path, uint value, uint mask)>();
 
         if (!File.Exists(filePath))
-            return tags;
+            return result;
 
         var lines = File.ReadAllLines(filePath);
 
         foreach (string line in lines)
         {
-            int markerIndex = line.IndexOf("// @Tag:", StringComparison.Ordinal);
-            if (markerIndex < 0)
+            var match = GeneratedTagLineRegex.Match(line.Trim());
+            if (!match.Success)
                 continue;
 
-            string tagPath = line.Substring(markerIndex + "// @Tag:".Length).Trim();
-            if (!string.IsNullOrEmpty(tagPath))
-                tags.Add(tagPath);
+            string path = match.Groups["path"].Value.Trim();
+            if (string.IsNullOrEmpty(path))
+                continue;
+
+            if (!uint.TryParse(match.Groups["value"].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint value))
+                continue;
+
+            if (!uint.TryParse(match.Groups["mask"].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint mask))
+                continue;
+
+            result.Add((path, value, mask));
         }
 
-        return tags;
+        return result;
     }
 
     public static void RestoreTags(GameplayTagDatabase db)
@@ -177,27 +515,84 @@ public static class GameplayTagCodeGenerator
             return;
         }
 
-        var tags = ParseTagsFromGeneratedCode(filePath);
+        var parsed = ParseGeneratedTagEntries(filePath);
 
-        if (tags.Count == 0)
+        if (parsed.Count == 0)
         {
             Debug.LogWarning($"生成文件中未找到任何 Tag 标记: {filePath}");
             return;
         }
 
+        // Parents first so Upsert can validate ancestor existence.
+        parsed.Sort((a, b) =>
+        {
+            int da = a.path.Split('.').Length;
+            int dbDepth = b.path.Split('.').Length;
+            int cmp = da.CompareTo(dbDepth);
+            return cmp != 0 ? cmp : string.CompareOrdinal(a.path, b.path);
+        });
+
         Undo.RecordObject(db, "Restore Gameplay Tags from Code");
 
         db.ClearTags();
 
-        foreach (string tag in tags)
+        for (int i = 0; i < parsed.Count; i++)
         {
-            db.AddTag(tag);
+            var item = parsed[i];
+            if (!TryExtractSiblingId(item.path, item.value, item.mask, out int siblingId, out var extractError))
+            {
+                Debug.LogError($"Restore 失败: {item.path}, {extractError}");
+                continue;
+            }
+
+            if (!db.UpsertTagWithSiblingId(item.path, siblingId, out var upsertError))
+            {
+                Debug.LogError($"Restore 失败: {item.path}, {upsertError}");
+            }
         }
 
         EditorUtility.SetDirty(db);
         AssetDatabase.SaveAssetIfDirty(db);
 
-        Debug.Log($"已从生成文件还原 {tags.Count} 个 Tag: {filePath}");
+        Debug.Log($"已从生成文件还原 {parsed.Count} 个 Tag（含稳定 siblingId）: {filePath}");
+    }
+
+    private static bool TryExtractSiblingId(
+        string path,
+        uint value,
+        uint mask,
+        out int siblingId,
+        out string error)
+    {
+        error = null;
+        siblingId = 0;
+
+        var parts = path.Split('.');
+        int depth = parts.Length;
+        if (depth < 1 || depth > GameplayTagDatabase.MaxDepth)
+        {
+            error = $"非法深度: {depth}";
+            return false;
+        }
+
+        int shift = 24 - (depth - 1) * 8;
+        siblingId = (int)((value >> shift) & 0xFFu);
+
+        if (siblingId < 1 || siblingId > GameplayTagDatabase.MaxSiblingId)
+        {
+            error = $"从 value=0x{value:X8} 解析 siblingId 非法: {siblingId}";
+            return false;
+        }
+
+        // Soft-check: reconstructed value/mask for this node path depth should match mask's deepest byte.
+        uint expectedMaskByte = 0xFFu << shift;
+        if ((mask & expectedMaskByte) == 0)
+        {
+            error = $"mask=0x{mask:X8} 与路径深度不匹配: {path}";
+            return false;
+        }
+
+        return true;
     }
 
     private static void BuildValueAndMask(TagNode node, out uint value, out uint mask)
@@ -216,13 +611,19 @@ public static class GameplayTagCodeGenerator
 
         path.Reverse();
 
-        if (path.Count > 4)
-            throw new InvalidOperationException($"GameplayTag 层级超过 4 层: {node.FullPath}");
+        if (path.Count > GameplayTagDatabase.MaxDepth)
+            throw new InvalidOperationException($"GameplayTag 层级超过 {GameplayTagDatabase.MaxDepth} 层: {node.FullPath}");
 
         int shift = 24;
 
         foreach (var item in path)
         {
+            if (item.Id < 1 || item.Id > GameplayTagDatabase.MaxSiblingId)
+            {
+                throw new InvalidOperationException(
+                    $"非法 siblingId: {item.FullPath}={item.Id}");
+            }
+
             value |= ((uint)item.Id & 0xFFu) << shift;
             mask |= 0xFFu << shift;
             shift -= 8;
@@ -261,6 +662,11 @@ public static class GameplayTagCodeGenerator
 
         string result = sb.ToString();
         return string.IsNullOrEmpty(result) ? fallback : result;
+    }
+
+    private static string FormatParent(string parentPath)
+    {
+        return string.IsNullOrEmpty(parentPath) ? "<root>" : parentPath;
     }
 }
 #endif

@@ -56,9 +56,9 @@ namespace TowerDefense
         }
 
         /// <summary>
-        /// 从对象池分配一个敌人实体
+        /// 从对象池分配一个敌人实体（NavMesh寻路到主城）
         /// </summary>
-        public TDEnemyActor Allocate(TDEnemyConfig config, WaypointPath path, Vector3 spawnPosition)
+        public TDEnemyActor Allocate(TDEnemyConfig config, Vector3 targetPosition, Vector3 spawnPosition, MainCityActor cityActor = null)
         {
             if (config == null) return null;
 
@@ -86,7 +86,7 @@ namespace TowerDefense
                     }
                 }
 
-                enemy.InitEnemy(config, path, spawnPosition);
+                enemy.InitEnemy(config, targetPosition, spawnPosition, cityActor);
                 _entityManager.AddEntityFromPool(enemy);
             }
             else
@@ -95,7 +95,7 @@ namespace TowerDefense
                 enemy = CreateNewEnemy(config);
                 enemy.SetId(_entityManager.GenerateId());
                 _entityManager.AddEntity(enemy);
-                enemy.InitEnemy(config, path, spawnPosition);
+                enemy.InitEnemy(config, targetPosition, spawnPosition, cityActor);
             }
 
             // 发射生成事件

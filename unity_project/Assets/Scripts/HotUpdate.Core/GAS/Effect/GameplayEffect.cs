@@ -25,9 +25,9 @@ namespace GAS
 
         [Header("标签需求")]
         public TagQuery SourceRequiredTags = new TagQuery(TagQueryOp.All);
-        public TagQuery SourceBlockedTags = new TagQuery(TagQueryOp.NotAll);
+        public TagQuery SourceBlockedTags = new TagQuery(TagQueryOp.None);
         public TagQuery TargetRequiredTags = new TagQuery(TagQueryOp.All);
-        public TagQuery TargetBlockedTags = new TagQuery(TagQueryOp.NotAll);
+        public TagQuery TargetBlockedTags = new TagQuery(TagQueryOp.None);
 
         [Header("授予标签")]
         public GameplayTagContainer GrantedTags = new GameplayTagContainer();

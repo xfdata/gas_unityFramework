@@ -22,15 +22,34 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
     private List<GameplayTag> tags = new();
 
     [NonSerialized]
-    private Dictionary<uint, int> exactTagCount;
+    private Dictionary<ulong, int> exactTagCount;
 
     [NonSerialized]
-    private Dictionary<uint, int> matchedTagCount;
+    private Dictionary<ulong, int> matchedTagCount;
+
+    /// <summary>Maps exact tag key -> index in <see cref="tags"/>.</summary>
+    [NonSerialized]
+    private Dictionary<ulong, int> serializedIndex;
 
     [NonSerialized]
     private List<TagEventListener> listeners;
 
+    [NonSerialized]
+    private List<GameplayTag> scratchTags;
+
+    [NonSerialized]
+    private int notifyDepth;
+
     public IReadOnlyList<GameplayTag> Tags => tags;
+
+    public int Count
+    {
+        get
+        {
+            EnsureRuntime();
+            return tags.Count;
+        }
+    }
 
     public GameplayTagContainer()
     {
@@ -57,71 +76,80 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
         if (!IsValidTag(tag))
             return;
 
-        if (exactTagCount.TryGetValue(tag.Value, out int count))
+        ulong key = MakeCountKey(tag);
+
+        if (exactTagCount.TryGetValue(key, out int count))
         {
-            exactTagCount[tag.Value] = count + 1;
+            exactTagCount[key] = count + 1;
             return;
         }
 
-        exactTagCount[tag.Value] = 1;
+        exactTagCount[key] = 1;
 
-        if (!ContainsSerializedTag(tag))
+        if (!serializedIndex.ContainsKey(key))
+        {
+            serializedIndex[key] = tags.Count;
             tags.Add(tag);
+        }
 
         UpdateHierarchyTagCounts(tag, 1, true);
     }
 
+    /// <summary>
+    /// Decrements the exact-tag stack count by 1. When count reaches 0, removes the tag and hierarchy matches.
+    /// </summary>
     public void RemoveTag(GameplayTag tag)
     {
-        EnsureRuntime();
-
-        if (!IsValidTag(tag))
-            return;
-
-        if (!exactTagCount.TryGetValue(tag.Value, out int count))
-            return;
-
-        if (count <= 1)
-        {
-            exactTagCount.Remove(tag.Value);
-            RemoveSerializedTag(tag);
-
-            UpdateHierarchyTagCounts(tag, -1, true);
-        }
-        else
-        {
-            exactTagCount[tag.Value] = count - 1;
-        }
+        RemoveTagInternal(tag, removeAllStacks: false);
     }
 
-    public void RemoveTag(GameplayTag tag, bool includeChild)
+    /// <summary>
+    /// Removes every stack of the exact tag (count goes to 0 in one call).
+    /// </summary>
+    public void RemoveTagCompletely(GameplayTag tag)
+    {
+        RemoveTagInternal(tag, removeAllStacks: true);
+    }
+
+    /// <summary>
+    /// Removes tags matching <paramref name="tag"/>.
+    /// </summary>
+    /// <param name="tag">Exact tag, or parent when <paramref name="includeChildren"/> is true.</param>
+    /// <param name="includeChildren">Also remove exact tags that are children of <paramref name="tag"/>.</param>
+    /// <param name="removeAllStacks">
+    /// If true, clear all stacks of each matched exact tag.
+    /// If false, decrement each matched exact tag by 1 stack.
+    /// </param>
+    public void RemoveTag(GameplayTag tag, bool includeChildren, bool removeAllStacks = false)
     {
         EnsureRuntime();
 
         if (!IsValidTag(tag))
             return;
 
-        if (!includeChild)
+        if (!includeChildren)
         {
-            RemoveTag(tag);
+            RemoveTagInternal(tag, removeAllStacks);
             return;
         }
 
-        var removeTags = new List<GameplayTag>();
+        CollectMatchingExactTags(tag, scratchTags);
 
-        foreach (var value in exactTagCount.Keys)
+        for (int i = 0; i < scratchTags.Count; i++)
         {
-            if ((value & tag.Mask) == tag.Value)
-            {
-                var mask = ComputeMask(value);
-                removeTags.Add(new GameplayTag(value, mask));
-            }
+            RemoveTagInternal(scratchTags[i], removeAllStacks);
         }
 
-        for (int i = 0; i < removeTags.Count; i++)
-        {
-            RemoveTag(removeTags[i]);
-        }
+        scratchTags.Clear();
+    }
+
+    /// <summary>
+    /// Convenience: remove all stacks under a parent (or exact if no children).
+    /// Equivalent to <c>RemoveTag(tag, includeChildren: true, removeAllStacks: true)</c>.
+    /// </summary>
+    public void RemoveMatching(GameplayTag tag)
+    {
+        RemoveTag(tag, includeChildren: true, removeAllStacks: true);
     }
 
     public bool HasTag(GameplayTag query)
@@ -131,9 +159,10 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
         if (!IsValidTag(query))
             return false;
 
-        return matchedTagCount.TryGetValue(query.Value, out int count) && count > 0;
+        return matchedTagCount.TryGetValue(MakeCountKey(query), out int count) && count > 0;
     }
 
+    /// <summary>Exact stack count for this tag (not hierarchy).</summary>
     public int GetTagCount(GameplayTag tag)
     {
         EnsureRuntime();
@@ -141,7 +170,7 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
         if (!IsValidTag(tag))
             return 0;
 
-        return exactTagCount.TryGetValue(tag.Value, out int count) ? count : 0;
+        return exactTagCount.TryGetValue(MakeCountKey(tag), out int count) ? count : 0;
     }
 
     public bool Match(GameplayTagContainer container, TagQueryOp oper = TagQueryOp.All)
@@ -179,7 +208,7 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
                 return false;
             }
 
-            case TagQueryOp.NotAll:
+            case TagQueryOp.None:
             {
                 for (int i = 0; i < tags.Count; i++)
                 {
@@ -203,33 +232,37 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
         {
             exactTagCount.Clear();
             matchedTagCount.Clear();
-            listeners.Clear();
+            serializedIndex.Clear();
+            // Keep listeners; clear does not unregister.
             return;
         }
 
-        var clearTags = new List<GameplayTag>(tags);
-
-        tags.Clear();
-
-        for (int i = 0; i < clearTags.Count; i++)
+        // Remove from end to avoid index churn; notify hierarchy with full stack delta.
+        for (int i = tags.Count - 1; i >= 0; i--)
         {
-            var tag = clearTags[i];
-            int count = exactTagCount.TryGetValue(tag.Value, out int tagCount)
-                ? tagCount
-                : 1;
+            var tag = tags[i];
+            ulong key = MakeCountKey(tag);
+            int count = exactTagCount.TryGetValue(key, out int tagCount) ? tagCount : 1;
 
-            exactTagCount.Remove(tag.Value);
-            UpdateHierarchyTagCounts(tag, -count, true);
+            exactTagCount.Remove(key);
+            serializedIndex.Remove(key);
+            tags.RemoveAt(i);
+
+            if (count > 0)
+                UpdateHierarchyTagCounts(tag, -count, true);
         }
 
         exactTagCount.Clear();
         matchedTagCount.Clear();
-        listeners.Clear();
+        serializedIndex.Clear();
     }
 
     public void RegisterListener(GameplayTag tag, Action<bool> callback)
     {
         EnsureRuntime();
+
+        if (callback == null)
+            return;
 
         listeners.Add(new TagEventListener
         {
@@ -242,7 +275,48 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
     {
         EnsureRuntime();
 
-        listeners.RemoveAll(l => l.Callback == callback);
+        if (callback == null || listeners.Count == 0)
+            return;
+
+        if (notifyDepth > 0)
+        {
+            for (int i = 0; i < listeners.Count; i++)
+            {
+                if (listeners[i].Callback == callback)
+                    listeners[i].Callback = null;
+            }
+
+            return;
+        }
+
+        listeners.RemoveAll(l => l.Callback == callback || l.Callback == null);
+    }
+
+    public void UnregisterListener(GameplayTag tag, Action<bool> callback)
+    {
+        EnsureRuntime();
+
+        if (callback == null || listeners.Count == 0)
+            return;
+
+        if (notifyDepth > 0)
+        {
+            for (int i = 0; i < listeners.Count; i++)
+            {
+                var listener = listeners[i];
+                if (listener.Callback == callback && listener.Tag.Equals(tag))
+                    listeners[i].Callback = null;
+            }
+
+            return;
+        }
+
+        for (int i = listeners.Count - 1; i >= 0; i--)
+        {
+            var listener = listeners[i];
+            if (listener.Callback == callback && listener.Tag.Equals(tag))
+                listeners.RemoveAt(i);
+        }
     }
 
     public void OnBeforeSerialize()
@@ -258,7 +332,9 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
     {
         if (exactTagCount != null &&
             matchedTagCount != null &&
-            listeners != null)
+            serializedIndex != null &&
+            listeners != null &&
+            scratchTags != null)
         {
             return;
         }
@@ -268,96 +344,137 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
     private void RebuildRuntime()
     {
-        exactTagCount = new Dictionary<uint, int>();
-        matchedTagCount = new Dictionary<uint, int>();
-        listeners = new List<TagEventListener>();
+        int cap = tags != null ? Math.Max(4, tags.Count * 2) : 4;
+        exactTagCount = new Dictionary<ulong, int>(cap);
+        matchedTagCount = new Dictionary<ulong, int>(cap);
+        serializedIndex = new Dictionary<ulong, int>(cap);
+        listeners ??= new List<TagEventListener>();
+        scratchTags ??= new List<GameplayTag>(8);
 
         if (tags == null)
             tags = new List<GameplayTag>();
 
+        // Single pass: drop invalid + dedupe (keep first) using serializedIndex as seen-set.
         for (int i = tags.Count - 1; i >= 0; i--)
         {
             if (!IsValidTag(tags[i]))
             {
                 tags.RemoveAt(i);
+                continue;
             }
         }
 
-        var unique = new HashSet<uint>();
-
-        for (int i = tags.Count - 1; i >= 0; i--)
+        serializedIndex.Clear();
+        for (int i = 0; i < tags.Count;)
         {
-            if (!unique.Add(tags[i].Value))
+            ulong key = MakeCountKey(tags[i]);
+            if (serializedIndex.ContainsKey(key))
             {
                 tags.RemoveAt(i);
+                continue;
             }
+
+            serializedIndex[key] = i;
+            i++;
         }
+
+        exactTagCount.Clear();
+        matchedTagCount.Clear();
 
         for (int i = 0; i < tags.Count; i++)
         {
             var tag = tags[i];
+            ulong key = MakeCountKey(tag);
 
-            exactTagCount[tag.Value] = 1;
+            exactTagCount[key] = 1;
+            serializedIndex[key] = i;
 
             UpdateHierarchyTagCounts(tag, 1, false);
         }
     }
 
-    private bool ContainsSerializedTag(GameplayTag tag)
+    private void RemoveTagInternal(GameplayTag tag, bool removeAllStacks)
     {
-        if (tags == null)
-            return false;
+        EnsureRuntime();
 
-        for (int i = 0; i < tags.Count; i++)
-        {
-            if (tags[i].Equals(tag))
-                return true;
-        }
-
-        return false;
-    }
-
-    private void RemoveSerializedTag(GameplayTag tag)
-    {
-        if (tags == null)
+        if (!IsValidTag(tag))
             return;
 
-        for (int i = tags.Count - 1; i >= 0; i--)
+        ulong key = MakeCountKey(tag);
+
+        if (!exactTagCount.TryGetValue(key, out int count))
+            return;
+
+        if (!removeAllStacks && count > 1)
         {
-            if (tags[i].Equals(tag))
-            {
-                tags.RemoveAt(i);
-            }
+            exactTagCount[key] = count - 1;
+            return;
+        }
+
+        int delta = removeAllStacks ? count : 1;
+        exactTagCount.Remove(key);
+        RemoveSerializedTagByKey(key);
+        UpdateHierarchyTagCounts(tag, -delta, true);
+    }
+
+    private void CollectMatchingExactTags(GameplayTag parent, List<GameplayTag> results)
+    {
+        results.Clear();
+
+        // Prefer iterating compact serialized tags list (unique exact tags).
+        for (int i = 0; i < tags.Count; i++)
+        {
+            var exact = tags[i];
+            if (exact.Domain != parent.Domain)
+                continue;
+
+            if ((exact.Value & parent.Mask) == parent.Value)
+                results.Add(exact);
         }
     }
 
-    private static uint ComputeMask(uint value)
+    private void RemoveSerializedTagByKey(ulong key)
     {
-        uint mask = 0;
-        bool foundNonZero = false;
-
-        for (int i = 0; i < 4; i++)
+        if (!serializedIndex.TryGetValue(key, out int index))
         {
-            uint shift = (uint)(24 - 8 * i);
-            uint b = (value >> (int)shift) & 0xFF;
+            // Fallback linear scan for safety.
+            for (int i = tags.Count - 1; i >= 0; i--)
+            {
+                if (MakeCountKey(tags[i]) == key)
+                {
+                    RemoveSerializedAt(i);
+                    return;
+                }
+            }
 
-            if (b != 0)
-            {
-                foundNonZero = true;
-                mask |= 0xFFu << (int)shift;
-            }
-            else if (foundNonZero)
-            {
-                break;
-            }
+            return;
         }
 
-        return mask;
+        RemoveSerializedAt(index);
+    }
+
+    private void RemoveSerializedAt(int index)
+    {
+        if (index < 0 || index >= tags.Count)
+            return;
+
+        ulong removedKey = MakeCountKey(tags[index]);
+        int last = tags.Count - 1;
+
+        if (index != last)
+        {
+            var moved = tags[last];
+            tags[index] = moved;
+            serializedIndex[MakeCountKey(moved)] = index;
+        }
+
+        tags.RemoveAt(last);
+        serializedIndex.Remove(removedKey);
     }
 
     private static bool IsValidTag(GameplayTag tag)
     {
-        return tag.Mask != 0;
+        return tag.IsValid;
     }
 
     private void UpdateHierarchyTagCounts(GameplayTag tag, int delta, bool notify)
@@ -366,7 +483,10 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
         while (mask != 0)
         {
-            UpdateMatchedTagCount(new GameplayTag(tag.Value & mask, mask), delta, notify);
+            UpdateMatchedTagCount(
+                new GameplayTag(tag.Domain, tag.Value & mask, mask),
+                delta,
+                notify);
 
             mask <<= 8;
             mask &= 0xFFFFFF00u;
@@ -375,18 +495,19 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
     private void UpdateMatchedTagCount(GameplayTag tag, int delta, bool notify)
     {
-        matchedTagCount.TryGetValue(tag.Value, out int oldCount);
+        ulong key = MakeCountKey(tag);
+        matchedTagCount.TryGetValue(key, out int oldCount);
 
         int newCount = oldCount + delta;
 
         if (newCount <= 0)
         {
             newCount = 0;
-            matchedTagCount.Remove(tag.Value);
+            matchedTagCount.Remove(key);
         }
         else
         {
-            matchedTagCount[tag.Value] = newCount;
+            matchedTagCount[key] = newCount;
         }
 
         if (!notify)
@@ -404,47 +525,96 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
     private void NotifyTagChanged(GameplayTag changedTag, bool added)
     {
-        if (listeners == null)
+        if (listeners == null || listeners.Count == 0)
             return;
 
-        var snapshot = new List<TagEventListener>(listeners);
+        notifyDepth++;
 
-        for (int i = 0; i < snapshot.Count; i++)
+        try
         {
-            var listener = snapshot[i];
-
-            if (listener.Tag.Equals(changedTag))
+            // No snapshot allocation; null callbacks are skipped (unregistered mid-notify).
+            for (int i = 0; i < listeners.Count; i++)
             {
-                listener.Callback?.Invoke(added);
+                var listener = listeners[i];
+                if (listener.Callback == null)
+                    continue;
+
+                if (listener.Tag.Equals(changedTag))
+                {
+                    listener.Callback.Invoke(added);
+                }
             }
         }
-    }
-
-    public void AddTags(GameplayTagContainer tags)
-    {
-        EnsureRuntime();
-
-        if (tags == null)
-            return;
-
-        for (int i = 0; i < tags.Tags.Count; i++)
+        finally
         {
-            AddTag(tags.Tags[i]);
+            notifyDepth--;
+            if (notifyDepth == 0)
+                CompactListeners();
         }
     }
 
-    public void RemoveTags(GameplayTagContainer tags)
+    private void CompactListeners()
+    {
+        if (listeners == null || listeners.Count == 0)
+            return;
+
+        for (int i = listeners.Count - 1; i >= 0; i--)
+        {
+            if (listeners[i].Callback == null)
+                listeners.RemoveAt(i);
+        }
+    }
+
+    public void AddTags(GameplayTagContainer other)
     {
         EnsureRuntime();
 
-        if (tags == null)
+        if (other == null)
             return;
 
-        var removeTags = new List<GameplayTag>(tags.Tags);
+        other.EnsureRuntime();
 
-        for (int i = 0; i < removeTags.Count; i++)
+        var source = other.tags;
+        for (int i = 0; i < source.Count; i++)
         {
-            RemoveTag(removeTags[i]);
+            AddTag(source[i]);
         }
+    }
+
+    /// <summary>
+    /// Decrements each tag from <paramref name="other"/> by one stack.
+    /// </summary>
+    public void RemoveTags(GameplayTagContainer other)
+    {
+        RemoveTags(other, removeAllStacks: false);
+    }
+
+    /// <summary>
+    /// Removes tags present in <paramref name="other"/>.
+    /// </summary>
+    public void RemoveTags(GameplayTagContainer other, bool removeAllStacks)
+    {
+        EnsureRuntime();
+
+        if (other == null)
+            return;
+
+        other.EnsureRuntime();
+
+        var source = other.tags;
+        for (int i = 0; i < source.Count; i++)
+        {
+            RemoveTagInternal(source[i], removeAllStacks);
+        }
+    }
+
+    private static ulong MakeCountKey(GameplayTag tag)
+    {
+        return MakeCountKey(tag.Domain, tag.Value);
+    }
+
+    private static ulong MakeCountKey(GameplayTagDomain domain, uint value)
+    {
+        return ((ulong)(byte)domain << 32) | value;
     }
 }

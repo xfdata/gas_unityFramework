@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: ArtPrefabs_UI
+  m_EditorClassIdentifier: 
+  m_GroupName: ArtPrefabs_UI
+  m_Data:
+    m_SerializedData: []
+  m_GUID: ccf4859b0cd4c9740aa7cf5c7c3d55a1
+  m_SerializeEntries: []
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: cd1b77894b4cd334bbab6c65e10ef1e6, type: 2}
+    - {fileID: 11400000, guid: faf780bce4fc8c1429ad9945403a359c, type: 2}

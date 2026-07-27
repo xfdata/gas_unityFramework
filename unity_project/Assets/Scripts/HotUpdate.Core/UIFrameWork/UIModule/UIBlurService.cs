@@ -97,11 +97,13 @@ public sealed class UIBlurService : Disposable
 
         RenderTexture rt = null;
         var completed = false;
+        var captureLockAcquired = false;
 
         try
         {
             await UniTask.WaitUntil(() => !_isCapturing, cancellationToken: token);
             _isCapturing = true;
+            captureLockAcquired = true;
 
             var rtWidth = Mathf.Max(1, Mathf.FloorToInt(Screen.width * RtTextureScale));
             var rtHeight = Mathf.Max(1, Mathf.FloorToInt(Screen.height * RtTextureScale));
@@ -142,7 +144,8 @@ public sealed class UIBlurService : Disposable
         }
         finally
         {
-            _isCapturing = false;
+            if (captureLockAcquired)
+                _isCapturing = false;
         }
     }
 

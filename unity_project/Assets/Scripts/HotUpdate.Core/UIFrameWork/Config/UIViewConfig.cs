@@ -20,6 +20,7 @@ public sealed class UIViewConfig
 
     public bool CloseByEsc = true;
     public bool CloseByMask;
+    public bool CloseWhenSceneChange = true;
 
     public UISafeAreaMode SafeAreaMode = UISafeAreaMode.Adapt;
 

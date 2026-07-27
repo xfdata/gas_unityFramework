@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Art_Effects_Animation
+  m_EditorClassIdentifier: 
+  m_GroupName: Art_Effects_Animation
+  m_Data:
+    m_SerializedData: []
+  m_GUID: e8533e71a47de4f4a8d70f4a7fbc8e29
+  m_SerializeEntries:
+  - m_GUID: 0cf3e3426dee9484ea916dee200b4980
+    m_Address: Assets/Art/Effects/Animation/Palu
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 28dc385d9c32fda4fbaafe564563da05, type: 2}
+    - {fileID: 11400000, guid: 1bd25929ef251b347bddceeec8b4b692, type: 2}

@@ -334,8 +334,10 @@ public sealed class CSharpUIBindBehaviour : MonoBehaviour
         CSharpUIBindBehaviour subBinder,
         string nestedBinderTypeName)
     {
+        var bindNode = go != null ? go.GetComponent<UIBindNode>() : null;
         var item = new UIBindItem
         {
+            BindingId = bindNode != null ? bindNode.EnsureBindingIdInEditor() : string.Empty,
             Key = key,
             Path = UIBindNameUtility.GetRelativePath(transform, go.transform),
             IsSubBinder = isSubBinder,

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a6ec051ef6b2fc4b93d003c1a369821, type: 3}
+  m_Name: ChoiceConfig
+  m_EditorClassIdentifier: 
+  ChoiceId: 1
+  Category: 0
+  Title: "\u5F3A\u5316\u9009\u9879"
+  Description: "\u9009\u62E9\u4E00\u4E2A\u5F3A\u5316\u6548\u679C"
+  Cost: 0
+  TargetType: 4
+  TargetTag: 
+  AppliedEffect: {fileID: 0}
+  ValueModifier: 1
+  Weight: 10
+  RequiredTags: []

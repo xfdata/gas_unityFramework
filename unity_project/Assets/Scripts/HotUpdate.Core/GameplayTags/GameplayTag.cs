@@ -7,19 +7,30 @@ public struct GameplayTag : IEquatable<GameplayTag>
     public static readonly GameplayTag None = default;
 
     [SerializeField, HideInInspector]
+    private GameplayTagDomain domain;
+
+    [SerializeField, HideInInspector]
     private int value;
 
     [SerializeField, HideInInspector]
     private int mask;
 
+    public GameplayTagDomain Domain => domain;
     public uint Value => unchecked((uint)value);
     public uint Mask => unchecked((uint)mask);
 
-    public bool IsValid => Mask != 0;
+    public bool IsValid => Domain != GameplayTagDomain.None && Mask != 0;
     public bool IsNone => !IsValid;
 
-    public GameplayTag(uint value, uint mask)
+    /// <summary>
+    /// True when value/mask were serialized before Domain existed (domain=0, mask!=0).
+    /// These tags fail <see cref="IsValid"/> and need editor fixup.
+    /// </summary>
+    public bool IsLegacyMissingDomain => Domain == GameplayTagDomain.None && Mask != 0;
+
+    public GameplayTag(GameplayTagDomain domain, uint value, uint mask)
     {
+        this.domain = domain;
         this.value = unchecked((int)(value & mask));
         this.mask = unchecked((int)mask);
     }
@@ -29,12 +40,17 @@ public struct GameplayTag : IEquatable<GameplayTag>
         if (!IsValid || !parent.IsValid)
             return false;
 
+        if (Domain != parent.Domain)
+            return false;
+
         return (Value & parent.Mask) == parent.Value;
     }
 
     public bool Equals(GameplayTag other)
     {
-        return Value == other.Value && Mask == other.Mask;
+        return Domain == other.Domain
+               && Value == other.Value
+               && Mask == other.Mask;
     }
 
     public override bool Equals(object obj)
@@ -44,7 +60,13 @@ public struct GameplayTag : IEquatable<GameplayTag>
 
     public override int GetHashCode()
     {
-        return unchecked((value * 397) ^ mask);
+        unchecked
+        {
+            int hash = (int)domain;
+            hash = (hash * 397) ^ value;
+            hash = (hash * 397) ^ mask;
+            return hash;
+        }
     }
 
     public static bool operator ==(GameplayTag left, GameplayTag right)
@@ -59,9 +81,6 @@ public struct GameplayTag : IEquatable<GameplayTag>
 
     public override string ToString()
     {
-        if (!IsValid)
-            return "None";
-
-        return $"0x{Value:X8}/0x{Mask:X8}";
+        return GameplayTagDebug.GetPath(this);
     }
 }

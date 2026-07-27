@@ -53,6 +53,7 @@ public sealed class UIViewConfigDrawer : PropertyDrawer
 
         DrawField(property, "CloseByEsc", ref y, position, lineHeight, spacing);
         DrawField(property, "CloseByMask", ref y, position, lineHeight, spacing);
+        DrawField(property, "CloseWhenSceneChange", ref y, position, lineHeight, spacing);
 
         DrawField(property, "SafeAreaMode", ref y, position, lineHeight, spacing);
 
@@ -68,7 +69,7 @@ public sealed class UIViewConfigDrawer : PropertyDrawer
         if (!property.isExpanded)
             return EditorGUIUtility.singleLineHeight;
 
-        var lines = 14;
+        var lines = 15;
         return EditorGUIUtility.singleLineHeight + (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing) * lines;
     }
 

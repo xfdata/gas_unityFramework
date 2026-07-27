@@ -20,18 +20,20 @@ public sealed class UIModuleContext
         DestroyToken = destroyToken;
     }
 
-    public UIModuleContext CreateChildContext()
+    public UIModuleContext CreateChildContext(CancellationToken parentDestroyToken)
     {
-        return new UIModuleContext(Runtime, Window, DestroyToken);
+        return new UIModuleContext(Runtime, Window, parentDestroyToken);
     }
 }
 
 public abstract class UIModuleBase : IDisposable
 {
     private readonly List<UIModuleBase> _children = new();
-    private readonly List<Action> _cleanups = new();
+    private readonly List<Action> _lifetimeCleanups = new();
+    private readonly List<Action> _openCleanups = new();
 
     private CancellationTokenSource _cts;
+    private CancellationTokenSource _openCts;
     private bool _started;
     private bool _disposed;
 
@@ -40,6 +42,7 @@ public abstract class UIModuleBase : IDisposable
 
     protected UIModuleContext Context { get; private set; }
     protected CancellationToken DestroyToken => _cts?.Token ?? CancellationToken.None;
+    protected CancellationToken OpenToken => _openCts?.Token ?? DestroyToken;
 
     private UIViewBinder _binder;
 
@@ -100,7 +103,47 @@ public abstract class UIModuleBase : IDisposable
             return;
 
         _started = true;
-        await OnStart();
+        try
+        {
+            await OnStart();
+        }
+        catch
+        {
+            _started = false;
+            throw;
+        }
+    }
+
+    internal void BeginOpenScope()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
+
+        EndOpenScope();
+        _openCts = CancellationTokenSource.CreateLinkedTokenSource(DestroyToken);
+
+        for (var i = 0; i < _children.Count; i++)
+            _children[i]?.BeginOpenScope();
+    }
+
+    internal void EndOpenScope()
+    {
+        for (var i = _children.Count - 1; i >= 0; i--)
+            _children[i]?.EndOpenScope();
+
+        if (_openCts == null && _openCleanups.Count == 0)
+            return;
+
+        try
+        {
+            _openCts?.Cancel();
+            RunCleanups(_openCleanups);
+        }
+        finally
+        {
+            _openCts?.Dispose();
+            _openCts = null;
+        }
     }
 
     protected virtual UniTask OnStart()
@@ -117,8 +160,7 @@ public abstract class UIModuleBase : IDisposable
         if (module == null)
             throw new ArgumentNullException(nameof(module));
 
-        module.Attach(Context.CreateChildContext());
-        _children.Add(module);
+        AttachChild(module);
         module.StartAsync().Forget();
         return module;
     }
@@ -128,8 +170,7 @@ public abstract class UIModuleBase : IDisposable
         if (module == null)
             throw new ArgumentNullException(nameof(module));
 
-        module.Attach(Context.CreateChildContext());
-        _children.Add(module);
+        AttachChild(module);
         await module.StartAsync();
         return module;
     }
@@ -139,14 +180,13 @@ public abstract class UIModuleBase : IDisposable
         if (module == null)
             throw new ArgumentNullException(nameof(module));
 
-        module.Attach(Context.CreateChildContext());
-        _children.Add(module);
+        AttachChild(module);
     }
 
     protected void AddCleanup(Action cleanup)
     {
         if (cleanup != null)
-            _cleanups.Add(cleanup);
+            _lifetimeCleanups.Add(cleanup);
     }
 
     protected void RunTask(Func<CancellationToken, UniTask> task)
@@ -154,7 +194,7 @@ public abstract class UIModuleBase : IDisposable
         if (task == null)
             return;
 
-        RunTaskInternal(task).Forget();
+        RunTaskInternal(task, OpenToken).Forget();
     }
 
     protected void Delay(float seconds, Action callback)
@@ -188,7 +228,11 @@ public abstract class UIModuleBase : IDisposable
         if (button == null)
             return;
 
-        BindClick(button, () => { action?.Invoke(); return UniTask.CompletedTask; });
+        BindClick(button, () =>
+        {
+            action?.Invoke();
+            return UniTask.CompletedTask;
+        });
     }
 
     protected void BindClick(Button button, Func<UniTask> asyncAction)
@@ -198,23 +242,62 @@ public abstract class UIModuleBase : IDisposable
 
         UnityEngine.Events.UnityAction listener = () =>
         {
-            if (!DestroyToken.IsCancellationRequested)
+            if (!OpenToken.IsCancellationRequested)
                 asyncAction?.Invoke().Forget();
         };
 
         button.onClick.AddListener(listener);
-        AddCleanup(() =>
+        AddOpenCleanup(() =>
         {
             if (button != null)
                 button.onClick.RemoveListener(listener);
         });
     }
 
-    private async UniTaskVoid RunTaskInternal(Func<CancellationToken, UniTask> task)
+    private void AttachChild(UIModuleBase module)
+    {
+        module.Attach(Context.CreateChildContext(DestroyToken));
+        _children.Add(module);
+
+        if (_openCts != null)
+            module.BeginOpenScope();
+    }
+
+    private void AddOpenCleanup(Action cleanup)
+    {
+        if (cleanup == null)
+            return;
+
+        if (_openCts != null)
+            _openCleanups.Add(cleanup);
+        else
+            _lifetimeCleanups.Add(cleanup);
+    }
+
+    private static void RunCleanups(List<Action> cleanups)
+    {
+        for (var i = cleanups.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                cleanups[i]?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
+
+        cleanups.Clear();
+    }
+
+    private static async UniTaskVoid RunTaskInternal(
+        Func<CancellationToken, UniTask> task,
+        CancellationToken token)
     {
         try
         {
-            await task(DestroyToken);
+            await task(token);
         }
         catch (OperationCanceledException)
         {
@@ -234,9 +317,10 @@ public abstract class UIModuleBase : IDisposable
 
         try
         {
+            EndOpenScope();
             _cts?.Cancel();
 
-            for (int i = _children.Count - 1; i >= 0; i--)
+            for (var i = _children.Count - 1; i >= 0; i--)
             {
                 try
                 {
@@ -249,19 +333,7 @@ public abstract class UIModuleBase : IDisposable
             }
             _children.Clear();
 
-            for (int i = _cleanups.Count - 1; i >= 0; i--)
-            {
-                try
-                {
-                    _cleanups[i]?.Invoke();
-                }
-                catch (Exception e)
-                {
-                    Debug.LogException(e);
-                }
-            }
-
-            _cleanups.Clear();
+            RunCleanups(_lifetimeCleanups);
 
             try
             {

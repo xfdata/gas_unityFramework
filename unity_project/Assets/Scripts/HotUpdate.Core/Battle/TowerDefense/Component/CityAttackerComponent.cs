@@ -47,7 +47,7 @@ namespace TowerDefense
         {
             if (city == null || !city.IsAlive)
             {
-                Debug.LogWarning($"[CityAttacker] Cannot start attack: city is null or dead.");
+                BattleLog.Warning($"Cannot start attack: city is null or dead.");
                 return;
             }
 
@@ -57,7 +57,7 @@ namespace TowerDefense
             _attackTimer = 0f; // 立即发起第一次攻击
             _isAttacking = true;
 
-            Debug.Log($"[CityAttacker] Enemy {Owner.Id} started attacking city. Interval: {_attackInterval}s, Damage: {_attackDamage}");
+            BattleLog.State($"Enemy {Owner.Id} started attacking city. Interval: {_attackInterval}s, Damage: {_attackDamage}");
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace TowerDefense
             if (health != null)
             {
                 float actualDamage = health.TakeDamage(_attackDamage);
-                Debug.Log($"[CityAttacker] Enemy {Owner.Id} attacked city for {actualDamage} damage. City HP: {health.HP}/{health.MaxHP}");
+                BattleLog.State($"Enemy {Owner.Id} attacked city for {actualDamage} damage. City HP: {health.HP}/{health.MaxHP}");
             }
         }
 

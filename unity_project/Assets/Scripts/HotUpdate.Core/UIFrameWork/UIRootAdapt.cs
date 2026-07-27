@@ -9,39 +9,41 @@ public class UIRootAdapt : MonoBehaviour
     public enum AdaptMode
     {
         Expand,
-        DarkSide
+        DarkSide,
     }
 
     public Action OnDestroyAction;
+    public event Action LayoutChanged;
 
-    [SerializeField]
-    private CanvasScaler[] _scalers;
+    [SerializeField] private CanvasScaler[] _scalers;
+    [SerializeField] private RectTransform[] _controlls;
+    [SerializeField] private Image _ImageLeft;
+    [SerializeField] private Image _ImageRight;
+    [SerializeField] private AdaptMode _mode;
 
-    [SerializeField]
-    private RectTransform[] _controlls;
-
-    [SerializeField]
-    private Image _ImageLeft;
-
-    [SerializeField]
-    private Image _ImageRight;
-
-    [SerializeField]
-    private AdaptMode _mode;
+    private AdaptMode _lastMode;
+    private int _lastScreenWidth = -1;
+    private int _lastScreenHeight = -1;
+    private Rect _lastSafeArea;
 
     public AdaptMode Mode => _mode;
     public float SideVal { get; private set; }
-    
-    public float ScreenSideVal { get; private set;}
+    public float ScreenSideVal { get; private set; }
     public Rect ViewPort { get; private set; }
 
     private void OnEnable()
     {
-        Handle();
+        RefreshLayout(true);
+    }
+
+    private void Update()
+    {
+        RefreshLayout(false);
     }
 
     private void OnDestroy()
     {
+        LayoutChanged = null;
         OnDestroyAction?.Invoke();
     }
 
@@ -55,91 +57,169 @@ public class UIRootAdapt : MonoBehaviour
         return sb.ToString();
     }
 
-#if UNITY_EDITOR
-    private AdaptMode _lastMode;
-    // Update is called once per frame
-    void Update()
+    public void RefreshLayout(bool force = false)
     {
-        if (!Application.isPlaying)
+        var safeArea = Screen.safeArea;
+        if (!force &&
+            _lastMode == _mode &&
+            _lastScreenWidth == Screen.width &&
+            _lastScreenHeight == Screen.height &&
+            _lastSafeArea == safeArea)
         {
-            if (_lastMode != _mode)
-            {
-                _lastMode = _mode;
-                Handle();
-            }
+            return;
         }
+
+        _lastMode = _mode;
+        _lastScreenWidth = Screen.width;
+        _lastScreenHeight = Screen.height;
+        _lastSafeArea = safeArea;
+
+        Handle();
+        LayoutChanged?.Invoke();
     }
-#endif
 
     private void Handle()
     {
+        var firstScaler = GetFirstScaler();
+        if (firstScaler == null)
+        {
+            SideVal = 0f;
+            ScreenSideVal = 0f;
+            ViewPort = new Rect(0f, 0f, 1f, 1f);
+            return;
+        }
+
         switch (_mode)
         {
             case AdaptMode.Expand:
-                foreach (var scaler in _scalers)
-                {
-                    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                    scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
-                }
-                _ImageLeft?.gameObject?.SetActive(false);
-                _ImageRight?.gameObject?.SetActive(false);
-                SideVal = 0;
+                ConfigureExpand();
                 break;
             case AdaptMode.DarkSide:
-                var fitHeight = false;
-                var canvas0 = _scalers[0].GetComponent<Canvas>();
-                var screenSize = canvas0.renderingDisplaySize;
-                var referenceResolution = _scalers[0].referenceResolution;
-                fitHeight = screenSize.x / referenceResolution.x > screenSize.y / referenceResolution.y;
-
-                foreach (var scaler in _scalers)
-                {
-                    var canvas = scaler.GetComponent<Canvas>();
-                    Debug.Assert(scaler.referenceResolution == referenceResolution);
-                    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                    scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-                    scaler.matchWidthOrHeight = fitHeight ? 1 : 0;
-                }
-
-                _ImageLeft?.gameObject.SetActive(fitHeight);
-                _ImageRight?.gameObject.SetActive(fitHeight);
-                if (fitHeight)
-                {
-                    var calcScreenSize = referenceResolution.y * screenSize.x / screenSize.y;
-                    SideVal = (calcScreenSize - referenceResolution.x) / 2;
-                    ScreenSideVal = SideVal * screenSize.x / calcScreenSize;
-                    var val = calcScreenSize - SideVal;
-                    if (_ImageRight != null)
-                    {
-                        var offsetMin = _ImageRight.rectTransform.offsetMin;
-                        _ImageRight.rectTransform.offsetMin = new Vector2(val, offsetMin.y);
-                    }
-
-                    if (_ImageLeft != null)
-                    {
-                        var offsetMax = _ImageLeft.rectTransform.offsetMax;
-                        _ImageLeft.rectTransform.offsetMax = new Vector2(-val, offsetMax.y);
-                    }
-                }
-                else
-                {
-                    SideVal = 0;
-                    ScreenSideVal = 0;
-                }
+                ConfigureDarkSide(firstScaler);
                 break;
         }
 
+        ApplyControlOffsets();
+        UpdateViewport(firstScaler);
+    }
+
+    private void ConfigureExpand()
+    {
+        ForEachScaler(scaler =>
+        {
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+        });
+
+        _ImageLeft?.gameObject.SetActive(false);
+        _ImageRight?.gameObject.SetActive(false);
+        SideVal = 0f;
+        ScreenSideVal = 0f;
+    }
+
+    private void ConfigureDarkSide(CanvasScaler firstScaler)
+    {
+        var canvas = firstScaler.GetComponent<Canvas>();
+        var screenSize = canvas != null ? canvas.renderingDisplaySize : new Vector2(Screen.width, Screen.height);
+        var referenceResolution = firstScaler.referenceResolution;
+
+        if (screenSize.x <= 0f || screenSize.y <= 0f ||
+            referenceResolution.x <= 0f || referenceResolution.y <= 0f)
+        {
+            SideVal = 0f;
+            ScreenSideVal = 0f;
+            return;
+        }
+
+        var fitHeight = screenSize.x / referenceResolution.x > screenSize.y / referenceResolution.y;
+        ForEachScaler(scaler =>
+        {
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = fitHeight ? 1f : 0f;
+        });
+
+        _ImageLeft?.gameObject.SetActive(fitHeight);
+        _ImageRight?.gameObject.SetActive(fitHeight);
+
+        if (!fitHeight)
+        {
+            SideVal = 0f;
+            ScreenSideVal = 0f;
+            return;
+        }
+
+        var calculatedWidth = referenceResolution.y * screenSize.x / screenSize.y;
+        SideVal = Mathf.Max(0f, (calculatedWidth - referenceResolution.x) * 0.5f);
+        ScreenSideVal = SideVal * screenSize.x / calculatedWidth;
+        var edge = calculatedWidth - SideVal;
+
+        if (_ImageRight != null)
+        {
+            var offsetMin = _ImageRight.rectTransform.offsetMin;
+            _ImageRight.rectTransform.offsetMin = new Vector2(edge, offsetMin.y);
+        }
+
+        if (_ImageLeft != null)
+        {
+            var offsetMax = _ImageLeft.rectTransform.offsetMax;
+            _ImageLeft.rectTransform.offsetMax = new Vector2(-edge, offsetMax.y);
+        }
+    }
+
+    private void ApplyControlOffsets()
+    {
+        if (_controlls == null)
+            return;
+
         foreach (var control in _controlls)
         {
+            if (control == null)
+                continue;
+
             var offsetMin = control.offsetMin;
             control.offsetMin = new Vector2(SideVal, offsetMin.y);
             var offsetMax = control.offsetMax;
             control.offsetMax = new Vector2(-SideVal, offsetMax.y);
         }
-
-        var screenOffsetPixels = SideVal * Screen.height / _scalers[0].referenceResolution.y;
-        var viewOffsetnormalizedDis = screenOffsetPixels / Screen.width;
-        ViewPort = new Rect(new Vector2(viewOffsetnormalizedDis, 0), new Vector2(1 - 2 * viewOffsetnormalizedDis, 1));
     }
 
+    private void UpdateViewport(CanvasScaler firstScaler)
+    {
+        if (Screen.width <= 0 || firstScaler.referenceResolution.y <= 0f)
+        {
+            ViewPort = new Rect(0f, 0f, 1f, 1f);
+            return;
+        }
+
+        var screenOffsetPixels = SideVal * Screen.height / firstScaler.referenceResolution.y;
+        var normalizedOffset = Mathf.Clamp01(screenOffsetPixels / Screen.width);
+        ViewPort = new Rect(normalizedOffset, 0f, Mathf.Max(0f, 1f - 2f * normalizedOffset), 1f);
+    }
+
+    private CanvasScaler GetFirstScaler()
+    {
+        if (_scalers == null)
+            return null;
+
+        foreach (var scaler in _scalers)
+        {
+            if (scaler != null)
+                return scaler;
+        }
+
+        return null;
+    }
+
+    private void ForEachScaler(Action<CanvasScaler> action)
+    {
+        if (_scalers == null || action == null)
+            return;
+
+        foreach (var scaler in _scalers)
+        {
+            if (scaler != null)
+                action(scaler);
+        }
+    }
 }

@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f129c6dd75235b469c498bf6fdabf46, type: 3}
+  m_Name: TowerDefenseGlobalConfig
+  m_EditorClassIdentifier: 
+  PlayerPrefab: {fileID: 8868649357031198603, guid: 541b5132f36336d47b7ea6dd7aef474f, type: 3}
+  PlayerSpawnPos: {x: 1, y: 1, z: 1}
+  RandomSeed: 0
+  InitialTimeScale: 1
+  StartingGold: 200
+  EnemyPreWarmConfigs:
+  - config: {fileID: 11400000, guid: 19555c216bc3ddf4595feee71dea9ada, type: 2}
+    count: 10
+  WaveConfigs:
+  - {fileID: 11400000, guid: 6549ae21e62bffa44adf5dc793565f7f, type: 2}
+  MainCityConfig: {fileID: 11400000, guid: 8e37f65a9caf9ce4c9defc928d83414c, type: 2}
+  DefaultPath: {fileID: 0}
+  PlacementGridSize: 1.5
+  PlacementLayerMask:
+    serializedVersion: 2
+    m_Bits: 55
+  BlockedLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  RoguelikeChoicePool:
+  - {fileID: 11400000, guid: c8a9ff1d4cf350549b6585887600a1be, type: 2}
+  SynergyConfigs:
+  - {fileID: 11400000, guid: cb44afa2b58029e45a746ca2e03da5e6, type: 2}
+  AvailableTowers: []
+  TalentTreeConfig: {fileID: 0}
+  BalanceConfig: {fileID: 0}
+  CurrentLevelConfig: {fileID: 0}

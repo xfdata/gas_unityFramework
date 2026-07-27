@@ -12,13 +12,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 48f8782555ea4c56979150090dc14a9f, type: 3}
   m_Name: GameplayTags
   m_EditorClassIdentifier: 
-  tags:
-  - GameType.City
-  - GameType.City.Build
-  - GameType.City.InnerPVE
-  - GameType.NewPve
-  - GameType.Pve
-  - GameType.World
-  - Guide
-  - UI
-  - UI.Popup
+  domain: 1
+  generatedCodePath: 
+  legacyTags: []
+  entries:
+  - path: GameType
+    siblingId: 1
+  - path: GameType.City
+    siblingId: 1
+  - path: GameType.City.Build
+    siblingId: 1
+  - path: GameType.City.InnerPVE
+    siblingId: 2
+  - path: GameType.NewPve
+    siblingId: 2
+  - path: GameType.Pve
+    siblingId: 3
+  - path: GameType.World
+    siblingId: 4
+  - path: Guide
+    siblingId: 2
+  - path: UI
+    siblingId: 3
+  - path: UI.Popup
+    siblingId: 1
+  parentCursors:
+  - parentPath: 
+    nextId: 4
+  - parentPath: GameType
+    nextId: 5
+  - parentPath: GameType.City
+    nextId: 3
+  - parentPath: UI
+    nextId: 2
+  - parentPath: GameType.City.Build
+    nextId: 3
+  retiredIds: []
+  recycledPool:
+  - parentPath: GameType.City.Build
+    siblingId: 1
+  - parentPath: GameType.City.Build
+    siblingId: 2

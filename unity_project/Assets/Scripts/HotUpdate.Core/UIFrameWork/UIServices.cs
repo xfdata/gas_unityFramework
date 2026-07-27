@@ -58,6 +58,8 @@ public sealed class UIMaskService : IDisposable
     private readonly GameObject _maskObject;
     private readonly Image _image;
     private readonly Button _button;
+    private readonly Canvas _canvas;
+    private readonly GraphicRaycaster _raycaster;
     private readonly Color _darkColor;
     private readonly Dictionary<UIWindow, UIMaskMode> _windows = new();
 
@@ -71,6 +73,16 @@ public sealed class UIMaskService : IDisposable
             throw new ArgumentException("[UIMaskService] Mask object must contain an Image.", nameof(maskObject));
         _button = _maskObject.GetComponent<Button>() ??
             throw new ArgumentException("[UIMaskService] Mask object must contain a Button.", nameof(maskObject));
+        _canvas = _maskObject.GetComponent<Canvas>();
+        if (_canvas == null)
+            _canvas = _maskObject.AddComponent<Canvas>();
+
+        _raycaster = _maskObject.GetComponent<GraphicRaycaster>();
+        if (_raycaster == null)
+            _raycaster = _maskObject.AddComponent<GraphicRaycaster>();
+
+        _canvas.overrideSorting = true;
+        _raycaster.ignoreReversedGraphics = true;
         _darkColor = _image.color;
         _button.onClick.AddListener(HandleClick);
         _maskObject.SetActive(false);
@@ -143,6 +155,16 @@ public sealed class UIMaskService : IDisposable
             : _darkColor;
         if (_image.color != color)
             _image.color = color;
+
+        var targetCanvas = _topWindow.GameObject.GetComponent<Canvas>();
+        if (targetCanvas != null)
+        {
+            _canvas.sortingLayerID = targetCanvas.sortingLayerID;
+            _canvas.sortingOrder = Mathf.Clamp(
+                Mathf.Max(0, _topWindow.RenderOrder - 1),
+                short.MinValue,
+                short.MaxValue);
+        }
 
         var maskTransform = _maskObject.transform;
         if (maskTransform.parent != parent)

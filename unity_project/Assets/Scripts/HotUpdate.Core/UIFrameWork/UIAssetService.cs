@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -14,86 +13,79 @@ public interface IUIAssetService
 
 public sealed class AddressablesUIAssetService : IUIAssetService
 {
-    private readonly Queue<QueuedLoad> _queue = new();
-    private readonly object _lock = new();
-
-    private sealed class QueuedLoad
+    private sealed class PendingLoad
     {
         public AsyncOperationHandle<GameObject> Handle;
         public UniTaskCompletionSource<GameObject> Tcs;
-        public volatile bool LoadCompleted;
-        public Exception Error;
+        public CancellationTokenRegistration CancellationRegistration;
+        public CancellationToken CancellationToken;
+        public int CompletionState;
     }
 
-    public async UniTask<GameObject> InstantiateAsync(AssetReferenceGameObject reference, Transform parent, CancellationToken token)
+    public async UniTask<GameObject> InstantiateAsync(
+        AssetReferenceGameObject reference,
+        Transform parent,
+        CancellationToken token)
     {
         if (reference == null || string.IsNullOrWhiteSpace(reference.AssetGUID))
             throw new ArgumentException("[AddressablesUIAssetService] AssetReference cannot be null or empty.", nameof(reference));
 
         token.ThrowIfCancellationRequested();
 
-        var tcs = new UniTaskCompletionSource<GameObject>();
-        var handle = reference.InstantiateAsync(parent, false);
-
-        var load = new QueuedLoad { Handle = handle, Tcs = tcs };
-
-        CancellationTokenRegistration ctr = default;
-        if (token.CanBeCanceled)
+        var load = new PendingLoad
         {
-            ctr = token.Register(() =>
-            {
-                load.LoadCompleted = true;
-                load.Error = new OperationCanceledException(token);
-                DrainQueue();
-            });
-        }
-
-        lock (_lock) { _queue.Enqueue(load); }
-
-        handle.Completed += h =>
-        {
-            ctr.Dispose();
-
-            if (load.LoadCompleted)
-            {
-                ReleaseCompleted(h);
-                return;
-            }
-
-            load.LoadCompleted = true;
-            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
-            {
-                load.Error = h.OperationException ??
-                    new Exception($"[AddressablesUIAssetService] Failed to instantiate UI prefab: {reference}");
-                if (h.IsValid())
-                    Addressables.Release(h);
-            }
-
-            DrainQueue();
+            Handle = reference.InstantiateAsync(parent, false),
+            Tcs = new UniTaskCompletionSource<GameObject>(),
+            CancellationToken = token,
         };
 
-        return await tcs.Task;
-    }
+        load.Handle.Completed += handle => CompleteLoad(load, handle, reference);
 
-    private void DrainQueue()
-    {
-        lock (_lock)
+        if (token.CanBeCanceled)
         {
-            while (_queue.Count > 0 && _queue.Peek().LoadCompleted)
-            {
-                var load = _queue.Dequeue();
-                if (load.Error != null)
-                    load.Tcs.TrySetException(load.Error);
-                else
-                    load.Tcs.TrySetResult(load.Handle.Result);
-            }
+            load.CancellationRegistration = token.Register(() => CancelLoad(load));
+            if (Volatile.Read(ref load.CompletionState) != 0)
+                load.CancellationRegistration.Dispose();
         }
+
+        return await load.Tcs.Task;
     }
 
     public void Release(GameObject instance)
     {
         if (instance != null)
             Addressables.ReleaseInstance(instance);
+    }
+
+    private static void CompleteLoad(
+        PendingLoad load,
+        AsyncOperationHandle<GameObject> handle,
+        AssetReferenceGameObject reference)
+    {
+        if (Interlocked.CompareExchange(ref load.CompletionState, 1, 0) != 0)
+        {
+            ReleaseCompleted(handle);
+            return;
+        }
+
+        load.CancellationRegistration.Dispose();
+        if (handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
+        {
+            if (handle.IsValid())
+                Addressables.Release(handle);
+
+            load.Tcs.TrySetException(handle.OperationException ??
+                new Exception($"[AddressablesUIAssetService] Failed to instantiate UI prefab: {reference}"));
+            return;
+        }
+
+        load.Tcs.TrySetResult(handle.Result);
+    }
+
+    private static void CancelLoad(PendingLoad load)
+    {
+        if (Interlocked.CompareExchange(ref load.CompletionState, 1, 0) == 0)
+            load.Tcs.TrySetCanceled(load.CancellationToken);
     }
 
     private static void ReleaseCompleted(AsyncOperationHandle<GameObject> handle)

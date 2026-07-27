@@ -22,6 +22,9 @@ namespace TowerDefense
     [CreateAssetMenu(fileName = "TowerDefenseGlobalConfig", menuName = "TowerDefense/Global Config", order = 90)]
     public class TowerDefenseGlobalConfig : ScriptableObject
     {
+        public GameObject PlayerPrefab;
+        public Vector3 PlayerSpawnPos;
+
         [Header("Random")]
         [Tooltip("随机种子，0=自动生成")]
         public int RandomSeed;

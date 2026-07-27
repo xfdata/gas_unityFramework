@@ -13,13 +13,13 @@ namespace GAS
 
         [Header("需求")]
         public TagQuery SourceRequiredTags = new TagQuery(TagQueryOp.All);
-        public TagQuery SourceBlockedTags = new TagQuery(TagQueryOp.NotAll);
+        public TagQuery SourceBlockedTags = new TagQuery(TagQueryOp.None);
         public TagQuery TargetRequiredTags = new TagQuery(TagQueryOp.All);
-        public TagQuery TargetBlockedTags = new TagQuery(TagQueryOp.NotAll);
+        public TagQuery TargetBlockedTags = new TagQuery(TagQueryOp.None);
 
         [Header("激活策略")]
         public TagQuery ActivationRequiredTags = new TagQuery(TagQueryOp.All);
-        public TagQuery ActivationBlockedTags = new TagQuery(TagQueryOp.NotAll);
+        public TagQuery ActivationBlockedTags = new TagQuery(TagQueryOp.None);
         public GameplayTagContainer ActivationOwnedTags = new GameplayTagContainer();
         public TagQuery CancelAbilitiesWithTag = new TagQuery(TagQueryOp.Any);
         public TagQuery BlockAbilitiesWithTag = new TagQuery(TagQueryOp.Any);

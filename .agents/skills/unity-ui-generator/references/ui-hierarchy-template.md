@@ -1,71 +1,52 @@
-# UI Hierarchy Template
+# UI Hierarchy Templates
 
-Always output the proposed hierarchy before generating files.
+Always print the hierarchy and schema binding contract before generating files.
 
-## Full-Screen View Template
+## Full-Screen View
 
 ```text
 XxxView [RectTransform stretch, Canvas, GraphicRaycaster, CSharpUIBindBehaviour]
-  img_Background [Image, optional UIBindNode]
-  SafeArea or ContentRoot [RectTransform stretch, optional UIBindNode]
+  img_Background [Image, raycastTarget=false]
+  ContentRoot [RectTransform stretch]
     Header [RectTransform]
       txt_Title [TextMeshProUGUI, UIBindNode]
-      btn_Close [Button, Image, UIBindNode] (only when closeable)
+      btn_Close [Button, Image, UIBindNode]
     Body [RectTransform]
-      ... feature content ...
-    Footer [RectTransform] (optional)
+    Footer [RectTransform, optional]
 ```
 
-Use `SafeArea` only as a content grouping node when layout needs an explicit safe-area subtree. The framework already adapts the root through `ViewBase.AdaptRootTransform()` based on `UIViewConfig.SafeAreaMode`.
+Use framework root safe-area adaptation. Add a visual `SafeArea` grouping node only when the layout benefits from that structure.
 
-## Popup Template
+## Popup
 
-Prefer reusing `Assets/Prefabs/UI/Common/Popup_Node.prefab` for standard framed popups.
+Reuse `Assets/Prefabs/UI/Common/Popup_Node.prefab` when possible:
 
 ```text
 XxxView [RectTransform stretch, Canvas, GraphicRaycaster, CSharpUIBindBehaviour]
-  Popup_Node [common prefab instance or equivalent, optional nested CSharpUIBindBehaviour]
+  Popup_Node [common prefab or nested binder]
     Image_Bg [Image]
     Text_Title [TextMeshProUGUI]
-    btn_Close [Button, Image]
+    btn_Close [Button, Image, UIBindNode]
     Content [RectTransform]
-      ... popup-specific controls ...
 ```
 
-Use `UIViewConfig.MaskMode` for backdrop/input blocking. Do not create a separate full-screen black mask inside the View unless it is unique visual content.
+Use `UIViewConfig.MaskMode`; do not add a duplicate framework backdrop.
 
-## Scroll List Template
+## Scroll/Streaming List
 
 ```text
-scroll_Items [ScrollRect, Image optional, UIBindNode]
-  Viewport [RectTransform, Image, Mask or RectMask2D]
-    Content [RectTransform, VerticalLayoutGroup/GridLayoutGroup, ContentSizeFitter optional, UIBindNode]
+scroll_Items [ScrollRect, UIBindNode]
+  Viewport [RectTransform, RectMask2D]
+    Content [RectTransform, layout component, UIBindNode]
 ```
 
-Bind `scroll_Items` when code controls scroll position. Bind `Content` when code instantiates item prefabs.
-
-## Chat Input UI Example Hierarchy
-
-```text
-ChatInputView [RectTransform stretch, Canvas, GraphicRaycaster, CSharpUIBindBehaviour]
-  img_Backdrop [Image]
-  SafeArea [RectTransform stretch]
-    Panel_InputBar [RectTransform, Image]
-      btn_Emoji [Button, Image, UIBindNode]
-      input_Message [TMP_InputField, Image, UIBindNode]
-        Text Area
-          Placeholder [TextMeshProUGUI]
-          Text [TextMeshProUGUI]
-      btn_Send [Button, Image, UIBindNode]
-```
-
-Suggested config: `Layer = UILayer.Top` or `UILayer.Overlay` depending on product behavior, `FullScreen = false`, `MaskMode = None`, `SafeAreaMode = Adapt`.
+Use pooled/virtualized items for AI chat, feeds, logs, and other unbounded content. Cap retained history and coalesce streaming updates.
 
 ## Layout Rules
 
-- Root `RectTransform`: anchors min `(0,0)`, max `(1,1)`, size delta `(0,0)`, pivot `(0.5,0.5)`.
-- Keep root name equal to View class name.
-- Set all UI objects to layer `UI` (`5`) unless the existing prefab being reused dictates otherwise.
-- Use stable anchors and sizes; do not rely on runtime scripts to repair obvious prefab layout.
-- Decorative text/images should not receive raycasts.
-- Buttons and inputs should receive raycasts through their target graphic.
+- Root anchors `(0,0)` to `(1,1)`, size delta `(0,0)`, pivot `(0.5,0.5)`.
+- Root name equals the View class name.
+- Use UI layer `5` unless a reused prefab requires otherwise.
+- Bind only nodes needed by code.
+- Keep StableId and Key independent from visible/localized node labels.
+- Decorative Image/TMP nodes do not receive raycasts.

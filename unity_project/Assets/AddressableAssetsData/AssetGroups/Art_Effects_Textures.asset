@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Art_Effects_Textures
+  m_EditorClassIdentifier: 
+  m_GroupName: Art_Effects_Textures
+  m_Data:
+    m_SerializedData: []
+  m_GUID: b9579c030f47c2b4e8990bbddca8352c
+  m_SerializeEntries:
+  - m_GUID: eb4b9f58199aec34982abea4bbc16582
+    m_Address: Assets/Art/Effects/Textures/Other
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0008fa5726cb36344945620a8efc936a
+    m_Address: Assets/Art/Effects/Textures/sprite
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: c4a86aba9972ec24a85346bb7e5bd567, type: 2}
+    - {fileID: 11400000, guid: 116483cf91e3f9146aef481eaf0cd715, type: 2}

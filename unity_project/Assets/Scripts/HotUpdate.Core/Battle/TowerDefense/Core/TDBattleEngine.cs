@@ -134,8 +134,18 @@ namespace TowerDefense
             if (_tdConfig?.BalanceConfig != null)
             {
                 BattleFormula.SetConfig(_tdConfig.BalanceConfig);
-                Debug.Log($"[TDBattleEngine] BalanceConfig loaded. DefenseK={_tdConfig.BalanceConfig.DefenseK}");
+                BattleLog.Config($"BalanceConfig loaded. DefenseK={_tdConfig.BalanceConfig.DefenseK}");
             }
+
+            // ===== 生成主城（必须在波次启动前，以便设置敌人寻路目标） =====
+            var mainCitySystem = ctx.GetSystem<MainCitySystem>();
+            mainCitySystem?.SpawnMainCity(_tdConfig?.MainCityConfig, Vector3.zero);
+            var mainCity = mainCitySystem?.MainCity;
+
+            // ===== 设置敌人寻路目标 =====
+            var waveManager = ctx.GetSystem<WaveManagerSystem>();
+            waveManager?.SetCityTarget(mainCity?.Position ?? Vector3.zero, mainCity);
+            BattleLog.Move($"WaveManager city target set: position=({(mainCity?.Position ?? Vector3.zero).x:F1},{(mainCity?.Position ?? Vector3.zero).z:F1})");
 
             // ===== Phase 7: LevelManager =====
             if (_tdConfig?.CurrentLevelConfig != null)
@@ -144,30 +154,57 @@ namespace TowerDefense
                 LevelManager.Instance.ApplyToBattleEngine(this);
             }
 
-            // ===== 生成主城 =====
-            var mainCitySystem = ctx.GetSystem<MainCitySystem>();
-            mainCitySystem?.SpawnMainCity(_tdConfig?.MainCityConfig, Vector3.zero);
-
-            // ===== 开始波次序列 =====
-            var waveManager = ctx.GetSystem<WaveManagerSystem>();
-            // LevelConfig 可能已覆盖波次配置，检查是否已有波次
+            // ===== 开始波次序列（如果LevelManager未启动） =====
             if (waveManager?.State == ETDWaveState.Idle && _tdConfig?.WaveConfigs != null && _tdConfig.WaveConfigs.Length > 0)
             {
-                if (_tdConfig.DefaultPath != null)
-                    waveManager.SetDefaultPath(_tdConfig.DefaultPath);
                 waveManager.StartWaves(_tdConfig.WaveConfigs);
             }
             else if (waveManager?.State != ETDWaveState.Idle)
             {
                 // LevelManager 已启动波次
-                Debug.Log("[TDBattleEngine] Waves already started by LevelManager.");
+                BattleLog.State("Waves already started by LevelManager.");
             }
             else
             {
-                Debug.LogWarning("[TDBattleEngine] No wave configs defined!");
+                BattleLog.WaveWarning("No wave configs defined!");
             }
 
-            Debug.Log($"[TDBattleEngine] Battle started. Gold={ctx.PlayerGold}");
+            BattleLog.State($"Battle started. Gold={ctx.PlayerGold}");
+
+            // ==================== 配置诊断（精简版） ====================
+            // SO 配置汇总
+            BattleLog.SO($"Config={(_tdConfig != null ? _tdConfig.name : "NULL")}, WaveConfigs.Length={_tdConfig?.WaveConfigs?.Length ?? -1}, MainCityConfig={(_tdConfig?.MainCityConfig != null ? _tdConfig.MainCityConfig.name : "NULL")}");
+
+            // 波次配置汇总
+            if (_tdConfig?.WaveConfigs != null && _tdConfig.WaveConfigs.Length > 0)
+            {
+                BattleLog.Wave($"TotalWaves={waveManager?.TotalWaves}, WaveConfigs.Length={_tdConfig.WaveConfigs.Length}");
+                var wc0 = _tdConfig.WaveConfigs[0];
+                if (wc0 != null)
+                {
+                    BattleLog.Wave($"Wave[0]: {wc0.WaveName}, GetTotalSpawnCount={wc0.GetTotalSpawnCount()}, EnemyEntries.Length={wc0.EnemyEntries?.Length ?? 0}, PathEntries.Length={wc0.PathEntries?.Length ?? 0}");
+                    if (wc0.PathEntries != null && wc0.PathEntries.Length > 0)
+                    {
+                        BattleLog.Wave($"Wave[0].PathEntries[{wc0.PathEntries.Length}] spawned in {wc0.PathEntries[0]?.EnemyEntries?.Length ?? 0} groups");
+                    }
+                }
+            }
+            else
+            {
+                BattleLog.WaveWarning("WaveConfigs is NULL or EMPTY!");
+            }
+
+            // 配置匹配汇总
+            if (_tdConfig?.WaveConfigs != null && _tdConfig.WaveConfigs.Length > 0)
+            {
+                var wc = _tdConfig.WaveConfigs[0];
+                bool hasPathEntries = wc.PathEntries != null && wc.PathEntries.Length > 0;
+                bool hasEnemyEntries = wc.EnemyEntries != null && wc.EnemyEntries.Length > 0;
+                bool pathHasEnemy = hasPathEntries && wc.PathEntries[0].EnemyEntries != null && wc.PathEntries[0].EnemyEntries.Length > 0;
+                BattleLog.ConfigMatch($"Wave[0]: hasPathEntries={hasPathEntries}, hasEnemyEntries={hasEnemyEntries}, pathHasEnemy={pathHasEnemy}, GetTotalSpawnCount={wc.GetTotalSpawnCount()}");
+            }
+
+            BattleLog.BattleEnd($"waveManager initial state: State={waveManager?.State}, CurrentWaveIndex={waveManager?.CurrentWaveIndex}, AllWavesCleared={waveManager?.AllWavesCleared}");
         }
 
         protected override void OnBattleEnd(EBattleResult result)
@@ -186,7 +223,7 @@ namespace TowerDefense
             // 清理
             ctx?.EnemyFactory?.RecycleAll();
             ctx?.ClearServices();
-            Debug.Log($"[TDBattleEngine] Battle ended: {result}. Meta stats recorded.");
+            BattleLog.BattleEnd($"Battle ended: {result}. Meta stats recorded.");
         }
 
         protected override void OnUpdate(float deltaTime)

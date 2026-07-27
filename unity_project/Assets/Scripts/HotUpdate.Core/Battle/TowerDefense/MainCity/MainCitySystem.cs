@@ -46,7 +46,7 @@ namespace TowerDefense
             MainCity.InitCity(config, position);
             _entityManager.AddEntity(MainCity);
 
-            Debug.Log($"[MainCitySystem] Main city '{config.CityName}' spawned. HP: {config.MaxHp}");
+            BattleLog.State($"Main city '{config.CityName}' spawned. HP: {config.MaxHp}");
         }
 
         public void Update(float deltaTime) { }
@@ -65,7 +65,7 @@ namespace TowerDefense
             // 被摧毁时不重复处理（TakeDamage内部已发射销毁事件）
             if (MainCity.Health.IsDestroyed)
             {
-                Debug.Log($"[MainCitySystem] Main city destroyed! Last enemy: {evt.EnemyId}");
+                BattleLog.State($"Main city destroyed! Last enemy: {evt.EnemyId}");
             }
         }
 

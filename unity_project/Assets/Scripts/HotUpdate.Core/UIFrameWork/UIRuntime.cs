@@ -4,15 +4,20 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Game.SceneSystem;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public sealed class UIRuntime : IDisposable
 {
+    private const int RenderLayerStride = 2048;
+
     public static UIRuntime Instance { get; private set; }
 
     private readonly List<UIWindow> _allWindows = new();
     private readonly List<UIWindow> _popupStack = new();
     private readonly Dictionary<UILayer, List<UIWindow>> _layerGroups = new();
     private int _windowIndex;
+    private UIRootAdapt _rootAdapter;
+    private bool _disposed;
 
     public UIRoot Root { get; }
     public IUIAssetService Asset { get; }
@@ -20,6 +25,7 @@ public sealed class UIRuntime : IDisposable
     public UIBlurService Blur { get; }
     public UIInputBlockService InputBlock { get; }
     public IReadOnlyList<UIWindow> PopupStack => _popupStack;
+    public IReadOnlyList<UIWindow> AllWindows => _allWindows;
 
     public UIRuntime(
         UIRoot root,
@@ -28,30 +34,87 @@ public sealed class UIRuntime : IDisposable
         UIBlurService blur,
         UIInputBlockService inputBlock)
     {
+        if (Instance != null)
+            throw new InvalidOperationException("[UIRuntime] Duplicate runtime. Dispose the previous runtime before creating another one.");
+
         Root = root ?? throw new ArgumentNullException(nameof(root));
         Asset = asset ?? throw new ArgumentNullException(nameof(asset));
         Mask = mask ?? throw new ArgumentNullException(nameof(mask));
         Blur = blur ?? throw new ArgumentNullException(nameof(blur));
         InputBlock = inputBlock ?? throw new ArgumentNullException(nameof(inputBlock));
+
+        SceneManager.activeSceneChanged += HandleActiveSceneChanged;
         Instance = this;
     }
 
     public async UniTask<TView> Open<TView>(object param = null) where TView : ViewBase
     {
+        ThrowIfDisposed();
+
         var viewType = typeof(TView);
         var config = UIViewRegistry.Get(viewType);
 
-        var window = new UIWindow(this, viewType, config, ++_windowIndex);
-        window.Attach(new UIModuleContext(this, window, CancellationToken.None));
-        _allWindows.Add(window);
+        if (config.CacheMode != UICacheMode.DestroyOnClose)
+        {
+            var reusable = FindReusableWindow(viewType);
+            if (reusable != null)
+            {
+                BringToFront(reusable);
 
-        if (config.EnterPopupStack)
-            InsertSorted(_popupStack, window);
+                if (reusable.IsOpening)
+                {
+                    await reusable.OpenAsync(viewType, param);
+                    if (reusable.IsCached)
+                        await reusable.OpenAsync(viewType, param);
+                    else if (reusable.IsReady)
+                        await reusable.RefreshAsync(param);
+                }
+                else
+                {
+                    await reusable.OpenAsync(viewType, param);
+                }
 
+                return reusable.View as TView;
+            }
+        }
+
+        var window = CreateWindow(viewType, config);
         try
         {
             await window.OpenAsync(viewType, param);
             return window.View as TView;
+        }
+        catch
+        {
+            RemoveWindow(window);
+            throw;
+        }
+    }
+
+    public async UniTask Preload<TView>() where TView : ViewBase
+    {
+        ThrowIfDisposed();
+
+        var viewType = typeof(TView);
+        var config = UIViewRegistry.Get(viewType);
+        if (config.CacheMode != UICacheMode.Preload)
+        {
+            throw new InvalidOperationException(
+                $"[UIRuntime] {viewType.Name} must use UICacheMode.Preload before calling Preload<TView>().");
+        }
+
+        var existing = FindReusableWindow(viewType);
+        if (existing != null)
+        {
+            if (existing.IsOpening)
+                await existing.PreloadAsync(viewType);
+            return;
+        }
+
+        var window = CreateWindow(viewType, config);
+        try
+        {
+            await window.PreloadAsync(viewType);
         }
         catch
         {
@@ -80,8 +143,39 @@ public sealed class UIRuntime : IDisposable
         GetTopPopup()?.HandleEsc();
     }
 
+    public UIWindow GetTopPopup()
+    {
+        for (var i = _popupStack.Count - 1; i >= 0; i--)
+        {
+            var window = _popupStack[i];
+            if (window != null && window.IsReady)
+                return window;
+        }
+
+        return null;
+    }
+
+    public void AttachRootAdapter(UIRootAdapt adapter)
+    {
+        if (_rootAdapter == adapter)
+            return;
+
+        if (_rootAdapter != null)
+            _rootAdapter.LayoutChanged -= HandleRootLayoutChanged;
+
+        _rootAdapter = adapter;
+        if (_rootAdapter != null)
+        {
+            _rootAdapter.LayoutChanged += HandleRootLayoutChanged;
+            HandleRootLayoutChanged();
+        }
+    }
+
     internal void RefreshPresentation()
     {
+        if (_disposed)
+            return;
+
         RefreshRenderOrder();
         RefreshCoverState();
         Mask.Refresh();
@@ -96,7 +190,41 @@ public sealed class UIRuntime : IDisposable
         _popupStack.Remove(window);
     }
 
-    private UIWindow FindTopWindow(Type viewType)
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        SceneManager.activeSceneChanged -= HandleActiveSceneChanged;
+        AttachRootAdapter(null);
+
+        for (var i = _allWindows.Count - 1; i >= 0; i--)
+            _allWindows[i]?.Dispose();
+
+        _allWindows.Clear();
+        _popupStack.Clear();
+        Mask.Dispose();
+        Blur.Dispose();
+        InputBlock.Dispose();
+
+        if (Instance == this)
+            Instance = null;
+    }
+
+    private UIWindow CreateWindow(Type viewType, UIViewConfig config)
+    {
+        var window = new UIWindow(this, viewType, config, ++_windowIndex);
+        window.Attach(new UIModuleContext(this, window, CancellationToken.None));
+        _allWindows.Add(window);
+
+        if (config.EnterPopupStack)
+            InsertSorted(_popupStack, window);
+
+        return window;
+    }
+
+    private UIWindow FindReusableWindow(Type viewType)
     {
         for (var i = _allWindows.Count - 1; i >= 0; i--)
         {
@@ -113,33 +241,38 @@ public sealed class UIRuntime : IDisposable
         return null;
     }
 
-    public IReadOnlyList<UIWindow> AllWindows => _allWindows;
-
-    public UIWindow GetTopPopup()
+    private UIWindow FindTopWindow(Type viewType)
     {
-        for (var i = _popupStack.Count - 1; i >= 0; i--)
+        UIWindow result = null;
+        for (var i = 0; i < _allWindows.Count; i++)
         {
-            var win = _popupStack[i];
-            if (win != null && win.IsReady)
-                return win;
+            var window = _allWindows[i];
+            if (window == null ||
+                window.ViewType != viewType ||
+                window.State == UIWindowState.Closed ||
+                window.State == UIWindowState.Disposed)
+            {
+                continue;
+            }
+
+            if (result == null || window.SortOrder > result.SortOrder)
+                result = window;
         }
 
-        return null;
+        return result;
     }
 
-    public void Dispose()
+    private void BringToFront(UIWindow window)
     {
-        for (var i = _allWindows.Count - 1; i >= 0; i--)
-            _allWindows[i]?.Dispose();
+        if (window == null)
+            return;
 
-        _allWindows.Clear();
-        _popupStack.Clear();
-        Mask.Dispose();
-        Blur.Dispose();
-        InputBlock.Dispose();
-
-        if (Instance == this)
-            Instance = null;
+        window.UpdateWindowIndex(++_windowIndex);
+        if (window.Config.EnterPopupStack)
+        {
+            _popupStack.Remove(window);
+            InsertSorted(_popupStack, window);
+        }
     }
 
     private void RefreshRenderOrder()
@@ -149,7 +282,7 @@ public sealed class UIRuntime : IDisposable
 
         foreach (var window in _allWindows)
         {
-            if (window == null || window.GameObject == null)
+            if (window == null || window.GameObject == null || window.IsCached)
                 continue;
 
             if (!_layerGroups.TryGetValue(window.Config.Layer, out var list))
@@ -161,17 +294,28 @@ public sealed class UIRuntime : IDisposable
             list.Add(window);
         }
 
-        foreach (var group in _layerGroups.Values)
+        foreach (var pair in _layerGroups)
         {
+            var group = pair.Value;
             group.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
 
+            var layerBase = GetLayerRenderBase(pair.Key);
             for (var i = 0; i < group.Count; i++)
             {
                 var transform = group[i].GameObject.transform;
                 if (transform != null && transform.GetSiblingIndex() != i)
                     transform.SetSiblingIndex(i);
+
+                var renderOrder = layerBase + Mathf.Min(i, RenderLayerStride - 1);
+                group[i].SetRenderOrder(renderOrder);
             }
         }
+    }
+
+    private static int GetLayerRenderBase(UILayer layer)
+    {
+        var ordinal = Mathf.Max(0, (int)layer / 10);
+        return ordinal * RenderLayerStride;
     }
 
     private void RefreshCoverState()
@@ -180,13 +324,13 @@ public sealed class UIRuntime : IDisposable
 
         for (var i = _popupStack.Count - 1; i >= 0; i--)
         {
-            var win = _popupStack[i];
-            if (win == null || !win.IsReady)
+            var window = _popupStack[i];
+            if (window == null || !window.IsReady)
                 continue;
 
-            if (win.Config.FullScreen)
+            if (window.Config.FullScreen)
             {
-                topFullScreen = win;
+                topFullScreen = window;
                 break;
             }
         }
@@ -195,11 +339,8 @@ public sealed class UIRuntime : IDisposable
         {
             SceneMgr.Instance?.SetCurrentSceneCoveredByUI(false);
 
-            foreach (var win in _allWindows)
-            {
-                if (win != null)
-                    win.ReShowByCover();
-            }
+            foreach (var window in _allWindows)
+                window?.ReShowByCover();
             return;
         }
 
@@ -208,23 +349,57 @@ public sealed class UIRuntime : IDisposable
         var pauseLower = topFullScreen.Config.PauseLowerView;
         var topSortOrder = topFullScreen.SortOrder;
 
-        foreach (var win in _allWindows)
+        foreach (var window in _allWindows)
         {
-            if (win == null || win == topFullScreen)
+            if (window == null || window == topFullScreen)
                 continue;
 
-            if (win.SortOrder < topSortOrder)
+            if (window.SortOrder < topSortOrder && pauseLower)
+                window.HideByCover();
+            else
+                window.ReShowByCover();
+        }
+    }
+
+    private void HandleRootLayoutChanged()
+    {
+        if (_disposed)
+            return;
+
+        Root.SetSideOffset(_rootAdapter != null ? _rootAdapter.SideVal : 0f);
+        foreach (var window in _allWindows)
+        {
+            if (window?.IsReady == true)
+                window.View?.AdaptRootTransform();
+        }
+    }
+
+    private void HandleActiveSceneChanged(Scene previous, Scene current)
+    {
+        var snapshot = _allWindows.ToArray();
+        foreach (var window in snapshot)
+        {
+            if (window == null || !window.Config.CloseWhenSceneChange)
+                continue;
+
+            if (window.IsCached)
             {
-                if (pauseLower)
-                    win.HideByCover();
-                else
-                    win.ReShowByCover();
+                window.Dispose();
+                RemoveWindow(window);
             }
             else
             {
-                win.ReShowByCover();
+                window.CloseAsync().Forget();
             }
         }
+
+        RefreshPresentation();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(UIRuntime));
     }
 
     private static void InsertSorted(List<UIWindow> windows, UIWindow window)
@@ -293,11 +468,15 @@ public static class UIRuntimeBootstrap
         var root = new UIRoot(uiRootObject, uiCamera, hiddenRoot);
         RegisterDefaultLayers(root, uiRootObject.transform);
 
-        var mask = new UIMaskService(maskObject);
-        var blur = new UIBlurService();
-        var inputBlock = new UIInputBlockService(inputBlockObject);
+        var runtime = new UIRuntime(
+            root,
+            assetService,
+            new UIMaskService(maskObject),
+            new UIBlurService(),
+            new UIInputBlockService(inputBlockObject));
 
-        return new UIRuntime(root, assetService, mask, blur, inputBlock);
+        runtime.AttachRootAdapter(uiRootObject.GetComponent<UIRootAdapt>());
+        return runtime;
     }
 
     private static void RegisterDefaultLayers(UIRoot root, Transform rootTransform)

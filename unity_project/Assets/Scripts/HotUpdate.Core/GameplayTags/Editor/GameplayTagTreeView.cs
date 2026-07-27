@@ -37,8 +37,10 @@ public sealed class GameplayTagTreeView : TreeView
 
         var lookup = new Dictionary<string, TreeViewItem>(StringComparer.Ordinal);
 
-        foreach (var tag in db.Tags)
+        var entries = db.Entries;
+        for (int e = 0; e < entries.Count; e++)
         {
+            string tag = entries[e].path;
             if (string.IsNullOrWhiteSpace(tag))
                 continue;
 
@@ -108,7 +110,12 @@ public sealed class GameplayTagTreeView : TreeView
         if (string.IsNullOrEmpty(oldPath) || string.IsNullOrEmpty(newName))
             return;
 
-        if (string.Equals(item.displayName, newName, StringComparison.Ordinal))
+        string currentName = oldPath;
+        int dot = oldPath.LastIndexOf('.');
+        if (dot >= 0)
+            currentName = oldPath.Substring(dot + 1);
+
+        if (string.Equals(currentName, newName, StringComparison.Ordinal))
             return;
 
         Undo.RecordObject(db, "Rename Gameplay Tag");
@@ -147,7 +154,7 @@ public sealed class GameplayTagTreeView : TreeView
         {
             bool confirm = EditorUtility.DisplayDialog(
                 "Delete Gameplay Tag",
-                $"Delete '{path}' and all children?",
+                $"Delete '{path}' and all children?\n\nDeleted sibling ids will enter the retired list (not auto-reused).",
                 "Delete",
                 "Cancel");
 
@@ -162,6 +169,13 @@ public sealed class GameplayTagTreeView : TreeView
             }
         });
 
+        menu.AddSeparator("");
+
+        menu.AddItem(new GUIContent("Recycle Sibling IDs..."), false, () =>
+        {
+            GameplayTagRecycleWindow.Show(db, DirtyReload, parentFilter: path);
+        });
+
         menu.ShowAsContext();
     }
 
@@ -173,6 +187,19 @@ public sealed class GameplayTagTreeView : TreeView
         string path = GetFullPath(item);
 
         return path.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    protected override void RowGUI(RowGUIArgs args)
+    {
+        base.RowGUI(args);
+
+        string path = GetFullPath(args.item);
+        if (string.IsNullOrEmpty(path) || !db.TryGetSiblingId(path, out int siblingId))
+            return;
+
+        var rect = args.rowRect;
+        rect.xMin = rect.xMax - 52f;
+        GUI.Label(rect, $"id {siblingId}", EditorStyles.miniLabel);
     }
 
     private string GetFullPath(TreeViewItem item)

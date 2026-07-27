@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using BattleCommon;
 using BattleFoundation;
 using Framework;
 using UnityEngine;
@@ -16,19 +18,22 @@ namespace TowerDefense
     /// 事件：
     /// - 目标切换时发射 TowerTargetSwitch(6017) 事件
     /// </summary>
-    public class TDTargetingComponent : EntityComponent
+    public class TDTargetingComponent : EntityComponent, ICombatTargetSelector
     {
         private float _targetCheckTimer;
         private float _targetCheckInterval = 0.3f;
         private TDEnemyActor _currentTarget;
-        private ITargetingStrategy _strategy;
+        private ICombatTargetStrategy _targetStrategy;
+        private ITargetingStrategy _tdStrategy;
         private float _range;
 
         /// <summary>当前锁定的目标（缓存，无需每帧查询）</summary>
         public TDEnemyActor CurrentTarget => _currentTarget;
+        CombatActor ICombatTargetSelector.CurrentTarget => _currentTarget;
+        public bool HasValidTarget => IsCurrentTargetValid();
 
         /// <summary>当前策略（可运行时切换）</summary>
-        public ITargetingStrategy Strategy => _strategy;
+        public ITargetingStrategy Strategy => _tdStrategy;
 
         /// <summary>攻击距离</summary>
         public float Range { get => _range; set => _range = Mathf.Max(0.1f, value); }
@@ -54,7 +59,8 @@ namespace TowerDefense
             _targetCheckInterval = Mathf.Max(0.05f, checkInterval);
             _currentTarget = null;
             _targetCheckTimer = 0f;
-            _strategy = CreateStrategy(priority);
+            _targetStrategy = CreateTargetStrategy(priority);
+            _tdStrategy = CreateStrategy(priority);
         }
 
         /// <summary>
@@ -64,8 +70,25 @@ namespace TowerDefense
         public void SetStrategy(ITargetingStrategy strategy)
         {
             if (strategy == null) return;
-            _strategy = strategy;
+            _tdStrategy = strategy;
+            _targetStrategy = strategy as ICombatTargetStrategy ?? new TargetingStrategyAdapter(strategy);
             ForceRescan();
+        }
+
+        public static ICombatTargetStrategy CreateTargetStrategy(ETDTargetPriority priority)
+        {
+            switch (priority)
+            {
+                case ETDTargetPriority.Nearest:
+                    return new NearestCombatTargetStrategy();
+                case ETDTargetPriority.LowestHP:
+                    return new LowestHpCombatTargetStrategy();
+                case ETDTargetPriority.FarthestProgress:
+                case ETDTargetPriority.PriorityBoss:
+                case ETDTargetPriority.MostProgressed:
+                default:
+                    return new FarthestProgressStrategy();
+            }
         }
 
         /// <summary>
@@ -122,7 +145,7 @@ namespace TowerDefense
                         Owner?.Id ?? 0,
                         prevId,
                         newId,
-                        _strategy?.StrategyName ?? "Unknown"));
+                        _targetStrategy?.StrategyName ?? "Unknown"));
             }
         }
 
@@ -152,7 +175,7 @@ namespace TowerDefense
         /// </summary>
         private TDEnemyActor FindBestTarget()
         {
-            if (Owner == null || _strategy == null) return null;
+            if (Owner == null || _targetStrategy == null) return null;
 
             var entityManager = Owner.Engine?.Context?.EntityManager;
             if (entityManager == null) return null;
@@ -161,7 +184,7 @@ namespace TowerDefense
             if (enemies.Count == 0) return null;
 
             float rangeSqr = _range * _range;
-            return _strategy.FindBestTarget(enemies, Owner, rangeSqr);
+            return _targetStrategy.FindBestTarget(enemies, Owner, rangeSqr) as TDEnemyActor;
         }
 
         private bool IsInRange(TDEnemyActor enemy)
@@ -175,8 +198,26 @@ namespace TowerDefense
         {
             _currentTarget = null;
             _targetCheckTimer = 0f;
-            _strategy = null;
+            _targetStrategy = null;
+            _tdStrategy = null;
             base.DeactivateForPool();
+        }
+
+        private sealed class TargetingStrategyAdapter : ICombatTargetStrategy
+        {
+            private readonly ITargetingStrategy _strategy;
+
+            public TargetingStrategyAdapter(ITargetingStrategy strategy)
+            {
+                _strategy = strategy;
+            }
+
+            public string StrategyName => _strategy?.StrategyName ?? "Unknown";
+
+            public CombatActor FindBestTarget(IReadOnlyList<BattleEntity> candidates, BattleEntity owner, float rangeSqr)
+            {
+                return _strategy?.FindBestTarget(candidates, owner, rangeSqr);
+            }
         }
     }
 }

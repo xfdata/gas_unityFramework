@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BattleCommon;
 using BattleFoundation;
 
 namespace TowerDefense
@@ -8,29 +9,13 @@ namespace TowerDefense
     /// </summary>
     public sealed class NearestStrategy : ITargetingStrategy
     {
-        public string StrategyName => "Nearest";
+        private readonly NearestCombatTargetStrategy _inner = new NearestCombatTargetStrategy();
+
+        public string StrategyName => _inner.StrategyName;
 
         public TDEnemyActor FindBestTarget(IReadOnlyList<BattleEntity> enemies, BattleEntity owner, float rangeSqr)
         {
-            TDEnemyActor best = null;
-            float bestDistSqr = float.MaxValue;
-
-            for (int i = 0; i < enemies.Count; i++)
-            {
-                var tdEnemy = enemies[i] as TDEnemyActor;
-                if (tdEnemy == null || !tdEnemy.IsAlive) continue;
-
-                float distSqr = (tdEnemy.Position - owner.Position).sqrMagnitude;
-                if (distSqr > rangeSqr) continue;
-
-                if (distSqr < bestDistSqr)
-                {
-                    bestDistSqr = distSqr;
-                    best = tdEnemy;
-                }
-            }
-
-            return best;
+            return _inner.FindBestTarget(enemies, owner, rangeSqr) as TDEnemyActor;
         }
     }
 }

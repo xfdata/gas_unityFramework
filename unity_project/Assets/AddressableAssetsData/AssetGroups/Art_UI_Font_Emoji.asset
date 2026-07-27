@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Art_UI_Font_Emoji
+  m_EditorClassIdentifier: 
+  m_GroupName: Art_UI_Font_Emoji
+  m_Data:
+    m_SerializedData: []
+  m_GUID: f4a43f25c3f91eb49b263c32d314c846
+  m_SerializeEntries:
+  - m_GUID: 6d4010ba703d9614aae6a66ba95636b1
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-0
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 403841a020bc4f94eb69711747a9cdc5
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-1
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d814e6dcd49c5f04fbc655f6b14d7e9c
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-2
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3846374687806e74994f364bb77a118b
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-3
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df5836189ca40994eb79d1f675e914a6
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-4
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 62a9ed915594d5448bef8a820c613f48
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-5
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f1158980e3a3ae342b6b955895c397ac
+    m_Address: Assets/Art/UI/Font/EmojiSprite/emoji-6
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 59007e762e4263a49988abd0037fda8d
+    m_Address: Assets/Art/UI/Font/EmojiSprite/main_emoji
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 4758f2c35bfecf74790e4142e90ff4a5, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 2236f1fb3981c404c8f7767b2e441a4e, type: 2}
+    - {fileID: 11400000, guid: 5395d7d2be4dfb94aafbe8fd714da3a0, type: 2}

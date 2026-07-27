@@ -10,7 +10,10 @@ public abstract class ViewBase : UIModuleBase
         public UIViewConfig Config => Window.Config;
 
         private Vector3 _rootOffset;
-        private Vector3 _originSize;
+        private Vector2 _originSize;
+        private Vector2 _originSizeDelta;
+        private Vector3 _originLocalPosition;
+        private bool _rootLayoutCaptured;
         private Transform _blurTransform;
 
         internal void BindView(UIWindow window, GameObject go, UIViewBinder binder)
@@ -135,15 +138,19 @@ public abstract class ViewBase : UIModuleBase
                 return;
             }
 
-            var sizeDelta = RectTransform.sizeDelta;
-            var anchorMax = RectTransform.anchorMax;
-            var anchorMin = RectTransform.anchorMin;
-            var parentSize = parentRect.rect.size;
+            if (!_rootLayoutCaptured)
+            {
+                _originSizeDelta = RectTransform.sizeDelta;
+                _originLocalPosition = RectTransform.localPosition;
+                _rootLayoutCaptured = true;
+            }
 
-            _originSize = sizeDelta + parentSize * (anchorMax - anchorMin);
+            var parentSize = parentRect.rect.size;
+            _originSize = _originSizeDelta + parentSize * (RectTransform.anchorMax - RectTransform.anchorMin);
 
             parentSize = new Vector2(parentSize.x - Context.Root.SideOffset * 2f, parentSize.y);
             RectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, parentSize.x);
+            RectTransform.localPosition = _originLocalPosition;
 
             OnAdaptRoot();
             AdaptBlurTransform();
@@ -154,7 +161,8 @@ public abstract class ViewBase : UIModuleBase
             if (Config.IgnoreSafeArea)
             {
                 RectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, _originSize.y);
-                RectTransform.localPosition = _rootOffset;
+                _rootOffset = Vector3.zero;
+                RectTransform.localPosition = _originLocalPosition;
                 return;
             }
 
@@ -166,7 +174,12 @@ public abstract class ViewBase : UIModuleBase
 
             _rootOffset = new Vector3(0f, (bottom - top) * 0.5f, 0f);
             RectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, _originSize.y - top - bottom);
-            RectTransform.localPosition = _rootOffset;
+            RectTransform.localPosition = _originLocalPosition + _rootOffset;
+        }
+
+        protected void InvalidateRootLayout()
+        {
+            _rootLayoutCaptured = false;
         }
 
         private void AdaptBlurTransform()

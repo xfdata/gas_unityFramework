@@ -1,114 +1,59 @@
 # UI Binding Rules
 
-## Preferred Binding Path
+## Source Of Truth
 
-For new generated UGUI Views, prefer `CSharpUIBindBehaviour` + `UIBindNode` + generated binder.
-
-Root `CSharpUIBindBehaviour` settings:
+For new UI, binding data flows in one direction:
 
 ```text
-ExportToParent = true
-ParentBindName = XxxView
-AutoGenerateOnPrefabSave = true
-GeneratedNamespace = Game.UI.Generated
-GeneratedClassName = XxxViewBinder
-GeneratedFolder = Assets/Scripts/HotUpdate.Core/Gameplay/Views (or the feature's View folder)
-AutoGenerateViewBindingsOnPrefabSave = false unless using generated partial View fields
-GeneratedViewClassName = XxxView
+UIViewSchema binding contract
+  -> UIBindNode/CSharpUIBindBehaviour serialized data
+  -> XxxViewBinder.g.cs and optional XxxView.g.cs
 ```
 
-For each exported node, add `UIBindNode` and set:
+Never infer new bindings from AI-generated C# or the legacy regex import command.
 
-- `BindName` to the exact runtime key.
-- `Export = true`.
-- `IsSubBinder = true` only when the node owns a child `CSharpUIBindBehaviour`.
-- `NestedBinderTypeName` only when a strong nested binder type is required.
+Each exported schema binding requires:
 
-After building the hierarchy in an Editor script:
+- immutable `StableId`;
+- explicit ASCII `Key`;
+- prefab-root-relative path;
+- required component type names;
+- sub-binder metadata when applicable.
 
-```csharp
-var bind = root.GetComponent<CSharpUIBindBehaviour>();
-bind.RefreshBindingsInEditor(true);
-PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-```
+Node names may change. Keep Key and StableId unchanged unless intentionally breaking the contract.
 
-## Access Patterns
+## Preferred Access
 
-Use one of these styles:
+Use generated binder/partial members or cached refs:
 
 ```csharp
 private UIButtonRef _btnSend;
-private TMP_InputField _inputMessage;
 
-private void CacheBindings()
+protected override UniTask OnOpen(ChatParam param)
 {
     Cache(ref _btnSend, "btn_Send");
-    Cache(ref _inputMessage, "input_Message");
-}
-```
-
-```csharp
-BindClick(_btnSend.Button, OnSendClicked);
-```
-
-```csharp
-protected override UniTask OnClose(object result)
-{
-    _btnSend.Button.onClick.RemoveListener(OnSendClicked);
+    BindClick(_btnSend.Button, OnSendClicked);
     return UniTask.CompletedTask;
 }
 ```
 
-Use `BindClick` when possible. If using `onClick.AddListener` directly, remove the listener in `OnClose` or `OnStop`.
+`BindClick` is open-scoped and removes listeners on cache close. Raw `AddListener` requires explicit removal in `OnClose`.
 
-## Compatibility Path
+Declare the handwritten View `partial` when `GeneratePartialViewBindings` is enabled. `UIViewPartialBindingCodeGenerator` owns the `.g.cs` partial file.
 
-Existing `LoginView` and `LoadingView` show `[UI]` fields:
+## Compatibility
 
-```csharp
-[UI] private TextMeshProUGUI txt_BundleVersion;
-[UI] private TMP_InputField input_Account;
-[UI] private Button btn_Login;
-```
+`[UI]` fields remain supported for legacy small Views. Prefer explicit paths when names are ambiguous. Do not add new AI-generated Views using `[UI]` name search.
 
-This works because `UIViewAutoBind` guesses a node name from the field name, strips known suffixes, and searches the prefab hierarchy. It is allowed for small or legacy Views, but new generated UI should prefer explicit binder nodes to avoid runtime hierarchy searches.
+## Generator Rules
 
-If using `[UI]`, ensure the field name exactly matches a node name or provide an explicit path:
-
-```csharp
-[UI("SafeArea/Panel_InputBar/input_Message")]
-private TMP_InputField input_Message;
-```
-
-## Naming
-
-Use binding-safe names. Choose the local style and keep it consistent:
-
-- HotUpdate style: `btn_Send`, `txt_Title`, `img_Backdrop`, `input_Message`, `scroll_Items`, `Panel_InputBar`.
-- Binder-heavy style: `BtnSend`, `TxtTitle`, `ImgBackdrop`, `InputMessage`, `ScrollItems`, `PanelInputBar`.
-
-Do not use spaces, punctuation, or localized text in bind keys.
-
-## Generated Binder Notes
-
-- `CSharpUIBindCodeGenerator` emits `XxxViewBinder.g.cs`.
-- `AIGeneratedUIViewCodeGenerator` can emit partial View fields that implement `IUIViewGeneratedBinding`.
-- Generated files are `.g.cs`; do not manually edit them.
-- If the binder file exists but has no properties, refresh bindings on the prefab and regenerate. Empty `_items` means no exported `UIBindNode` was collected.
+- Generated code writes only when content changes and uses atomic replacement.
+- Batch generation refreshes `AssetDatabase` once.
+- Do not manually edit `.g.cs` files.
+- `CSharpUIBindCodeGenerator` emits strong binders.
+- `UIViewPartialBindingCodeGenerator` emits optional partial View fields.
+- Treat `AIGeneratedUIViewCodeGenerator` as a compatibility alias only.
 
 ## Runtime Find Ban
 
-Forbidden in runtime View/module code:
-
-```csharp
-GameObject.Find("...");
-transform.Find("...") // repeated runtime lookup
-GetComponentsInChildren<T>() // runtime UI refresh path
-```
-
-Allowed in Editor generator scripts and existing binding processors:
-
-```csharp
-root.transform.Find("..."); // editor validation/generation only
-GetComponentsInChildren<UIBindNode>(true); // editor binding refresh only
-```
+Forbid `GameObject.Find`, repeated `Transform.Find`, and `GetComponentsInChildren` in runtime View refresh paths. These are allowed in Editor schema compilation and prefab generation.

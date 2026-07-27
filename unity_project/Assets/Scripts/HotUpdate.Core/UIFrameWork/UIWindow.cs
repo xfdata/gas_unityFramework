@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -6,7 +7,7 @@ public sealed class UIWindow : UIModuleBase
 {
     private readonly UIRuntime _runtime;
     private readonly string _openBlockReason;
-    private readonly int _sortOrder;
+    private int _sortOrder;
 
     private UniTask _openTask;
     private UniTask _closeTask;
@@ -14,6 +15,7 @@ public sealed class UIWindow : UIModuleBase
     private bool _featureModulesCreated;
     private IUIWindowOpenBlocker _maskOpenBlocker;
     private IUIWindowOpenBlocker _blurOpenBlocker;
+    private DynCanvaRenderOrder[] _dynamicRenderers;
     private int _renderOrder = -1;
 
     public Type ViewType { get; }
@@ -21,18 +23,13 @@ public sealed class UIWindow : UIModuleBase
     public ViewBase View { get; private set; }
     public GameObject GameObject { get; private set; }
     public UIWindowState State { get; private set; } = UIWindowState.None;
-    public int WindowIndex { get; }
+    public int WindowIndex { get; private set; }
 
     public int SortOrder => _sortOrder;
     public bool IsReady => State == UIWindowState.Opened;
     public bool IsCached => State == UIWindowState.Hidden && _hiddenForCache;
     public bool IsOpening => State == UIWindowState.Loading || State == UIWindowState.Opening;
-
-    public int RenderOrder
-    {
-        get => _renderOrder;
-        set => _renderOrder = value;
-    }
+    public int RenderOrder => _renderOrder;
 
     public UIWindow(UIRuntime runtime, Type viewType, UIViewConfig config, int windowIndex)
     {
@@ -49,10 +46,28 @@ public sealed class UIWindow : UIModuleBase
         if (IsOpening)
             return _openTask;
 
+        if (IsReady)
+            return RefreshAsync(param);
+
         if (State != UIWindowState.None && !IsCached)
             return UniTask.CompletedTask;
 
         _openTask = OpenCoreAsync(viewType, param, IsCached).Preserve();
+        return _openTask;
+    }
+
+    public UniTask PreloadAsync(Type viewType)
+    {
+        if (IsCached || IsReady)
+            return UniTask.CompletedTask;
+
+        if (IsOpening)
+            return _openTask;
+
+        if (State != UIWindowState.None)
+            return UniTask.CompletedTask;
+
+        _openTask = PreloadCoreAsync(viewType).Preserve();
         return _openTask;
     }
 
@@ -112,6 +127,41 @@ public sealed class UIWindow : UIModuleBase
         return true;
     }
 
+    internal void UpdateWindowIndex(int windowIndex)
+    {
+        WindowIndex = windowIndex;
+        _sortOrder = (int)Config.Layer * 1000000 + Config.SortOffset * 10000 + windowIndex;
+    }
+
+    internal void SetRenderOrder(int renderOrder)
+    {
+        if (_renderOrder == renderOrder)
+            return;
+
+        _renderOrder = renderOrder;
+        ApplyRenderOrder();
+    }
+
+    internal void ApplyRenderOrder()
+    {
+        if (_renderOrder < 0 || GameObject == null)
+            return;
+
+        var canvas = GameObject.GetComponent<Canvas>();
+        if (canvas == null)
+            return;
+
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = _renderOrder;
+
+        _dynamicRenderers ??= GameObject.GetComponentsInChildren<DynCanvaRenderOrder>(true);
+        foreach (var render in _dynamicRenderers)
+        {
+            if (render != null)
+                render.SetRenderOrder(canvas.sortingLayerID, _renderOrder);
+        }
+    }
+
     private async UniTask OpenCoreAsync(Type viewType, object param, bool reuseCachedInstance)
     {
         _runtime.InputBlock.AddRef(_openBlockReason);
@@ -127,29 +177,12 @@ public sealed class UIWindow : UIModuleBase
             }
             else
             {
-                State = UIWindowState.Loading;
-
-                var instance = await _runtime.Asset.InstantiateAsync(
-                    Config.PrefabReference,
-                    _runtime.Root.HiddenRoot,
-                    DestroyToken);
-
-                if (IsDisposed)
-                {
-                    _runtime.Asset.Release(instance);
-                    throw new OperationCanceledException("[UIWindow] Window was disposed while loading.");
-                }
-
-                GameObject = instance ??
-                    throw new InvalidOperationException($"[UIWindow] Instantiated object is null: {Config.PrefabReference.AssetGUID}");
-                GameObject.transform.SetParent(_runtime.Root.HiddenRoot, false);
-
-                View = CreateViewModule(viewType, GameObject);
-                await View.StartAsync();
+                await CreateInstanceAsync(viewType);
             }
 
             ThrowIfDisposed();
             State = UIWindowState.Opening;
+            View.BeginOpenScope();
 
             await View.OpenInternal(param);
             ThrowIfDisposed();
@@ -159,8 +192,6 @@ public sealed class UIWindow : UIModuleBase
 
             AttachToLayer();
             View.AdaptRootTransform();
-            RenderOrder = _sortOrder;
-            ApplyRenderOrder();
             await PrepareWindowFeatureModulesBeforeShow();
             ThrowIfDisposed();
 
@@ -188,6 +219,51 @@ public sealed class UIWindow : UIModuleBase
         }
     }
 
+    private async UniTask PreloadCoreAsync(Type viewType)
+    {
+        try
+        {
+            await CreateInstanceAsync(viewType);
+            ThrowIfDisposed();
+            HideForCache();
+        }
+        catch
+        {
+            if (!IsDisposed)
+                Dispose();
+
+            _runtime.RemoveWindow(this);
+            throw;
+        }
+        finally
+        {
+            _openTask = default;
+        }
+    }
+
+    private async UniTask CreateInstanceAsync(Type viewType)
+    {
+        State = UIWindowState.Loading;
+
+        var instance = await _runtime.Asset.InstantiateAsync(
+            Config.PrefabReference,
+            _runtime.Root.HiddenRoot,
+            DestroyToken);
+
+        if (IsDisposed)
+        {
+            _runtime.Asset.Release(instance);
+            throw new OperationCanceledException("[UIWindow] Window was disposed while loading.");
+        }
+
+        GameObject = instance ??
+            throw new InvalidOperationException($"[UIWindow] Instantiated object is null: {Config.PrefabReference.AssetGUID}");
+        GameObject.transform.SetParent(_runtime.Root.HiddenRoot, false);
+
+        View = CreateViewModule(viewType, GameObject);
+        await View.StartAsync();
+    }
+
     private async UniTask CloseCoreAsync(object result)
     {
         if (State == UIWindowState.None || IsOpening)
@@ -203,32 +279,59 @@ public sealed class UIWindow : UIModuleBase
         _runtime.Mask.Hide(this);
         _runtime.Blur.Detach(this);
 
+        Exception closeError = null;
         if (View != null)
         {
-            await View.PlayCloseAnimationInternal();
-            await View.CloseInternal(result);
+            try
+            {
+                await View.PlayCloseAnimationInternal();
+            }
+            catch (Exception e)
+            {
+                closeError = e;
+            }
+
+            try
+            {
+                await View.CloseInternal(result);
+            }
+            catch (Exception e)
+            {
+                closeError ??= e;
+                if (closeError != e)
+                    Debug.LogException(e);
+            }
+            finally
+            {
+                View.EndOpenScope();
+            }
         }
 
-        if (IsDisposed)
+        try
+        {
+            if (!IsDisposed)
+            {
+                if (Config.CacheMode == UICacheMode.HideOnClose ||
+                    Config.CacheMode == UICacheMode.Preload)
+                {
+                    HideForCache();
+                }
+                else
+                {
+                    State = UIWindowState.Closed;
+                    Dispose();
+                    _runtime.RemoveWindow(this);
+                }
+            }
+        }
+        finally
         {
             _closeTask = default;
-            return;
+            _runtime.RefreshPresentation();
         }
 
-        if (Config.CacheMode == UICacheMode.HideOnClose ||
-            Config.CacheMode == UICacheMode.Preload)
-        {
-            HideForCache();
-        }
-        else
-        {
-            State = UIWindowState.Closed;
-            Dispose();
-            _runtime.RemoveWindow(this);
-        }
-
-        _closeTask = default;
-        _runtime.RefreshPresentation();
+        if (closeError != null)
+            ExceptionDispatchInfo.Capture(closeError).Throw();
     }
 
     private ViewBase CreateViewModule(Type viewType, GameObject gameObject)
@@ -274,25 +377,6 @@ public sealed class UIWindow : UIModuleBase
         GameObject.transform.SetAsLastSibling();
     }
 
-    private void ApplyRenderOrder()
-    {
-        if (_renderOrder == -1 || GameObject == null)
-            return;
-
-        var canvas = GameObject.GetComponent<Canvas>();
-        if (canvas == null)
-            return;
-
-        canvas.overrideSorting = true;
-        canvas.sortingOrder = _renderOrder;
-
-        var dynRenders = GameObject.GetComponentsInChildren<DynCanvaRenderOrder>(true);
-        foreach (var render in dynRenders)
-        {
-            render.SetRenderOrder(canvas.sortingLayerID, _renderOrder);
-        }
-    }
-
     private void HideForCache()
     {
         if (GameObject == null)
@@ -316,6 +400,7 @@ public sealed class UIWindow : UIModuleBase
     {
         _maskOpenBlocker = null;
         _blurOpenBlocker = null;
+        _dynamicRenderers = null;
 
         State = UIWindowState.Disposed;
         _runtime.Mask.Hide(this);
@@ -326,5 +411,7 @@ public sealed class UIWindow : UIModuleBase
             _runtime.Asset.Release(GameObject);
             GameObject = null;
         }
+
+        View = null;
     }
 }

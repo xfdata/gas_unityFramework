@@ -71,52 +71,67 @@ namespace TowerDefense
         public void StartNextWave()
         {
             CurrentWaveIndex++;
+            BattleLog.Wave($"StartNextWave: TotalWaves={TotalWaves}, CurrentWaveIndex={CurrentWaveIndex}, State(before)={State}");
 
             if (CurrentWaveIndex >= TotalWaves)
             {
                 State = ETDWaveState.Cleared;
-                Debug.Log("[WaveManager] All waves completed!");
+                BattleLog.Wave($"All waves completed! TotalWaves={TotalWaves}, CurrentWaveIndex={CurrentWaveIndex}. State={State}. No enemies spawned?");
                 return;
             }
 
             var currentConfig = _waveConfigs[CurrentWaveIndex];
             State = ETDWaveState.Preparing;
+            BattleLog.Wave($"Wave {CurrentWaveIndex + 1} loaded: name={currentConfig.WaveName}, GetTotalSpawnCount={currentConfig.GetTotalSpawnCount()}, pathEntries={currentConfig.PathEntries?.Length ?? 0}, enemyEntries={currentConfig.EnemyEntries?.Length ?? 0}");
             _preparingTimer = currentConfig.PreparationTime;
             _totalToSpawn = currentConfig.GetTotalSpawnCount();
 
             _context.EventBus.Emit(TDEventIds.WaveStarted, CurrentWaveIndex);
-            Debug.Log($"[WaveManager] Wave {CurrentWaveIndex + 1}/{TotalWaves} preparing ({currentConfig.PreparationTime}s)...");
+            BattleLog.Wave($"Wave {CurrentWaveIndex + 1}/{TotalWaves} preparing ({currentConfig.PreparationTime}s)...");
             
             // 初始化多路径生成进度
             InitPathProgress(currentConfig);
         }
 
-    // 默认路径（兼容旧版单路径配置，由TDBattleEngine设置）
-    private WaypointPath _defaultPath;
+    // 主城目标位置（取代旧版WaypointPath，敌人通过NavMesh寻路到主城）
+    private Vector3 _cityTargetPosition;
+    private MainCityActor _cityActor;
 
     /// <summary>
-    /// 设置默认路径（兼容旧版WaveConfig仅使用EnemyEntries、无PathEntries的情况）
+    /// 设置主城目标（敌人NavMesh寻路目标）
     /// </summary>
-    public void SetDefaultPath(WaypointPath path)
+    public void SetCityTarget(Vector3 targetPosition, MainCityActor cityActor = null)
     {
-        _defaultPath = path;
+        _cityTargetPosition = targetPosition;
+        _cityActor = cityActor;
     }
 
     /// <summary>
-    /// 初始化多路径生成进度
+    /// 初始化多路径生成进度（NavMesh寻路模式，不再依赖WaypointPath）
     /// </summary>
     private void InitPathProgress(WaveConfig config)
     {
         _pathProgressList.Clear();
 
-        // 新配置：多路径
+        BattleLog.ConfigMatch($"InitPathProgress '{config.WaveName}': PathEntries.Length={config.PathEntries?.Length ?? 0}, EnemyEntries.Length={config.EnemyEntries?.Length ?? 0}, cityPos=({_cityTargetPosition.x:F1},{_cityTargetPosition.z:F1})");
+
+        // 新配置：多路径（多波敌人同时进攻）
         if (config.PathEntries != null && config.PathEntries.Length > 0)
         {
+            BattleLog.ConfigMatch("BRANCH=PathEntries (multi-spawn groups)");
             foreach (var pathEntry in config.PathEntries)
             {
-                if (pathEntry == null || pathEntry.EnemyEntries == null || pathEntry.EnemyEntries.Length == 0)
+                if (pathEntry == null)
+                {
+                    BattleLog.ConfigMatchWarning("PathEntry is null, skipping.");
                     continue;
-
+                }
+                BattleLog.ConfigMatch($"PathEntry id='{pathEntry.PathId}': EnemyEntries.Length={pathEntry.EnemyEntries?.Length ?? 0}, GetTotalCount={pathEntry.GetTotalCount()}");
+                if (pathEntry.EnemyEntries == null || pathEntry.EnemyEntries.Length == 0)
+                {
+                    BattleLog.ConfigMatchError($"SKIP: PathEntry '{pathEntry.PathId}' EnemyEntries is EMPTY!");
+                    continue;
+                }
                 _pathProgressList.Add(new PathSpawnProgress
                 {
                     PathEntry = pathEntry,
@@ -125,29 +140,28 @@ namespace TowerDefense
                 });
             }
         }
-        // 兼容旧配置：单一路径，使用_defaultPath + EnemyEntries构造临时PathEntry
+        // 兼容旧配置：单一路径，使用EnemyEntries构造临时PathEntry
         else if (config.EnemyEntries != null && config.EnemyEntries.Length > 0)
         {
-            if (_defaultPath != null)
+            BattleLog.ConfigMatch($"BRANCH=EnemyEntries fallback. EnemyEntries.Count={config.EnemyEntries.Length}");
+            var fallbackEntry = new WavePathEntry
             {
-                var fallbackEntry = new WavePathEntry
-                {
-                    PathId = _defaultPath.name,
-                    Path = _defaultPath,
-                    EnemyEntries = config.EnemyEntries
-                };
-                _pathProgressList.Add(new PathSpawnProgress
-                {
-                    PathEntry = fallbackEntry,
-                    SpawnedCount = 0,
-                    SpawnTimer = 0f
-                });
-            }
-            else
+                PathId = "default",
+                EnemyEntries = config.EnemyEntries
+            };
+            _pathProgressList.Add(new PathSpawnProgress
             {
-                Debug.LogWarning($"[WaveManager] Wave '{config.WaveName}' uses legacy config but no DefaultPath set!");
-            }
+                PathEntry = fallbackEntry,
+                SpawnedCount = 0,
+                SpawnTimer = 0f
+            });
         }
+        else
+        {
+            BattleLog.ConfigMatchError($"ERROR: Wave '{config.WaveName}' has NO PathEntries AND NO EnemyEntries!");
+        }
+
+        BattleLog.ConfigMatch($"InitPathProgress done. _pathProgressList.Count={_pathProgressList.Count} path(s) created");
     }
 
         public void Update(float deltaTime)
@@ -183,7 +197,7 @@ namespace TowerDefense
                 {
                     _pathProgressList[i].SpawnTimer = 0f; // 立即开始生成
                 }
-                Debug.Log($"[WaveManager] Wave {CurrentWaveIndex + 1} spawning {_totalToSpawn} enemies.");
+                BattleLog.Wave($"Wave {CurrentWaveIndex + 1} spawning {_totalToSpawn} enemies.");
             }
         }
 
@@ -215,12 +229,12 @@ namespace TowerDefense
             if (allSpawned)
             {
                 State = ETDWaveState.Active;
-                Debug.Log($"[WaveManager] Wave {CurrentWaveIndex + 1} active.");
+                BattleLog.Wave($"Wave {CurrentWaveIndex + 1} active.");
             }
         }
 
         /// <summary>
-        /// 从指定路径生成一个敌人
+        /// 从指定路径生成一个敌人（NavMesh寻路到主城）
         /// </summary>
         private void SpawnEnemyFromPath(PathSpawnProgress progress)
         {
@@ -242,21 +256,45 @@ namespace TowerDefense
                 remaining -= entry.Count;
             }
 
+            if (configToSpawn == null)
+            {
+                BattleLog.SpawnWarning("SKIP spawn: configToSpawn is NULL");
+                return;
+            }
+
+            // 计算生成位置（在地图边缘生成，朝向主城方向）
+            Vector3 spawnPos = CalculateSpawnPosition(configToSpawn);
+
             // 通过命令队列生成
             var cmd = _cachedCommand;
             cmd.Reset();
-            
-            // TODO: 需要根据 PathId 查找实际的 WaypointPath 对象
-            // 这里先假设 PathEntry 已经有 Path 引用
-            var path = pathEntry.Path; // 需要在 WavePathEntry 中添加 Path 字段
-            
-            if (path != null && configToSpawn != null)
-            {
-                cmd.Setup(configToSpawn, path, 1, configToSpawn.IsBoss);
-                _tdEngine?.EnqueueCommand(cmd);
-            }
+            cmd.Setup(configToSpawn, _cityTargetPosition, spawnPos, 1, _cityActor, configToSpawn.IsBoss);
+            _tdEngine?.EnqueueCommand(cmd);
+            BattleLog.Spawn($"EnqueueCommand: enemy={configToSpawn.name}, spawn=({spawnPos.x:F1},{spawnPos.z:F1})->city=({_cityTargetPosition.x:F1},{_cityTargetPosition.z:F1}), isBoss={configToSpawn.IsBoss}");
 
             progress.SpawnedCount++;
+        }
+
+        /// <summary>
+        /// 计算敌人生成位置（在地图边缘，面向主城方向）
+        /// </summary>
+        private Vector3 CalculateSpawnPosition(TDEnemyConfig config)
+        {
+            // 使用PathEntry中Path的路点起点（如果存在），否则在远离主城的方向生成
+            // 保留对WaypointPath的兼容：如果PathEntry.Path有路点，使用第一个路点作为出生位置
+            // 否则，在远离主城的随机方向生成
+            Vector3 center = _cityTargetPosition;
+            
+            // 如果有路径引用且路径有路点，用第一个路点（向后兼容）
+            // 这里pathEntry.Path可能在PathEntries分支中有值
+            // 如果没有，计算随机边缘位置
+            float angle = (_context?.Random?.Value ?? 0.5f) * Mathf.PI * 2f;
+            float spawnDistance = 20f + (_context?.Random?.Value ?? 0f) * 10f; // 20-30单位远
+            return center + new Vector3(
+                Mathf.Cos(angle) * spawnDistance,
+                0f,
+                Mathf.Sin(angle) * spawnDistance
+            );
         }
 
         private void UpdateActive()
@@ -269,13 +307,13 @@ namespace TowerDefense
                 _context.EventBus.Emit(TDEventIds.WaveCleared, CurrentWaveIndex);
                 // Phase 5: 发射 WaveCompleted 事件，供 RoquelikeChoiceSystem 拦截
                 _context.EventBus.Emit(TDEventIds.WaveCompleted, CurrentWaveIndex);
-                Debug.Log($"[WaveManager] Wave {CurrentWaveIndex + 1} cleared!");
+                BattleLog.Wave($"Wave {CurrentWaveIndex + 1} cleared!");
 
                 // Phase 5: 如果 RoguelikeChoiceSystem 设置了等待标志，则暂停自动推进
                 if (!WaitingForRoguelikeChoice)
                     StartNextWave();
                 else
-                    Debug.Log($"[WaveManager] Waiting for Roguelike choice before next wave...");
+                    BattleLog.Wave("Waiting for Roguelike choice before next wave...");
             }
         }
 

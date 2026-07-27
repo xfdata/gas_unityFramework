@@ -95,6 +95,9 @@ using UnityEditor.SceneManagement;
     [DisallowMultipleComponent]
     public sealed class UIBindNode : MonoBehaviour
     {
+        [SerializeField, HideInInspector]
+        private string _bindingId;
+
         [Tooltip("导出字段名。为空则使用 GameObject 名。建议 PascalCase，例如 BtnClose / TxtTitle。")]
         public string BindName;
 
@@ -109,6 +112,8 @@ using UnityEditor.SceneManagement;
 
         [TextArea]
         public string Comment;
+        public string BindingId => _bindingId;
+
 
         public string Key
         {
@@ -120,7 +125,36 @@ using UnityEditor.SceneManagement;
                 return UIBindNameUtility.ToSafeIdentifier(gameObject.name);
             }
         }
+#if UNITY_EDITOR
+        public string EnsureBindingIdInEditor()
+        {
+            if (string.IsNullOrWhiteSpace(_bindingId))
+            {
+                _bindingId = Guid.NewGuid().ToString("N");
+                EditorUtility.SetDirty(this);
+            }
+
+            return _bindingId;
+        }
+
+        public void ApplySchemaInEditor(UIViewBindingSchema schema)
+        {
+            if (schema == null)
+                throw new ArgumentNullException(nameof(schema));
+
+            schema.EnsureStableId();
+            _bindingId = schema.StableId;
+            BindName = schema.Key;
+            Export = schema.Export;
+            IsSubBinder = schema.IsSubBinder;
+            NestedBinderTypeName = schema.NestedBinderTypeName;
+            EditorUtility.SetDirty(this);
+        }
+
+        private void OnValidate() => EnsureBindingIdInEditor();
+#endif
     }
+
 
     // ============================================================
     // 2. Serialized Data
@@ -140,6 +174,7 @@ using UnityEditor.SceneManagement;
         public string Key;
         public string Path;
         public string MainAlias;
+        public string BindingId;
 
         public bool IsSubBinder;
         public string NestedBinderTypeName;
@@ -163,6 +198,7 @@ using UnityEditor.SceneManagement;
         public string Key { get; }
         public string Path { get; }
         public string MainAlias { get; }
+        public string BindingId { get; }
         public bool IsSubBinder { get; }
         public string NestedBinderTypeName { get; }
         public GameObject GameObject { get; }
@@ -175,6 +211,7 @@ using UnityEditor.SceneManagement;
             Key = item.Key;
             Path = item.Path;
             MainAlias = item.MainAlias;
+            BindingId = item.BindingId;
             IsSubBinder = item.IsSubBinder;
             NestedBinderTypeName = item.NestedBinderTypeName;
             GameObject = item.GameObject;
@@ -558,7 +595,7 @@ using UnityEditor.SceneManagement;
             if (GUILayout.Button("Generate AI Partial View Binding"))
             {
                 bind.RefreshBindingsInEditor(true);
-                AIGeneratedUIViewCodeGenerator.Generate(bind);
+                UIViewPartialBindingCodeGenerator.Generate(bind);
             }
         }
     }
@@ -596,7 +633,7 @@ using UnityEditor.SceneManagement;
                     CSharpUIBindCodeGenerator.GenerateRecursive(rootBinder);
 
                 if (rootBinder.AutoGenerateViewBindingsOnPrefabSave)
-                    AIGeneratedUIViewCodeGenerator.GenerateRecursive(rootBinder);
+                    UIViewPartialBindingCodeGenerator.GenerateRecursive(rootBinder);
             }
             else
             {
@@ -606,7 +643,7 @@ using UnityEditor.SceneManagement;
                     if (binder.AutoGenerateOnPrefabSave)
                         CSharpUIBindCodeGenerator.Generate(binder);
                     if (binder.AutoGenerateViewBindingsOnPrefabSave)
-                        AIGeneratedUIViewCodeGenerator.Generate(binder);
+                        UIViewPartialBindingCodeGenerator.Generate(binder);
                 }
             }
         }
@@ -620,30 +657,33 @@ using UnityEditor.SceneManagement;
     {
         public static void GenerateRecursive(CSharpUIBindBehaviour root)
         {
+            var changed = false;
             var binders = root.GetComponentsInChildren<CSharpUIBindBehaviour>(true);
             foreach (var binder in binders)
             {
                 if (binder.AutoGenerateOnPrefabSave)
-                    Generate(binder);
+                    changed |= Generate(binder, false);
             }
+
+            UIGeneratedCodeWriter.RefreshIfChanged(changed);
         }
 
-        public static void Generate(CSharpUIBindBehaviour bind)
+        public static bool Generate(CSharpUIBindBehaviour bind, bool refreshAssetDatabase = true)
         {
             if (bind == null)
-                return;
+                return false;
 
             bind.RefreshBindingsInEditor(false);
 
             var folder = bind.GetGeneratedCodeFolderInEditor();
-            if (!Directory.Exists(folder))
-                Directory.CreateDirectory(folder);
-
             var code = BuildBinderCode(bind, bind.GeneratedNamespace, bind.BinderClassName);
             var path = Path.Combine(folder, bind.BinderClassName + ".g.cs");
-            File.WriteAllText(path, code, Encoding.UTF8);
-            AssetDatabase.Refresh();
-            Debug.Log($"[CSharpUIBindCodeGenerator] Generated: {path}", bind);
+            var changed = UIGeneratedCodeWriter.WriteIfChanged(path, code);
+            if (changed)
+                Debug.Log($"[CSharpUIBindCodeGenerator] Generated: {path}", bind);
+            if (refreshAssetDatabase)
+                UIGeneratedCodeWriter.RefreshIfChanged(changed);
+            return changed;
         }
 
         private static string BuildBinderCode(CSharpUIBindBehaviour bind, string ns, string className)

@@ -3,11 +3,24 @@ using System.Collections.Generic;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
+/// <summary>
+/// How a TagQuery evaluates its node list against a tag or container.
+/// Serialized values: All=0, Any=1, None=2 (formerly misnamed NotAll=2).
+/// </summary>
 public enum TagQueryOp : byte
 {
-    All,
-    Any,
-    NotAll,
+    /// <summary>Every listed tag must match / be present.</summary>
+    All = 0,
+
+    /// <summary>At least one listed tag must match / be present.</summary>
+    Any = 1,
+
+    /// <summary>
+    /// None of the listed tags may match / be present.
+    /// Typical for BlockedTags: fail if any blocked tag exists.
+    /// (Previously misnamed <c>NotAll</c>; serialized value remains 2.)
+    /// </summary>
+    None = 2,
 }
 
 [Serializable]
@@ -84,7 +97,7 @@ public class TagQuery
                 return false;
             }
 
-            case TagQueryOp.NotAll:
+            case TagQueryOp.None:
             {
                 for (int i = 0; i < nodes.Count; i++)
                 {
@@ -132,7 +145,7 @@ public class TagQuery
                 return false;
             }
 
-            case TagQueryOp.NotAll:
+            case TagQueryOp.None:
             {
                 for (int i = 0; i < nodes.Count; i++)
                 {

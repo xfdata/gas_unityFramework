@@ -52,6 +52,14 @@ Ability and effect definitions use `TagQuery` fields:
 
 Use tags for state gates such as attacking, dead, immune, shielded, stunned, cooldown, or ability-specific blocking.
 
+**Tag ownership is data-driven.** Read the `gameplay-tags` skill before adding or inventing tags.
+
+- **Only modify Database assets** for tag definitions; then **Generate** (`Tools/GAS/GameplayTags/Generate …` or `GameplayTagCodeGenerator.BuildGameplayTags`).
+- Consume only generated fields (`CombatGameplayTags.*`, `GameplayTags.*`).
+- Never `new GameplayTag(...)` in hand-written code or hand-edit `*Def.gen.cs`.
+- Missing tag → Database path → Generate → static field. No temporary tags.
+- Blocked tag queries use `TagQueryOp.None`.
+
 ## Catalogs And Ids
 
 When granting or activating by id, make sure `GameplayDefinitionCatalog` contains the new `GameplayAbilityDefinition` or `GameplayEffectDefinition`.

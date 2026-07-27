@@ -250,6 +250,8 @@ namespace BattleFoundation
             if (Phase != EBattlePhase.Running && Phase != EBattlePhase.Paused && Phase != EBattlePhase.Replaying)
                 return;
 
+            Debug.LogWarning($"[BattleEndDebug] EndBattle called! result={result}, Phase(before)={Phase}, FrameIndex={FrameIndex}, ElapsedTime={ElapsedTime:F2}s. Game Over.");
+
             if (Recorder?.IsRecording == true)
                 Recorder.RecordFrame(FrameRecordData.Create(FrameIndex, ElapsedTime, Context, ReplayAdapter));
             Recorder?.StopRecording(result);
