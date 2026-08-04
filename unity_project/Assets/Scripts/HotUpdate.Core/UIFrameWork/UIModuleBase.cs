@@ -49,16 +49,7 @@ public abstract class UIModuleBase : IDisposable
     protected UIViewBinder B
     {
         get => _binder;
-        set
-        {
-            _binder = value;
-
-            if (_binder?.Source != null)
-                UIViewAutoBind.Bind(this, _binder.Source.transform);
-
-            if (_binder != null && this is IUIViewGeneratedBinding generatedBinding)
-                generatedBinding.BindGeneratedUI(_binder);
-        }
+        set => _binder = value;
     }
 
     protected UIObjectRef Get(string key) => B.Get(key);

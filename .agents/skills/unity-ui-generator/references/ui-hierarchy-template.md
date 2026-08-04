@@ -5,7 +5,7 @@ Always print the hierarchy and schema binding contract before generating files.
 ## Full-Screen View
 
 ```text
-XxxView [RectTransform stretch, Canvas, GraphicRaycaster, CSharpUIBindBehaviour]
+XxxView [RectTransform stretch, Canvas, GraphicRaycaster, UIViewBindingAdapterSelector, CSharpUIBindBehaviour]
   img_Background [Image, raycastTarget=false]
   ContentRoot [RectTransform stretch]
     Header [RectTransform]
@@ -22,7 +22,7 @@ Use framework root safe-area adaptation. Add a visual `SafeArea` grouping node o
 Reuse `Assets/Prefabs/UI/Common/Popup_Node.prefab` when possible:
 
 ```text
-XxxView [RectTransform stretch, Canvas, GraphicRaycaster, CSharpUIBindBehaviour]
+XxxView [RectTransform stretch, Canvas, GraphicRaycaster, UIViewBindingAdapterSelector, CSharpUIBindBehaviour]
   Popup_Node [common prefab or nested binder]
     Image_Bg [Image]
     Text_Title [TextMeshProUGUI]

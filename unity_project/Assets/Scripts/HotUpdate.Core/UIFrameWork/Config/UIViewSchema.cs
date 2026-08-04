@@ -19,6 +19,8 @@ public sealed class UIViewSchema : ScriptableObject
     public string ViewClassName;
     public string ViewNamespace;
     public string AddressablesGroup = "Prefabs_UI";
+    [Tooltip("Primary runtime binding adapter. Empty uses the framework default.")]
+    public string BindingAdapterId = UIViewBindingAdapterIds.SchemaGenerated;
     public bool GeneratePartialViewBindings;
     [HideInInspector] public int LastCompilerVersion;
     [HideInInspector] public string LastCompiledHash;

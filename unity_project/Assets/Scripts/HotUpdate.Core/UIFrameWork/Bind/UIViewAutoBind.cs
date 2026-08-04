@@ -53,6 +53,12 @@ public static class UIViewAutoBind
             BindField(target, root, field);
     }
 
+
+
+    public static bool HasBindings(object target)
+    {
+        return target != null && GetBindableFields(target.GetType()).Length > 0;
+    }
     private static FieldInfo[] GetBindableFields(Type type)
     {
         if (FieldCache.TryGetValue(type, out var cached))

@@ -16,19 +16,21 @@ public abstract class ViewBase : UIModuleBase
         private bool _rootLayoutCaptured;
         private Transform _blurTransform;
 
-        internal void BindView(UIWindow window, GameObject go, UIViewBinder binder)
+        internal void BindView(UIWindow window, GameObject go)
         {
             Window = window;
             GameObject = go;
             Transform = go.transform;
             RectTransform = Transform as RectTransform;
 
-            if (binder != null)
-                B = binder;
-            else
-                UIViewAutoBind.Bind(this, Transform);
+            UIViewBindingAdapters.Bind(this, go);
 
             OnBind();
+
+        }
+        internal void SetBinderInternal(UIViewBinder binder)
+        {
+            B = binder;
         }
 
         protected virtual void OnBind()

@@ -22,9 +22,21 @@ Each exported schema binding requires:
 
 Node names may change. Keep Key and StableId unchanged unless intentionally breaking the contract.
 
+## Adapter Boundary
+
+`UIWindow` delegates page binding to `UIViewBindingAdapters`; it does not inspect a concrete binder component.
+
+- Implement `IUIViewBindingAdapter` for a new binding scheme.
+- A `Resolve` adapter supplies the one primary `UIViewBinder`; use `UIViewBindingAdapterSelector.PreferredAdapterId` or `UIViewSchema.BindingAdapterId` to select it.
+- An `Enhance` adapter may add generated partial fields or an explicitly retained compatibility layer, but must not replace a resolved binder.
+- Keep `schema-generated` as the default resolver. `legacy-attributes` is an enhancer for existing `[UI]` fields only.
+- Register a project/plugin adapter during bootstrap with a stable ASCII `AdapterId`; do not edit `UIWindow` or `ViewBase` to add it.
+
+
 ## Preferred Access
 
 Use generated binder/partial members or cached refs:
+
 
 ```csharp
 private UIButtonRef _btnSend;

@@ -336,11 +336,9 @@ public sealed class UIWindow : UIModuleBase
 
     private ViewBase CreateViewModule(Type viewType, GameObject gameObject)
     {
-        var bind = gameObject.GetComponent<CSharpUIBindBehaviour>();
-        var binder = bind != null ? UIViewBinderFactory.Create(viewType, bind) : null;
         var view = (ViewBase)Activator.CreateInstance(viewType);
 
-        view.BindView(this, gameObject, binder);
+        view.BindView(this, gameObject);
         RegisterChild(view);
         return view;
     }

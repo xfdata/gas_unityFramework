@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`UIViewSchema` is the structured contract accepted from AI or automation. It owns View configuration, generated output settings, Addressables group, and binding declarations. It does not replace the visual prefab hierarchy generator.
+`UIViewSchema` is the structured contract accepted from AI or automation. It owns View configuration, generated output settings, binding-adapter selection, Addressables group, and binding declarations. It does not replace the visual prefab hierarchy generator.
 
 ## Required Fields
 
@@ -11,6 +11,7 @@
 - `PrefabPath`: existing `Assets/.../XxxView.prefab` path.
 - `GeneratedFolder`, `GeneratedNamespace`, `BinderClassName`, `ViewClassName`, and `ViewNamespace`.
 - `AddressablesGroup`: normally `Prefabs_UI`.
+- `BindingAdapterId`: normally `schema-generated`; choose a registered resolver only when a page deliberately uses another binding contract.
 - Every binding: StableId, Key, RelativePath, required component types, and sub-binder metadata.
 
 ## AI Boundary

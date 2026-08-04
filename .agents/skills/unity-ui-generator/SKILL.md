@@ -38,13 +38,14 @@ Do not start by writing only View logic.
 
 ## Hard Rules
 
-- Reuse `UIRuntime`, `UIWindow`, `ViewBase`, `UIModuleBase`, `UIViewConfigTable`, masks, and blur services.
+- Reuse `UIRuntime`, `UIWindow`, `ViewBase`, `UIModuleBase`, `UIViewConfigTable`, masks, blur services, and `UIViewBindingAdapters`.
 - For new or AI-assisted UI, use `UIViewSchema` as the binding/config contract.
 - Use an Editor script and `PrefabUtility.SaveAsPrefabAsset` to create visual hierarchy.
 - Never edit prefab, config-table, Addressables, or schema YAML by hand.
 - Never let AI-generated C# become the source from which bindings are inferred. Do not use the legacy regex import path for new UI.
 - Never create a parallel window manager, root Canvas manager, mask system, or asset loader.
 - Never construct an entire View hierarchy at runtime.
+- Never make `UIWindow` or `ViewBase` depend directly on a new binding implementation. Add an `IUIViewBindingAdapter`; use a resolver for the primary source and an enhancer only for additive behavior.
 - Keep generated `.g.cs` files generator-owned; keep business behavior in handwritten View files.
 - Do not use runtime `GameObject.Find`, repeated `Transform.Find`, or uncached `GetComponentsInChildren`.
 
@@ -53,8 +54,8 @@ Do not start by writing only View logic.
 1. Inspect nearby View, prefab, schema, and common-prefab patterns.
 2. Print the required hierarchy and binding plan.
 3. Create or update the handwritten `XxxView.cs`. Declare it `partial` when partial bindings are enabled.
-4. Create/update an Editor prefab generator. Add root `Canvas`, `GraphicRaycaster`, and `CSharpUIBindBehaviour`; add `UIBindNode` only to exported nodes; save with `PrefabUtility.SaveAsPrefabAsset`.
-5. Create/update `XxxViewSchema.asset` through Unity Editor APIs. Populate explicit binding Keys, StableIds, relative paths, and required component types.
+4. Create/update an Editor prefab generator. Add root `Canvas`, `GraphicRaycaster`, `UIViewBindingAdapterSelector`, and `CSharpUIBindBehaviour`; add `UIBindNode` only to exported nodes; save with `PrefabUtility.SaveAsPrefabAsset`.
+5. Create/update `XxxViewSchema.asset` through Unity Editor APIs. Populate explicit binding Keys, StableIds, relative paths, required component types, and the primary `BindingAdapterId`.
 6. Call `UIViewSchemaCompiler.Compile(schema)`. It synchronizes binder settings, config, Addressables, stable IDs, and generated code.
 7. Run `UIViewFrameworkValidator.Validate(schema)` or `Tools/UI Schema/Validate All`.
 8. Compile both runtime and Editor assemblies. For lifecycle changes, run focused UI EditMode tests.

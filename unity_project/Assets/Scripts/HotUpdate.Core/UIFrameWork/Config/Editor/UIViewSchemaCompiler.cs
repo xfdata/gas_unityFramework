@@ -145,6 +145,8 @@ public static class UIViewSchemaCompiler
         if (string.IsNullOrWhiteSpace(schema.AddressablesGroup))
             schema.AddressablesGroup = "Prefabs_UI";
 
+        if (string.IsNullOrWhiteSpace(schema.BindingAdapterId))
+            schema.BindingAdapterId = UIViewBindingAdapterIds.SchemaGenerated;
         foreach (var binding in schema.Bindings)
             binding?.EnsureStableId();
 
@@ -180,6 +182,11 @@ public static class UIViewSchemaCompiler
             root.AddComponent<Canvas>();
         if (root.GetComponent<GraphicRaycaster>() == null)
             root.AddComponent<GraphicRaycaster>();
+
+        var adapterSelector = root.GetComponent<UIViewBindingAdapterSelector>();
+        if (adapterSelector == null)
+            adapterSelector = root.AddComponent<UIViewBindingAdapterSelector>();
+        adapterSelector.PreferredAdapterId = schema.BindingAdapterId;
 
         var binder = root.GetComponent<CSharpUIBindBehaviour>();
         if (binder == null)
