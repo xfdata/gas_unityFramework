@@ -24,6 +24,7 @@ public static class GameplayTagCodeGenerator
     private static readonly Regex GeneratedTagLineRegex = new Regex(
         @"new\s+GameplayTag\s*\(\s*Domain\s*,\s*0x(?<value>[0-9A-Fa-f]+)u\s*,\s*0x(?<mask>[0-9A-Fa-f]+)u\s*\)\s*;\s*//\s*@Tag:(?<path>.+)$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly HashSet<string> CSharpKeywords = new HashSet<string>(StringComparer.Ordinal) { "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new", "null", "object", "operator", "out", "override", "params", "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while", "add", "alias", "ascending", "async", "await", "by", "descending", "dynamic", "equals", "from", "get", "global", "group", "into", "join", "let", "nameof", "on", "orderby", "partial", "remove", "select", "set", "unmanaged", "value", "var", "when", "where", "yield" };
 
     [MenuItem("Tools/GAS/GameplayTags/Generate All Databases")]
     public static void GenerateAllDatabasesMenu()
@@ -116,6 +117,7 @@ public static class GameplayTagCodeGenerator
 
         var tree = BuildTree(db);
         ValidateStableIds(tree);
+        ValidateGeneratedFieldNames(tree);
 
         string code = GenerateCode(tree, className, db.Domain);
 
@@ -254,7 +256,7 @@ public static class GameplayTagCodeGenerator
         if (node.Parent != null)
         {
             BuildValueAndMask(node, out uint value, out uint mask);
-            string field = node.FullPath.Replace(".", "_");
+            string field = ToGeneratedFieldName(node.FullPath);
             list.Add((domain, library, node.FullPath, field, value, mask));
         }
 
@@ -395,6 +397,29 @@ public static class GameplayTagCodeGenerator
         ValidateRecursive(root);
     }
 
+
+    private static void ValidateGeneratedFieldNames(TagNode root)
+    {
+        var fieldPaths = new Dictionary<string, string>(StringComparer.Ordinal);
+        ValidateGeneratedFieldNamesRecursive(root, fieldPaths);
+    }
+
+    private static void ValidateGeneratedFieldNamesRecursive(TagNode node, Dictionary<string, string> fieldPaths)
+    {
+        foreach (var child in node.Children.Values)
+        {
+            string fieldName = ToGeneratedFieldName(child.FullPath);
+            if (fieldPaths.TryGetValue(fieldName, out var existingPath))
+            {
+                throw new InvalidOperationException(
+                    $"GameplayTag generated field collision: '{existingPath}' and '{child.FullPath}' both map to '{fieldName}'.");
+            }
+
+            fieldPaths.Add(fieldName, child.FullPath);
+            ValidateGeneratedFieldNamesRecursive(child, fieldPaths);
+        }
+    }
+
     private static void ValidateRecursive(TagNode node)
     {
         var used = new HashSet<int>();
@@ -450,7 +475,7 @@ public static class GameplayTagCodeGenerator
 
         BuildValueAndMask(node, out uint value, out uint mask);
 
-        string fieldName = node.FullPath.Replace(".", "_");
+        string fieldName = ToGeneratedFieldName(node.FullPath);
 
         sb.AppendLine(
             $"{ind}public static readonly GameplayTag {fieldName} = new GameplayTag(Domain, 0x{value:X8}u, 0x{mask:X8}u); // @Tag:{node.FullPath}");
@@ -532,6 +557,45 @@ public static class GameplayTagCodeGenerator
             return cmp != 0 ? cmp : string.CompareOrdinal(a.path, b.path);
         });
 
+        var restored = new List<(string path, int siblingId)>(parsed.Count);
+        var knownPaths = new HashSet<string>(StringComparer.Ordinal);
+        var siblingIdsByParent = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+
+        for (int i = 0; i < parsed.Count; i++)
+        {
+            var item = parsed[i];
+            if (!TryExtractSiblingId(item.path, item.value, item.mask, out int siblingId, out var extractError))
+                throw new InvalidOperationException($"Restore validation failed: {item.path}, {extractError}");
+
+            if (!GameplayTagDatabase.IsValidTagPath(item.path, out var pathError))
+                throw new InvalidOperationException($"Restore validation failed: {item.path}, {pathError}");
+
+            if (!knownPaths.Add(item.path))
+                throw new InvalidOperationException($"Restore validation failed: duplicate path {item.path}");
+
+            string parent = GameplayTagDatabase.GetParentPath(item.path);
+            if (!siblingIdsByParent.TryGetValue(parent, out var siblingIds))
+            {
+                siblingIds = new HashSet<int>();
+                siblingIdsByParent.Add(parent, siblingIds);
+            }
+
+            if (!siblingIds.Add(siblingId))
+            {
+                throw new InvalidOperationException(
+                    $"Restore validation failed: sibling id collision under '{GameplayTagDatabase.FormatParent(parent)}': {siblingId}");
+            }
+
+            restored.Add((item.path, siblingId));
+        }
+
+        for (int i = 0; i < restored.Count; i++)
+        {
+            string parent = GameplayTagDatabase.GetParentPath(restored[i].path);
+
+            if (!string.IsNullOrEmpty(parent) && !knownPaths.Contains(parent))
+                throw new InvalidOperationException($"Restore validation failed: missing parent {parent}");
+        }
         Undo.RecordObject(db, "Restore Gameplay Tags from Code");
 
         db.ClearTags();
@@ -575,8 +639,7 @@ public static class GameplayTagCodeGenerator
             return false;
         }
 
-        int shift = 24 - (depth - 1) * 8;
-        siblingId = (int)((value >> shift) & 0xFFu);
+        siblingId = GameplayTagEncoding.GetSiblingId(value, depth);
 
         if (siblingId < 1 || siblingId > GameplayTagDatabase.MaxSiblingId)
         {
@@ -585,7 +648,7 @@ public static class GameplayTagCodeGenerator
         }
 
         // Soft-check: reconstructed value/mask for this node path depth should match mask's deepest byte.
-        uint expectedMaskByte = 0xFFu << shift;
+        uint expectedMaskByte = GameplayTagEncoding.GetLevelByteMask(depth);
         if ((mask & expectedMaskByte) == 0)
         {
             error = $"mask=0x{mask:X8} 与路径深度不匹配: {path}";
@@ -614,19 +677,16 @@ public static class GameplayTagCodeGenerator
         if (path.Count > GameplayTagDatabase.MaxDepth)
             throw new InvalidOperationException($"GameplayTag 层级超过 {GameplayTagDatabase.MaxDepth} 层: {node.FullPath}");
 
-        int shift = 24;
-
-        foreach (var item in path)
+        for (int i = 0; i < path.Count; i++)
         {
+            var item = path[i];
             if (item.Id < 1 || item.Id > GameplayTagDatabase.MaxSiblingId)
             {
                 throw new InvalidOperationException(
                     $"非法 siblingId: {item.FullPath}={item.Id}");
             }
 
-            value |= ((uint)item.Id & 0xFFu) << shift;
-            mask |= 0xFFu << shift;
-            shift -= 8;
+            GameplayTagEncoding.EncodeSibling(ref value, ref mask, item.Id, i + 1);
         }
     }
 
@@ -661,7 +721,14 @@ public static class GameplayTagCodeGenerator
         }
 
         string result = sb.ToString();
-        return string.IsNullOrEmpty(result) ? fallback : result;
+        if (string.IsNullOrEmpty(result))
+            return fallback;
+        return CSharpKeywords.Contains(result) ? "_" + result : result;
+    }
+
+    private static string ToGeneratedFieldName(string path)
+    {
+        return ToCSharpIdentifier(path.Replace(".", "_"), "Tag");
     }
 
     private static string FormatParent(string parentPath)

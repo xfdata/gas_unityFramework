@@ -117,7 +117,7 @@ public static class GameplayTagOdinUtility
 
     public static ulong MakeKey(GameplayTag tag)
     {
-        return ((ulong)(byte)tag.Domain << 32) | tag.Value;
+        return GameplayTagEncoding.MakeDomainValueKey(tag.Domain, tag.Value);
     }
 
     private static void EnsureCache()

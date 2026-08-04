@@ -36,6 +36,8 @@ public sealed class GameplayTagRetiredId
     public string parentPath = "";
     public int siblingId;
     public string lastPath = "";
+    public int encodedValue;
+    public int encodedMask;
 }
 
 /// <summary>
@@ -54,13 +56,18 @@ public readonly struct GameplayTagSiblingSlotInfo
     public readonly int SiblingId;
     public readonly string LastPath;
     public readonly bool IsRecycled;
+    public readonly uint EncodedValue;
+    public readonly uint EncodedMask;
+    public bool HasEncodedTag => EncodedMask != 0;
 
-    public GameplayTagSiblingSlotInfo(string parentPath, int siblingId, string lastPath, bool isRecycled)
+    public GameplayTagSiblingSlotInfo(string parentPath, int siblingId, string lastPath, bool isRecycled, uint encodedValue = 0, uint encodedMask = 0)
     {
         ParentPath = parentPath ?? string.Empty;
         SiblingId = siblingId;
         LastPath = lastPath ?? string.Empty;
         IsRecycled = isRecycled;
+        EncodedValue = encodedValue;
+        EncodedMask = encodedMask;
     }
 
     public string DisplayParent => string.IsNullOrEmpty(ParentPath) ? "<root>" : ParentPath;
@@ -69,7 +76,7 @@ public readonly struct GameplayTagSiblingSlotInfo
 [CreateAssetMenu(menuName = "GAS/GameplayTagDatabase")]
 public sealed class GameplayTagDatabase : ScriptableObject
 {
-    public const int MaxDepth = 4;
+    public const int MaxDepth = GameplayTagEncoding.MaxLevels;
     public const int MaxSiblingId = 255;
 
     [SerializeField]
@@ -237,7 +244,9 @@ public sealed class GameplayTagDatabase : ScriptableObject
                 item.parentPath,
                 item.siblingId,
                 item.lastPath,
-                isRecycled: false));
+                isRecycled: false,
+                encodedValue: unchecked((uint)item.encodedValue),
+                encodedMask: unchecked((uint)item.encodedMask)));
         }
 
         result.Sort(CompareSlots);
@@ -377,11 +386,19 @@ public sealed class GameplayTagDatabase : ScriptableObject
                 if (ContainsRetired(parent, id))
                     continue;
 
+                if (!TryEncodeSiblingSlot(parent, id, out uint encodedValue, out uint encodedMask))
+                {
+                    Debug.LogWarning($"Unable to preserve historical GameplayTag encoding for retired slot {FormatParent(parent)}/{id}.");
+                    continue;
+                }
+
                 retiredIds.Add(new GameplayTagRetiredId
                 {
                     parentPath = parent,
                     siblingId = id,
-                    lastPath = "(hole)"
+                    lastPath = "(hole)",
+                    encodedValue = unchecked((int)encodedValue),
+                    encodedMask = unchecked((int)encodedMask)
                 });
                 added++;
             }
@@ -501,7 +518,22 @@ public sealed class GameplayTagDatabase : ScriptableObject
         if (removedEntries.Count == 0)
             return false;
 
+
+        var encodedByPath = new Dictionary<string, (uint value, uint mask)>(removedEntries.Count, StringComparer.Ordinal);
+        for (int i = 0; i < removedEntries.Count; i++)
+        {
+            var removed = removedEntries[i];
+            if (!TryEncodeExistingPath(removed.path, out uint value, out uint mask))
+            {
+                Debug.LogError($"Unable to preserve retired GameplayTag encoding: {removed.path}");
+                return false;
+            }
+
+            encodedByPath.Add(removed.path, (value, mask));
+        }
+
         entries.RemoveAll(e => IsSameOrChild(tag, e.path));
+
 
         for (int i = 0; i < removedEntries.Count; i++)
         {
@@ -513,7 +545,8 @@ public sealed class GameplayTagDatabase : ScriptableObject
 
             if (!IsSiblingIdTaken(parent, removed.siblingId, ignorePath: null))
             {
-                UpsertRetired(parent, removed.siblingId, removed.path);
+                var encoded = encodedByPath[removed.path];
+                UpsertRetired(parent, removed.siblingId, removed.path, encoded.value, encoded.mask);
             }
 
             // Drop retired/recycled records under deleted subtree parents that no longer exist.
@@ -839,6 +872,52 @@ public sealed class GameplayTagDatabase : ScriptableObject
         return false;
     }
 
+    private bool TryEncodeExistingPath(string path, out uint value, out uint mask)
+    {
+        value = 0;
+        mask = 0;
+
+        if (!IsValidTagPath(path, out _))
+            return false;
+
+        var parts = path.Split('.');
+        string fullPath = string.Empty;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            fullPath = i == 0 ? parts[i] : fullPath + "." + parts[i];
+            if (!TryGetSiblingId(fullPath, out int siblingId))
+                return false;
+
+            GameplayTagEncoding.EncodeSibling(ref value, ref mask, siblingId, i + 1);
+        }
+
+        return true;
+    }
+
+    private bool TryEncodeSiblingSlot(string parentPath, int siblingId, out uint value, out uint mask)
+    {
+        value = 0;
+        mask = 0;
+
+        if (siblingId < 1 || siblingId > MaxSiblingId)
+            return false;
+
+        parentPath = NormalizeTag(parentPath ?? string.Empty);
+        int depth = 1;
+        if (!string.IsNullOrEmpty(parentPath))
+        {
+            if (!TryEncodeExistingPath(parentPath, out value, out mask))
+                return false;
+
+            depth = parentPath.Split('.').Length + 1;
+            if (depth > MaxDepth)
+                return false;
+        }
+
+        GameplayTagEncoding.EncodeSibling(ref value, ref mask, siblingId, depth);
+        return true;
+    }
+
     private int CountLiveSiblings(string parentPath)
     {
         int live = 0;
@@ -902,7 +981,7 @@ public sealed class GameplayTagDatabase : ScriptableObject
         });
     }
 
-    private void UpsertRetired(string parentPath, int siblingId, string lastPath)
+    private void UpsertRetired(string parentPath, int siblingId, string lastPath, uint encodedValue, uint encodedMask)
     {
         parentPath = NormalizeTag(parentPath ?? string.Empty);
 
@@ -912,6 +991,8 @@ public sealed class GameplayTagDatabase : ScriptableObject
                 retiredIds[i].siblingId == siblingId)
             {
                 retiredIds[i].lastPath = lastPath ?? string.Empty;
+                retiredIds[i].encodedValue = unchecked((int)encodedValue);
+                retiredIds[i].encodedMask = unchecked((int)encodedMask);
                 return;
             }
         }
@@ -920,7 +1001,9 @@ public sealed class GameplayTagDatabase : ScriptableObject
         {
             parentPath = parentPath,
             siblingId = siblingId,
-            lastPath = lastPath ?? string.Empty
+            lastPath = lastPath ?? string.Empty,
+            encodedValue = unchecked((int)encodedValue),
+            encodedMask = unchecked((int)encodedMask)
         });
 
         SortRetired();

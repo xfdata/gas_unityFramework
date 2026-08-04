@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
 using UnityEngine;
 
 /// <summary>
@@ -76,6 +78,30 @@ public static class GameplayTagReferenceScanner
         return true;
     }
 
+    public static bool TryBuildTagForRetiredSlot(
+        GameplayTagDatabase db,
+        GameplayTagSiblingSlotInfo slot,
+        out GameplayTag tag,
+        out string error)
+    {
+        tag = GameplayTag.None;
+        error = null;
+
+        if (slot.HasEncodedTag)
+        {
+            tag = new GameplayTag(db.Domain, slot.EncodedValue, slot.EncodedMask);
+            return tag.IsValid;
+        }
+
+        return TryBuildTagForRetiredSlot(
+            db,
+            slot.ParentPath,
+            slot.SiblingId,
+            slot.LastPath,
+            out tag,
+            out error);
+    }
+
     public static List<Hit> FindReferences(
         GameplayTagDomain domain,
         uint value,
@@ -102,6 +128,12 @@ public static class GameplayTagReferenceScanner
                     break;
                 }
 
+
+                if (path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                {
+                    ScanSceneReferences(path, domain, value, mask, matchExactMask, maxHits, hits);
+                    continue;
+                }
                 UnityEngine.Object[] assets;
                 try
                 {
@@ -145,12 +177,12 @@ public static class GameplayTagReferenceScanner
 
                         if (d != domain)
                             continue;
-                        if (v != value)
+                        if (matchExactMask ? v != value : (v & mask) != value)
                             continue;
                         if (matchExactMask && m != mask)
                             continue;
 
-                        // Hierarchy-safe: any serialized tag whose exact value equals recycled encoding.
+                        // Reusing a parent id also changes the meaning of every serialized descendant.
                         hits.Add(new Hit(path, obj.name, it.propertyPath, new GameplayTag(d, v, m)));
                         if (hits.Count >= maxHits)
                             break;
@@ -188,6 +220,47 @@ public static class GameplayTagReferenceScanner
         return all;
     }
 
+    public static bool TryFindReferencesForRetiredSlots(
+        GameplayTagDatabase db,
+        IReadOnlyList<GameplayTagSiblingSlotInfo> slots,
+        out List<Hit> hits,
+        out string error,
+        int maxHitsPerSlot = 32)
+    {
+        hits = new List<Hit>();
+        error = null;
+
+        if (db == null)
+        {
+            error = "GameplayTagDatabase is null.";
+            return false;
+        }
+
+        if (slots == null)
+            return true;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            var slot = slots[i];
+            if (!TryBuildTagForRetiredSlot(db, slot, out var tag, out var buildError))
+            {
+                error = $"Cannot safely validate recycled slot {slot.DisplayParent}/{slot.SiblingId}: {buildError}";
+                return false;
+            }
+
+            var slotHits = FindReferences(
+                tag.Domain,
+                tag.Value,
+                tag.Mask,
+                matchExactMask: false,
+                maxHits: maxHitsPerSlot);
+
+            hits.AddRange(slotHits);
+        }
+
+        return true;
+    }
+
     public static string FormatHits(IReadOnlyList<Hit> hits, int maxLines = 20)
     {
         if (hits == null || hits.Count == 0)
@@ -221,7 +294,6 @@ public static class GameplayTagReferenceScanner
             return false;
         }
 
-        int shift = 24;
         string full = "";
         for (int i = 0; i < parts.Length; i++)
         {
@@ -251,9 +323,7 @@ public static class GameplayTagReferenceScanner
                 return false;
             }
 
-            value |= ((uint)id & 0xFFu) << shift;
-            mask |= 0xFFu << shift;
-            shift -= 8;
+            GameplayTagEncoding.EncodeSibling(ref value, ref mask, id, i + 1);
         }
 
         return true;
@@ -277,7 +347,7 @@ public static class GameplayTagReferenceScanner
             return false;
         }
 
-        int shift = 24;
+        int depth = 1;
         if (!string.IsNullOrEmpty(parentPath))
         {
             var parts = parentPath.Split('.');
@@ -297,17 +367,85 @@ public static class GameplayTagReferenceScanner
                     return false;
                 }
 
-                value |= ((uint)id & 0xFFu) << shift;
-                mask |= 0xFFu << shift;
-                shift -= 8;
+                GameplayTagEncoding.EncodeSibling(ref value, ref mask, id, depth);
+                depth++;
             }
         }
 
-        value |= ((uint)siblingId & 0xFFu) << shift;
-        mask |= 0xFFu << shift;
+        GameplayTagEncoding.EncodeSibling(ref value, ref mask, siblingId, depth);
         return true;
     }
 
+
+    private static void ScanSerializedObject(UnityEngine.Object obj, string path, GameplayTagDomain domain, uint value, uint mask, bool matchExactMask, int maxHits, List<Hit> hits)
+    {
+        var so = new SerializedObject(obj);
+        var it = so.GetIterator();
+        bool enter = true;
+
+        while (it.NextVisible(enter) && hits.Count < maxHits)
+        {
+            enter = true;
+            if (it.propertyType != SerializedPropertyType.Generic || it.type != "GameplayTag")
+                continue;
+
+            enter = false;
+            var domainProp = it.FindPropertyRelative("domain");
+            var valueProp = it.FindPropertyRelative("value");
+            var maskProp = it.FindPropertyRelative("mask");
+            if (domainProp == null || valueProp == null || maskProp == null)
+                continue;
+
+            var serializedDomain = (GameplayTagDomain)domainProp.intValue;
+            uint serializedValue = unchecked((uint)valueProp.intValue);
+            uint serializedMask = unchecked((uint)maskProp.intValue);
+
+            if (serializedDomain != domain)
+                continue;
+            if (matchExactMask ? serializedValue != value : (serializedValue & mask) != value)
+                continue;
+            if (matchExactMask && serializedMask != mask)
+                continue;
+
+            hits.Add(new Hit(path, obj.name, it.propertyPath, new GameplayTag(serializedDomain, serializedValue, serializedMask)));
+        }
+    }
+
+    private static void ScanSceneReferences(string path, GameplayTagDomain domain, uint value, uint mask, bool matchExactMask, int maxHits, List<Hit> hits)
+    {
+        var scene = SceneManager.GetSceneByPath(path);
+        bool closeScene = false;
+
+        try
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                closeScene = true;
+            }
+
+            var roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                var components = roots[i].GetComponentsInChildren<Component>(true);
+                for (int c = 0; c < components.Length; c++)
+                {
+                    ScanSerializedObject(components[c], path, domain, value, mask, matchExactMask, maxHits, hits);
+                    if (hits.Count >= maxHits)
+                        return;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Failed to scan GameplayTag references in scene '{path}': {e.Message}");
+        }
+        finally
+        {
+            if (closeScene && scene.IsValid())
+                EditorSceneManager.CloseScene(scene, true);
+        }
+    }
     private static List<string> CollectAssetPaths()
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -326,6 +464,7 @@ public static class GameplayTagReferenceScanner
 
         Add("t:ScriptableObject");
         Add("t:Prefab");
+        Add("t:Scene");
 
         var list = new List<string>(set);
         list.Sort(StringComparer.OrdinalIgnoreCase);

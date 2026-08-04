@@ -270,18 +270,16 @@ public sealed class GameplayTagRecycleWindow : EditorWindow
         if (selectedKeys.Count == 0)
             return;
 
-        var slots = new List<(string parentPath, int siblingId, string lastPath)>();
+        var slots = new List<GameplayTagSiblingSlotInfo>();
         var retired = database.GetRetiredSlots(null);
-        var lastByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+        var slotByKey = new Dictionary<string, GameplayTagSiblingSlotInfo>(StringComparer.Ordinal);
         for (int i = 0; i < retired.Count; i++)
-            lastByKey[MakeKey(retired[i].ParentPath, retired[i].SiblingId)] = retired[i].LastPath;
+            slotByKey[MakeKey(retired[i].ParentPath, retired[i].SiblingId)] = retired[i];
 
         foreach (string key in selectedKeys)
         {
-            if (!TryParseKey(key, out string parent, out int id))
-                continue;
-            lastByKey.TryGetValue(key, out var last);
-            slots.Add((parent, id, last ?? string.Empty));
+            if (slotByKey.TryGetValue(key, out var slot))
+                slots.Add(slot);
         }
 
         if (!TryRecycleWithReferenceCheck(slots))
@@ -304,9 +302,7 @@ public sealed class GameplayTagRecycleWindow : EditorWindow
             return;
         }
 
-        var slots = new List<(string parentPath, int siblingId, string lastPath)>(retired.Count);
-        for (int i = 0; i < retired.Count; i++)
-            slots.Add((retired[i].ParentPath, retired[i].SiblingId, retired[i].LastPath));
+        var slots = new List<GameplayTagSiblingSlotInfo>(retired);
 
         if (!TryRecycleWithReferenceCheck(slots))
             return;
@@ -317,12 +313,21 @@ public sealed class GameplayTagRecycleWindow : EditorWindow
     }
 
     private bool TryRecycleWithReferenceCheck(
-        List<(string parentPath, int siblingId, string lastPath)> slots)
+        List<GameplayTagSiblingSlotInfo> slots)
     {
         if (slots == null || slots.Count == 0)
             return false;
 
-        var hits = GameplayTagReferenceScanner.FindReferencesForRetiredSlots(database, slots);
+        if (!GameplayTagReferenceScanner.TryFindReferencesForRetiredSlots(
+                database,
+                slots,
+                out var hits,
+                out var scanError))
+        {
+            EditorUtility.DisplayDialog("Recycle Blocked", scanError, "OK");
+            return false;
+        }
+
         if (hits.Count > 0)
         {
             string body =
@@ -356,7 +361,7 @@ public sealed class GameplayTagRecycleWindow : EditorWindow
 
         var recycleList = new List<(string parentPath, int siblingId)>(slots.Count);
         for (int i = 0; i < slots.Count; i++)
-            recycleList.Add((slots[i].parentPath, slots[i].siblingId));
+            recycleList.Add((slots[i].ParentPath, slots[i].SiblingId));
 
         Undo.RecordObject(database, "Recycle Sibling IDs");
         int count = database.RecycleRetiredIds(recycleList, out var error);

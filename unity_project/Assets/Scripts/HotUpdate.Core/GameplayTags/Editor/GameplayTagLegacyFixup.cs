@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Repairs serialized GameplayTags that have value/mask but Domain=None (pre-Domain assets).
@@ -83,6 +85,19 @@ public static class GameplayTagLegacyFixup
                     break;
                 }
 
+                if (path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sceneStats = ProcessScene(path, dryRun, lookup);
+                    scannedObjects += sceneStats.ScannedObjects;
+                    legacyFound += sceneStats.LegacyFound;
+                    fixedCount += sceneStats.FixedCount;
+                    ambiguousCount += sceneStats.AmbiguousCount;
+                    unresolvedCount += sceneStats.UnresolvedCount;
+                    MergeSamples(fixedSamples, sceneStats.FixedSamples, 12);
+                    MergeSamples(ambiguousSamples, sceneStats.AmbiguousSamples, 8);
+                    MergeSamples(unresolvedSamples, sceneStats.UnresolvedSamples, 8);
+                    continue;
+                }
                 UnityEngine.Object[] assets;
                 try
                 {
@@ -277,6 +292,177 @@ public static class GameplayTagLegacyFixup
         return true;
     }
 
+    private sealed class SceneFixupStats
+    {
+        public int ScannedObjects;
+        public int LegacyFound;
+        public int FixedCount;
+        public int AmbiguousCount;
+        public int UnresolvedCount;
+        public readonly List<string> FixedSamples = new List<string>(12);
+        public readonly List<string> AmbiguousSamples = new List<string>(8);
+        public readonly List<string> UnresolvedSamples = new List<string>(8);
+    }
+
+    private static SceneFixupStats ProcessScene(
+        string path,
+        bool dryRun,
+        Dictionary<ulong, List<LookupEntry>> lookup)
+    {
+        var stats = new SceneFixupStats();
+        var scene = SceneManager.GetSceneByPath(path);
+        bool openedByFixup = false;
+        bool sceneTouched = false;
+
+        try
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                openedByFixup = true;
+            }
+
+            var roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                var components = roots[i].GetComponentsInChildren<Component>(true);
+                for (int c = 0; c < components.Length; c++)
+                {
+                    var component = components[c];
+                    if (component == null)
+                        continue;
+
+                    if (ProcessSceneComponent(component, path, dryRun, lookup, stats))
+                        sceneTouched = true;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Failed to scan legacy GameplayTags in scene '{path}': {e.Message}");
+        }
+        finally
+        {
+            if (!dryRun && sceneTouched && scene.IsValid())
+            {
+                EditorSceneManager.MarkSceneDirty(scene);
+                if (openedByFixup)
+                {
+                    if (!EditorSceneManager.SaveScene(scene))
+                        Debug.LogError($"Failed to save scene after legacy GameplayTag fixup: {path}");
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"Legacy GameplayTags were modified in loaded scene '{path}'. Save the scene to persist the fix.");
+                }
+            }
+
+            if (openedByFixup && scene.IsValid())
+                EditorSceneManager.CloseScene(scene, true);
+        }
+
+        return stats;
+    }
+
+    private static bool ProcessSceneComponent(
+        Component component,
+        string path,
+        bool dryRun,
+        Dictionary<ulong, List<LookupEntry>> lookup,
+        SceneFixupStats stats)
+    {
+        stats.ScannedObjects++;
+        var so = new SerializedObject(component);
+        var iterator = so.GetIterator();
+        bool enterChildren = true;
+        bool touched = false;
+
+        while (iterator.NextVisible(enterChildren))
+        {
+            enterChildren = true;
+            if (iterator.propertyType != SerializedPropertyType.Generic || iterator.type != "GameplayTag")
+                continue;
+
+            enterChildren = false;
+            var domainProp = iterator.FindPropertyRelative("domain");
+            var valueProp = iterator.FindPropertyRelative("value");
+            var maskProp = iterator.FindPropertyRelative("mask");
+            if (domainProp == null || valueProp == null || maskProp == null)
+                continue;
+
+            int domain = domainProp.intValue;
+            int value = valueProp.intValue;
+            int mask = maskProp.intValue;
+            if (domain != (int)GameplayTagDomain.None || mask == 0)
+                continue;
+
+            stats.LegacyFound++;
+            uint encodedValue = unchecked((uint)value);
+            uint encodedMask = unchecked((uint)mask);
+            ulong key = MakeValueMaskKey(encodedValue, encodedMask);
+
+            if (!lookup.TryGetValue(key, out var candidates) || candidates.Count == 0)
+            {
+                stats.UnresolvedCount++;
+                if (stats.UnresolvedSamples.Count < 8)
+                {
+                    stats.UnresolvedSamples.Add(
+                        $"{path} :: {component.name}.{iterator.propertyPath}  value=0x{encodedValue:X8} mask=0x{encodedMask:X8}");
+                }
+
+                continue;
+            }
+
+            if (candidates.Count > 1)
+            {
+                stats.AmbiguousCount++;
+                if (stats.AmbiguousSamples.Count < 8)
+                {
+                    var names = new StringBuilder();
+                    for (int i = 0; i < candidates.Count; i++)
+                    {
+                        if (i > 0)
+                            names.Append(" | ");
+                        names.Append(candidates[i].DisplayName);
+                    }
+
+                    stats.AmbiguousSamples.Add(
+                        $"{path} :: {component.name}.{iterator.propertyPath} -> {names}");
+                }
+
+                continue;
+            }
+
+            var resolved = candidates[0].Tag;
+            if (!dryRun)
+            {
+                domainProp.intValue = (int)resolved.Domain;
+                touched = true;
+            }
+
+            stats.FixedCount++;
+            if (stats.FixedSamples.Count < 12)
+            {
+                stats.FixedSamples.Add(
+                    $"{path} :: {component.name}.{iterator.propertyPath} -> {candidates[0].DisplayName}");
+            }
+        }
+
+        if (touched)
+        {
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(component);
+        }
+
+        return touched;
+    }
+
+    private static void MergeSamples(List<string> destination, List<string> source, int maxCount)
+    {
+        for (int i = 0; i < source.Count && destination.Count < maxCount; i++)
+            destination.Add(source[i]);
+    }
     private static List<string> CollectAssetPaths()
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -307,6 +493,7 @@ public static class GameplayTagLegacyFixup
 
         AddGuids("t:ScriptableObject");
         AddGuids("t:Prefab");
+        AddGuids("t:Scene");
 
         var list = new List<string>(set);
         list.Sort(StringComparer.OrdinalIgnoreCase);
@@ -396,7 +583,7 @@ public static class GameplayTagLegacyFixup
 
     private static ulong MakeValueMaskKey(uint value, uint mask)
     {
-        return ((ulong)value << 32) | mask;
+        return GameplayTagEncoding.MakeValueMaskKey(value, mask);
     }
 }
 #endif

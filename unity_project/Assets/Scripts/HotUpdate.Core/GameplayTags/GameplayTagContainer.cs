@@ -152,6 +152,40 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
         RemoveTag(tag, includeChildren: true, removeAllStacks: true);
     }
 
+    /// <summary>
+    /// Collects every exact tag currently present that is <paramref name="parent"/> itself
+    /// or a descendant (same hierarchy matching as <see cref="HasTag"/>).
+    /// Allocates a new list; for hot paths use
+    /// <see cref="GetMatchingTags(GameplayTag, List{GameplayTag})"/> instead.
+    /// </summary>
+    public List<GameplayTag> GetMatchingTags(GameplayTag parent)
+    {
+        var results = new List<GameplayTag>(8);
+        GetMatchingTags(parent, results);
+        return results;
+    }
+
+    /// <summary>
+    /// Fills <paramref name="results"/> (cleared first) with exact tags matching
+    /// <paramref name="parent"/>. Same semantics as
+    /// <see cref="GetMatchingTags(GameplayTag)"/>.
+    /// </summary>
+    public void GetMatchingTags(GameplayTag parent, List<GameplayTag> results)
+    {
+        EnsureRuntime();
+
+        if (results == null)
+            return;
+
+
+        if (!IsValidTag(parent))
+        {
+            results.Clear();
+            return;
+        }
+        CollectMatchingExactTags(parent, results);
+    }
+
     public bool HasTag(GameplayTag query)
     {
         EnsureRuntime();
@@ -160,6 +194,43 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
             return false;
 
         return matchedTagCount.TryGetValue(MakeCountKey(query), out int count) && count > 0;
+    }
+
+    /// <summary>
+    /// Hierarchy presence: true only when every tag in <paramref name="tags"/>
+    /// (each matched as a subtree) is present. Empty list is treated as true,
+    /// matching the empty-nodes behavior of <see cref="TagQueryOp.All"/>.
+    /// </summary>
+    public bool HasAllTags(params GameplayTag[] tags)
+    {
+        if (tags == null || tags.Length == 0)
+            return true;
+
+        for (int i = 0; i < tags.Length; i++)
+        {
+            if (!HasTag(tags[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Hierarchy presence: true when at least one tag in <paramref name="tags"/>
+    /// (matched as a subtree) is present. Empty list is treated as false.
+    /// </summary>
+    public bool HasAnyTag(params GameplayTag[] tags)
+    {
+        if (tags == null || tags.Length == 0)
+            return false;
+
+        for (int i = 0; i < tags.Length; i++)
+        {
+            if (HasTag(tags[i]))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>Exact stack count for this tag (not hierarchy).</summary>
@@ -177,7 +248,9 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
     {
         EnsureRuntime();
 
-        // 空容器视为匹配所有（与 TagQuery 行为一致）
+        // WARNING: Empty container matches everything (GAS convention: no restriction).
+        // This is consistent with TagQuery behavior. Ensure the container is populated
+        // when you intend actual filtering.
         if (tags == null || tags.Count == 0)
             return true;
 
@@ -222,6 +295,26 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
             default:
                 throw new ArgumentOutOfRangeException(nameof(oper), oper, null);
         }
+    }
+
+    /// <summary>
+    /// Evaluates a <see cref="TagQuery"/> against this container. Convenience for
+    /// <c>query.Match(this)</c>. Prefer constructing via <see cref="TagQuery.AllOf"/> /
+    /// <see cref="TagQuery.AnyOf"/> / <see cref="TagQuery.NoneOf"/>.
+    /// <para>
+    /// <b>WARNING:</b> A null or empty-nodes query always returns <c>true</c>
+    /// (GAS convention). Ensure your TagQuery has actual nodes when you intend
+    /// to filter.
+    /// </para>
+    /// </summary>
+    /// <example>
+    /// <c>container.Matches(TagQuery.AnyOf(tagA, tagB))</c>
+    /// </example>
+    public bool Matches(TagQuery query)
+    {
+        if (query == null)
+            return true;
+        return query.Match(this);
     }
 
     public void Clear()
@@ -459,16 +552,15 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
             return;
 
         ulong removedKey = MakeCountKey(tags[index]);
-        int last = tags.Count - 1;
 
-        if (index != last)
+        // Shift remaining elements left to keep serialization order stable.
+        for (int i = index + 1; i < tags.Count; i++)
         {
-            var moved = tags[last];
-            tags[index] = moved;
-            serializedIndex[MakeCountKey(moved)] = index;
+            tags[i - 1] = tags[i];
+            serializedIndex[MakeCountKey(tags[i])] = i - 1;
         }
 
-        tags.RemoveAt(last);
+        tags.RemoveAt(tags.Count - 1);
         serializedIndex.Remove(removedKey);
     }
 
@@ -488,8 +580,8 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
                 delta,
                 notify);
 
-            mask <<= 8;
-            mask &= 0xFFFFFF00u;
+            mask <<= GameplayTagEncoding.BitsPerLevel;
+            mask &= GameplayTagEncoding.AncestorMask;
         }
     }
 
@@ -532,8 +624,10 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
         try
         {
-            // No snapshot allocation; null callbacks are skipped (unregistered mid-notify).
-            for (int i = 0; i < listeners.Count; i++)
+            // Listeners added during a callback observe future changes only. Removals are
+            // tombstoned while notifying, so the initial range stays safe to iterate.
+            int listenerCount = listeners.Count;
+            for (int i = 0; i < listenerCount; i++)
             {
                 var listener = listeners[i];
                 if (listener.Callback == null)
@@ -601,6 +695,21 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
         other.EnsureRuntime();
 
+
+        if (ReferenceEquals(this, other))
+        {
+            if (removeAllStacks)
+            {
+                Clear();
+                return;
+            }
+
+            // Removing changes the source list, so retain a stable snapshot for self-removal.
+            var snapshot = new List<GameplayTag>(tags);
+            for (int i = 0; i < snapshot.Count; i++)
+                RemoveTagInternal(snapshot[i], removeAllStacks: false);
+            return;
+        }
         var source = other.tags;
         for (int i = 0; i < source.Count; i++)
         {
@@ -610,11 +719,6 @@ public class GameplayTagContainer : ISerializationCallbackReceiver
 
     private static ulong MakeCountKey(GameplayTag tag)
     {
-        return MakeCountKey(tag.Domain, tag.Value);
-    }
-
-    private static ulong MakeCountKey(GameplayTagDomain domain, uint value)
-    {
-        return ((ulong)(byte)domain << 32) | value;
+        return GameplayTagEncoding.MakeDomainValueKey(tag.Domain, tag.Value);
     }
 }

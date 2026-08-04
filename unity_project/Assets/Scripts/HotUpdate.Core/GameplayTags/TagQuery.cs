@@ -9,7 +9,14 @@ using UnityEngine;
 /// </summary>
 public enum TagQueryOp : byte
 {
-    /// <summary>Every listed tag must match / be present.</summary>
+    /// <summary>
+    /// Every listed tag must match / be present.
+    /// <para>
+    /// <b>WARNING:</b> An empty node list always matches (returns <c>true</c>).
+    /// This follows the GAS convention that "no requirements = no restriction".
+    /// Use a non-empty list when you actually want filtering.
+    /// </para>
+    /// </summary>
     All = 0,
 
     /// <summary>At least one listed tag must match / be present.</summary>
@@ -60,6 +67,24 @@ public class TagQuery
             : new List<GameplayTag>();
     }
 
+    /// <summary>All tags must be present (match / hierarchy).</summary>
+    public static TagQuery AllOf(params GameplayTag[] tags)
+    {
+        return new TagQuery(tags, TagQueryOp.All);
+    }
+
+    /// <summary>At least one tag must be present.</summary>
+    public static TagQuery AnyOf(params GameplayTag[] tags)
+    {
+        return new TagQuery(tags, TagQueryOp.Any);
+    }
+
+    /// <summary>No listed tag may be present (typical for BlockedTags).</summary>
+    public static TagQuery NoneOf(params GameplayTag[] tags)
+    {
+        return new TagQuery(tags, TagQueryOp.None);
+    }
+
     public bool Match(GameplayTagContainer container)
     {
         return Match(container, operation);
@@ -67,6 +92,9 @@ public class TagQuery
 
     public bool Match(GameplayTag tag)
     {
+        // WARNING: empty node list always returns true (GAS convention).
+        // Callers relying on this for "allow all" semantics must ensure
+        // the empty case is intentional.
         if (nodes == null || nodes.Count == 0)
             return true;
 
@@ -115,6 +143,7 @@ public class TagQuery
 
     public bool Match(GameplayTagContainer container, TagQueryOp oper)
     {
+        // WARNING: empty node list always returns true (GAS convention).
         if (nodes == null || nodes.Count == 0)
             return true;
 

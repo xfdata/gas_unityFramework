@@ -96,7 +96,7 @@ Default is always `force: false` (drift protected).
 // Good
 owned.AddTag(CombatGameplayTags.State_Poisoned);
 
-// Bad — never
+// Bad — never (constructor is internal: this fails to compile in business code)
 owned.AddTag(new GameplayTag(GameplayTagDomain.Combat, 0x03030000u, 0xFFFF0000u));
 ```
 
@@ -121,7 +121,7 @@ public GameplayTag StateTag;
 
 | Anti-pattern | Correct approach |
 |---|---|
-| AI writes `new GameplayTag(...)` | Database + Generate + static field |
+| AI writes `new GameplayTag(...)` | Compile error by design (ctor is `internal`; only gen files + Editor tools build tags). Use Database + Generate + static field |
 | AI edits `*Def.gen.cs` | Edit Database only → Generate |
 | AI only changes C# field names | Rename on Database → Generate → update C# references |
 | Skip Generate after asset edit | Always Generate before consuming new fields |

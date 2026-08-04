@@ -9,12 +9,14 @@ public static class GameplayTagDebug
 {
     private static Dictionary<ulong, string> pathByKey;
     private static Dictionary<ulong, string> pathByValueMask;
+    private static Dictionary<string, GameplayTag> tagByPath;
     private static bool initialized;
 
     public static void ClearCache()
     {
         pathByKey = null;
         pathByValueMask = null;
+        tagByPath = null;
         initialized = false;
     }
 
@@ -28,10 +30,10 @@ public static class GameplayTagDebug
             if (tag.IsLegacyMissingDomain)
             {
                 Ensure();
-                ulong vm = MakeValueMaskKey(tag.Value, tag.Mask);
+                ulong vm = GameplayTagEncoding.MakeValueMaskKey(tag.Value, tag.Mask);
                 if (pathByValueMask != null && pathByValueMask.TryGetValue(vm, out var legacyPath))
                     return "Legacy/" + legacyPath;
-                return tag.ToString();
+                return FormatRaw("Legacy", tag);
             }
 
             return "None";
@@ -39,11 +41,11 @@ public static class GameplayTagDebug
 
         Ensure();
 
-        ulong key = MakeDomainValueKey(tag.Domain, tag.Value);
+        ulong key = GameplayTagEncoding.MakeDomainValueKey(tag.Domain, tag.Value);
         if (pathByKey != null && pathByKey.TryGetValue(key, out var path))
             return path;
 
-        return tag.ToString();
+        return FormatRaw("Unknown", tag);
     }
 
     public static bool TryGetPath(GameplayTag tag, out string path)
@@ -53,7 +55,7 @@ public static class GameplayTagDebug
             return false;
 
         Ensure();
-        ulong key = MakeDomainValueKey(tag.Domain, tag.Value);
+        ulong key = GameplayTagEncoding.MakeDomainValueKey(tag.Domain, tag.Value);
         return pathByKey != null && pathByKey.TryGetValue(key, out path);
     }
 
@@ -63,18 +65,9 @@ public static class GameplayTagDebug
         if (string.IsNullOrEmpty(path) || domain == GameplayTagDomain.None)
             return false;
 
-        var all = GameplayTagCatalog.All;
-        for (int i = 0; i < all.Length; i++)
-        {
-            ref readonly var e = ref all[i];
-            if (e.Domain == domain && string.Equals(e.Path, path, System.StringComparison.Ordinal))
-            {
-                tag = e.ToTag();
-                return true;
-            }
-        }
-
-        return false;
+        Ensure();
+        string key = MakePathKey(domain, path);
+        return tagByPath != null && tagByPath.TryGetValue(key, out tag);
     }
 
     private static void Ensure()
@@ -83,32 +76,38 @@ public static class GameplayTagDebug
             return;
 
         initialized = true;
-        pathByKey = new Dictionary<ulong, string>(256);
-        pathByValueMask = new Dictionary<ulong, string>(256);
-
         var all = GameplayTagCatalog.All;
+        int cap = all.Length;
+        pathByKey = new Dictionary<ulong, string>(cap);
+        pathByValueMask = new Dictionary<ulong, string>(cap);
+        tagByPath = new Dictionary<string, GameplayTag>(cap);
+
         for (int i = 0; i < all.Length; i++)
         {
             ref readonly var e = ref all[i];
             string display = e.Domain + "/" + e.Path;
 
-            ulong dv = MakeDomainValueKey(e.Domain, e.Value);
+            ulong dv = GameplayTagEncoding.MakeDomainValueKey(e.Domain, e.Value);
             if (!pathByKey.ContainsKey(dv))
                 pathByKey.Add(dv, display);
 
-            ulong vm = MakeValueMaskKey(e.Value, e.Mask);
+            ulong vm = GameplayTagEncoding.MakeValueMaskKey(e.Value, e.Mask);
             if (!pathByValueMask.ContainsKey(vm))
                 pathByValueMask.Add(vm, e.Path);
+
+            string pk = MakePathKey(e.Domain, e.Path);
+            if (!tagByPath.ContainsKey(pk))
+                tagByPath.Add(pk, e.ToTag());
         }
     }
 
-    private static ulong MakeDomainValueKey(GameplayTagDomain domain, uint value)
+    private static string MakePathKey(GameplayTagDomain domain, string path)
     {
-        return ((ulong)(byte)domain << 32) | value;
+        return $"{(byte)domain}:{path}";
     }
 
-    private static ulong MakeValueMaskKey(uint value, uint mask)
+    private static string FormatRaw(string prefix, GameplayTag tag)
     {
-        return ((ulong)value << 32) | mask;
+        return $"{prefix}/{tag.Domain}:0x{tag.Value:X8}/0x{tag.Mask:X8}";
     }
 }
