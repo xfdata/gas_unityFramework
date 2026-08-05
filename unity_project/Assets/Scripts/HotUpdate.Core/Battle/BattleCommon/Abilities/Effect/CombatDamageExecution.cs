@@ -1,0 +1,76 @@
+using Framework;
+using GAS;
+using UnityEngine;
+
+namespace BattleCommon
+{
+    public static class CombatDamageKeys
+    {
+        public const int AttackFactor = 1;
+        public const int Attack = 2;
+        public const int DamageUp1 = 3;
+        public const int DamageUp2 = 4;
+        public const int HP = 5;
+        public const int MaxHP = 6;
+        public const int BlockedDamage = 7;
+        public const int FinalDamage = 8;
+    }
+
+    [CreateAssetMenu(menuName = "BattleCommon/Abilities/Execution/Damage")]
+    public class CombatDamageExecution : GameplayEffectExecution
+    {
+        public override void Execute(GameplayEffectSpec spec)
+        {
+            if (spec == null) return;
+
+            using (new AutoProfiler("BattleCommon.CombatDamageExecution.Execute"))
+            {
+                var target = (spec.Target?.AttributeOwner as IGameplayAttributeSetProvider)?.AttributeSet;
+                var source = (spec.Source?.AttributeOwner as IGameplayAttributeSetProvider)?.AttributeSet;
+                if (target == null) return;
+                if (spec.Target?.AttributeOwner is CombatActor targetActor && targetActor.Get<CombatStateComponent>() is {} tgtState && !tgtState.CanTakeDamage) return;
+                if (spec.Source?.AttributeOwner is CombatActor sourceActor && sourceActor.Get<CombatStateComponent>() is {} srcState && !srcState.CanAct) return;
+
+                float hp = target.GetAttribute(CombatAttributeIds.HP);
+                if (hp <= 0f) return;
+
+                float attack = spec.GetSetByCaller(CombatDamageKeys.Attack, source?.GetAttribute(CombatAttributeIds.Attack) ?? 0f);
+                float factor = spec.GetSetByCaller(CombatDamageKeys.AttackFactor, 1f);
+                float increases = 1f +
+                    spec.GetSetByCaller(CombatDamageKeys.DamageUp1, source?.GetAttribute(CombatAttributeIds.DamageUp1) ?? 0f) +
+                    spec.GetSetByCaller(CombatDamageKeys.DamageUp2, source?.GetAttribute(CombatAttributeIds.DamageUp2) ?? 0f);
+                float reduction = 1f -
+                    target.GetAttribute(CombatAttributeIds.DamageReduce) -
+                    target.GetAttribute(CombatAttributeIds.DamageReduce1) -
+                    target.GetAttribute(CombatAttributeIds.DamageReduce2);
+                float damage = Mathf.Max(1f,
+                    attack * factor * Mathf.Max(0f, increases) * Mathf.Max(0f, reduction) -
+                    target.GetAttribute(CombatAttributeIds.Defense) -
+                    target.GetAttribute(CombatAttributeIds.AbsoluteReduce));
+
+                damage = ApplyDamageBlock(spec, damage);
+                spec.SetByCaller(CombatDamageKeys.FinalDamage, damage);
+
+                if (damage <= 0f)
+                    return;
+
+                target.SetBaseValue(CombatAttributeIds.HP, Mathf.Max(0f, hp - damage));
+            }
+        }
+
+        private float ApplyDamageBlock(GameplayEffectSpec spec, float damage)
+        {
+            var targetActor = spec.Target?.AttributeOwner as CombatActor;
+            var ability = targetActor?.Get<CombatAbilityComponent>();
+            if (ability == null || damage <= 0f)
+                return damage;
+
+            var blockContext = new DamageBlockContext(spec, spec.Source, spec.Target, damage);
+            if (!ability.TryBlockIncomingDamage(blockContext))
+                return damage;
+
+            spec.SetByCaller(CombatDamageKeys.BlockedDamage, blockContext.BlockedDamage);
+            return blockContext.RemainingDamage;
+        }
+    }
+}
