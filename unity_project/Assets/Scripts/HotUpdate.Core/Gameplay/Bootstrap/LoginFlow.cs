@@ -15,7 +15,7 @@ public class LoginFlow
         if (skipLogin)
         {
             Debug.Log("[LoginFlow] 跳过登录界面，直接进入城市");
-            await EnterPveAsync();
+            await EnterCityAsync();
             return;
         }
 
@@ -25,10 +25,10 @@ public class LoginFlow
         await UniTask.WaitUntil(() => !_uiRuntime.IsOpen<LoginView>());
 
         Debug.Log("[LoginFlow] 登录界面关闭，进入城市");
-        await EnterPveAsync();
+        await EnterCityAsync();
     }
 
-    private async UniTask EnterPveAsync()
+    private async UniTask EnterCityAsync()
     {
         var runtime = GameplayRuntime.Instance;
         if (runtime == null)
@@ -37,7 +37,7 @@ public class LoginFlow
             return;
         }
 
-        var result = await runtime.EnterPveAsync(0, 0, true);
+        var result = await runtime.EnterCityAsync();
 
         if (!result.IsSuccess)
             Debug.LogError($"[LoginFlow] 进入城市失败: {result.Error}");

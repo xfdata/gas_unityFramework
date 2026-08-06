@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace GAS
 {
-    [CreateAssetMenu(menuName = "PVE/GAS/Gameplay Effect")]
+    [CreateAssetMenu(menuName = "GAS/Gameplay Effect")]
     public class GameplayEffectDefinition : ScriptableObject
     {
         [Header("EffectId")]

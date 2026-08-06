@@ -4,10 +4,11 @@ using UnityEngine;
 
 namespace BattleCommon
 {
-    public class CombatHealthComponent : CombatComponentBase
+    public class CombatHealthComponent : CombatComponentBase, ICombatHealthComponent
     {
         private CombatAttributeComponent _attributes;
-        private CombatActor _lastDamageSource;
+        // R2-S10：原 _lastDamageSource 死逻辑已移除（TakeDamage 删除后恒为 null）。
+        // killer 信息改由 CombatAttributeComponent.LastDamageResult 携带，死亡时按 SourceEntityId 解析。
         private bool _hasDied;
 
         public float HP
@@ -25,8 +26,9 @@ namespace BattleCommon
         public bool IsAlive => !IsDead;
         public float HPPercent => MaxHP > 0f ? HP / MaxHP : 0f;
 
-        public event Action<CombatActor> OnDeath;
-        public event Action<float, CombatActor> OnDamaged;
+        // R3-S10 修复: OnDeath 事件已移除。
+        // 死亡事件由 CombatActorSystem.Despawn 通过 EventBus 发送 ActorDiedEvent，
+        // 表现层通过 IBattlePresentationSink.OnActorDied 接收，仿真层通过 EventBus 订阅。
         public event Action<float> OnHealed;
 
         public override void Attach(BattleEntity owner)
@@ -39,25 +41,11 @@ namespace BattleCommon
         {
             base.Initialize();
             _hasDied = false;
-            _lastDamageSource = null;
             if (_attributes != null)
             {
                 _attributes.OnAttributeChanged -= OnAttributeChanged;
                 _attributes.OnAttributeChanged += OnAttributeChanged;
             }
-        }
-
-        public void TakeDamage(float rawDamage, CombatActor source)
-        {
-            if (IsDead) return;
-            if (Owner?.Get<CombatStateComponent>() is {} state && !state.CanTakeDamage) return;
-            if (source?.Get<CombatStateComponent>() is {} srcState && !srcState.CanAct) return;
-
-            float finalDamage = Mathf.Max(1f, rawDamage - (_attributes?.Defense ?? 0f));
-            _lastDamageSource = source;
-            HP -= finalDamage;
-            OnDamaged?.Invoke(finalDamage, source);
-            if (HP <= 0f) Die(source);
         }
 
         public void Heal(float amount)
@@ -81,14 +69,16 @@ namespace BattleCommon
             _hasDied = true;
             Owner.Get<CombatStateComponent>()?.MarkDead();
             Owner.Get<CombatAbilityComponent>()?.TryActivateDeathAbility(killer);
-            OnDeath?.Invoke(killer);
+            // R3-S10 修复: OnDeath?.Invoke 已移除，死亡事件由 CombatActorSystem.Despawn 通过 EventBus 发送。
         }
 
         private void OnAttributeChanged(int attributeId, float oldValue, float newValue)
         {
             if (attributeId == CombatAttributeIds.HP && oldValue > 0f && newValue <= 0f)
             {
-                Die(_lastDamageSource);
+                // R2-S10：从 LastDamageResult 解析 killer（替代原 _lastDamageSource 死逻辑）
+                var killer = ResolveKiller();
+                Die(killer);
             }
             else if (attributeId == CombatAttributeIds.HP && oldValue <= 0f && newValue > 0f)
             {
@@ -97,14 +87,30 @@ namespace BattleCommon
             }
         }
 
+        /// <summary>
+        /// 从 CombatAttributeComponent.LastDamageSourceEntityId 通过 EntityManager 解析 killer。
+        /// 替代原 _lastDamageSource 死逻辑（TakeDamage 删除后恒为 null）。
+        /// </summary>
+        private CombatActor ResolveKiller()
+        {
+            var sourceEntityId = _attributes?.LastDamageSourceEntityId ?? 0;
+            if (sourceEntityId == 0)
+                return null;
+
+            // 通过 Owner.Engine.Context.EntityManager 反查 source 实体
+            var entityManager = Owner?.Engine?.Context?.EntityManager;
+            if (entityManager == null)
+                return null;
+
+            // spec.SourceEntityId 是 long，EntityManager.GetById 接收 int，强制转换
+            return entityManager.GetById((int)sourceEntityId) as CombatActor;
+        }
+
         public override void DeactivateForPool()
         {
             if (_attributes != null)
                 _attributes.OnAttributeChanged -= OnAttributeChanged;
-            _lastDamageSource = null;
             _hasDied = false;
-            OnDeath = null;
-            OnDamaged = null;
             OnHealed = null;
             base.DeactivateForPool();
         }
@@ -113,8 +119,6 @@ namespace BattleCommon
         {
             if (_attributes != null)
                 _attributes.OnAttributeChanged -= OnAttributeChanged;
-            OnDeath = null;
-            OnDamaged = null;
             OnHealed = null;
             _attributes = null;
             base.OnDispose();

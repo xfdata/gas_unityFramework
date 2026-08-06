@@ -12,6 +12,9 @@ namespace BattleCommon
 
         public CombatActor CurrentTarget { get; private set; }
 
+        // Owner 继承自 EntityComponent，类型为 BattleEntity。需要 CombatActor 特有成员时通过 Actor 访问。
+        protected CombatActor Actor => Owner as CombatActor;
+
         public override void Attach(BattleEntity owner)
         {
             base.Attach(owner);
@@ -45,7 +48,7 @@ namespace BattleCommon
 
             var query = Owner?.Engine?.Context?.GetSystem<CombatTargetQuerySystem>();
             float range = (_attributes?.AttackRange ?? 2f) * 2f;
-            return query?.FindTarget(Owner, filter, priority, range);
+            return query?.FindTarget(Actor, filter, priority, range);
         }
 
         public override void DeactivateForPool()

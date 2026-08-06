@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace GAS
 {
     public enum GameplayEffectEventType : byte
@@ -51,6 +49,14 @@ namespace GAS
         public int ProjectileDefinitionId;
         public int MeleeDefinitionId;
 
+        // 溯源字段：触发该 Effect 的源（与 SpecId/RuntimeEffectId/AbilitySpecId 区分）
+        // - SourceAbilitySpecId：触发该 spec 的源 AbilitySpec 的 SpecId
+        // - SourceRuntimeEffectId：触发该 spec 的源 ActiveGameplayEffect 的 RuntimeEffectId
+        // 仅 Effect 相关事件（经 CreateBaseEvent 构造）从 spec 读取填充；
+        // Ability/Projectile/Melee 等源头事件本身不需要溯源，保持 0。
+        public int SourceAbilitySpecId;
+        public int SourceRuntimeEffectId;
+
         public int AttributeId;
         public float OldValue;
         public float NewValue;
@@ -59,7 +65,7 @@ namespace GAS
         public GameplayTag GameplayTag;
         public GameplayTag CueTag;
 
-        public Vector3 Position;
+        public object ContextData;
         public float Magnitude;
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Framework;
 
 namespace GAS
 {
@@ -28,9 +27,10 @@ namespace GAS
             IGameplayAttributeOwner attributeOwner,
             IGameplayEffectRuntimeContext context = null,
             GameplayDefinitionCatalog catalog = null,
-            IGameplayCueManager cueManager = null)
+            IGameplayCueManager cueManager = null,
+            IGameplayRandom random = null)
         {
-            Initialize(entityId, attributeOwner, context, catalog, cueManager);
+            Initialize(entityId, attributeOwner, context, catalog, cueManager, random);
         }
 
         public long EntityId => effectRuntime != null ? effectRuntime.EntityId : 0;
@@ -60,7 +60,8 @@ namespace GAS
             IGameplayAttributeOwner attributeOwner,
             IGameplayEffectRuntimeContext context = null,
             GameplayDefinitionCatalog catalog = null,
-            IGameplayCueManager cueManager = null)
+            IGameplayCueManager cueManager = null,
+            IGameplayRandom random = null)
         {
             if (isInitialized)
                 Dispose();
@@ -72,6 +73,12 @@ namespace GAS
             }
 
             runtimeContext = context ?? runtimeContext ?? new DefaultGameplayEffectRuntimeContext();
+
+            // The integration layer may supply a deterministic gameplay random stream.
+            if (random != null && runtimeContext is DefaultGameplayEffectRuntimeContext defaultCtx)
+            {
+                defaultCtx.SetRandom(random);
+            }
 
             if (catalog != null)
             {
@@ -384,7 +391,7 @@ namespace GAS
 
             EnsureInitialized();
 
-            using (new AutoProfiler("GAS.GameplayAbilitySystem.Tick"))
+            using (GASProfiler.Sample("GAS.GameplayAbilitySystem.Tick"))
             {
                 if (advanceRuntimeFrame)
                 {

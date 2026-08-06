@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace BattleFoundation
 {
@@ -23,7 +22,15 @@ namespace BattleFoundation
         Projectile,
     }
 
-    public class EntityComponent : Disposable
+    /// <summary>
+    /// 组件接口标记，允许 Get&lt;T&gt;() 接受接口类型而非仅 EntityComponent 子类。
+    /// L2 接口（如 ICombatHealthComponent）继承此接口后，可通过 Get&lt;ICombatHealthComponent&gt;() 查询。
+    /// </summary>
+    public interface IEntityComponent
+    {
+    }
+
+    public class EntityComponent : Disposable, IEntityComponent
     {
         public BattleEntity Owner { get; private set; }
         public bool IsActive { get; private set; } = true;
@@ -60,13 +67,8 @@ namespace BattleFoundation
 
     public abstract class BattleEntity : Disposable
     {
-        [SerializeField]
         protected int _id;
-
-        [SerializeField]
         protected EEntityCamp _camp;
-
-        [SerializeField]
         protected EEntityType _entityType;
 
         protected List<EntityComponent> _components = new List<EntityComponent>();
@@ -76,8 +78,8 @@ namespace BattleFoundation
         public EEntityCamp Camp => _camp;
         public EEntityType EntityType => _entityType;
         public virtual bool IsAlive { get; set; } = true;
-        public virtual Vector3 Position { get; set; }
-        public virtual Quaternion Rotation { get; set; }
+        public virtual Float3 Position { get; set; }
+        public virtual Float4 Rotation { get; set; }
         public BattleEngine Engine { get; set; }
 
         public void SetId(int id) => _id = id;
@@ -126,7 +128,7 @@ namespace BattleFoundation
             return true;
         }
 
-        public T Get<T>() where T : EntityComponent
+        public T Get<T>() where T : class, IEntityComponent
         {
             var type = typeof(T);
             if (_componentMap.TryGetValue(type, out var comp))
@@ -140,7 +142,7 @@ namespace BattleFoundation
             return null;
         }
 
-        public bool Has<T>() where T : EntityComponent
+        public bool Has<T>() where T : class, IEntityComponent
         {
             return Get<T>() != null;
         }
@@ -188,8 +190,8 @@ namespace BattleFoundation
             _camp = camp;
             _entityType = type;
             IsAlive = true;
-            Position = Vector3.zero;
-            Rotation = Quaternion.identity;
+            Position = Float3.zero;
+            Rotation = Float4.identity;
 
             for (int i = 0; i < _components.Count; i++)
                 _components[i].ActivateForPool(this);

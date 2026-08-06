@@ -45,7 +45,6 @@ public class GameplayRuntime : System.IDisposable
         var registry = new GameplayModeRegistry();
         registry.Register(GameplayModeId.City, ctx => new CityGameplayMode(ctx));
         registry.Register(GameplayModeId.World, ctx => new WorldGameplayMode(ctx));
-        registry.Register(GameplayModeId.Pve, ctx => new PveGameplayMode(ctx));
         return registry;
     }
 
@@ -81,26 +80,6 @@ public class GameplayRuntime : System.IDisposable
                 .Set("MapId", mapId)
                 .SetLoadingPolicy(GameplayLoadingPolicy.None)
                 .SetDebugName($"Enter World {mapId}"));
-    }
-
-    public UniTask<GameplaySwitchResult> EnterPveAsync(int chapterId, int sectionId, bool startImmediately = false)
-    {
-        var request = GameplaySwitchRequest
-            .To(GameplayModeId.Pve, GameplaySwitchReason.UserAction)
-            .Set("ChapterId", chapterId)
-            .Set("SectionId", sectionId)
-            .Set("StartImmediately", startImmediately)
-            .SetDebugName($"Enter PVE {chapterId}-{sectionId}");
-
-        return _flow.SwitchToAsync(request);
-    }
-
-    public UniTask<GameplaySwitchResult> ExitPveAsync(GameplayModeId returnMode = GameplayModeId.City)
-    {
-        return _flow.SwitchToAsync(
-            GameplaySwitchRequest
-                .To(returnMode, GameplaySwitchReason.UserAction)
-                .SetDebugName($"Exit PVE → {returnMode}"));
     }
 
     private void RegisterDebugEvents()

@@ -68,7 +68,7 @@ namespace GAS
     public interface IRangedTarget
     {
         GameplayEffectRuntime Effects { get; }
-        Vector3 Position { get; }
+        UnityEngine.Vector3 Position { get; }
         float HitRadius { get; }
         bool IsValidTarget { get; }
     }

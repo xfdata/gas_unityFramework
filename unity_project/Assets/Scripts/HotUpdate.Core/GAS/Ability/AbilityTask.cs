@@ -1,6 +1,4 @@
 using System;
-using UnityEngine;
-using Framework;
 
 namespace GAS
 {
@@ -31,7 +29,7 @@ namespace GAS
             if (!IsActive || IsFinished)
                 return;
 
-            using (new AutoProfiler("GAS.AbilityTask.Tick"))
+            using (GASProfiler.Sample("GAS.AbilityTask.Tick"))
             {
                 OnTick(deltaTime);
             }
@@ -69,7 +67,7 @@ namespace GAS
 
         protected float Duration => duration;
         protected float Elapsed => elapsed;
-        protected float TimeLeft => Mathf.Max(0f, duration - elapsed);
+        protected float TimeLeft => GameplayMath.Max(0f, duration - elapsed);
 
         public AbilityTaskWaitDelay(float duration, Action<AbilityTaskWaitDelay> onCompleted = null)
             : this(duration, 0f, onCompleted)
@@ -81,8 +79,8 @@ namespace GAS
             float elapsed,
             Action<AbilityTaskWaitDelay> onCompleted = null)
         {
-            this.duration = Mathf.Max(0f, duration);
-            this.elapsed = Mathf.Clamp(elapsed, 0f, this.duration);
+            this.duration = GameplayMath.Max(0f, duration);
+            this.elapsed = GameplayMath.Clamp(elapsed, 0f, this.duration);
             this.onCompleted = onCompleted;
         }
 

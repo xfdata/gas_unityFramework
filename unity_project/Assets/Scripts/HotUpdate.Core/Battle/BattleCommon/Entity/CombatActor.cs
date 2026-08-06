@@ -9,48 +9,65 @@ using UnityEngine.Timeline;
 
 namespace BattleCommon
 {
-    public class CombatActor : BattleEntity, IGameplayAttributeOwner, IGameplayAttributeSetProvider, ICombatTarget, IMeleeSource, IAbilityAnimationProvider
+    public class CombatActor : BattleEntity, ICombatActor, IGameplayAttributeOwner, IGameplayAttributeSetProvider, ICombatTarget, IMeleeSource, IAbilityAnimationProvider
     {
         private readonly List<IRangedTarget> _meleeTargetCache = new List<IRangedTarget>(16);
-        private AnimancerComponent _animancer;
-        private PlayableDirector _director;
-        private Vector3 _spawnPosition;
-        private Quaternion _spawnRotation = Quaternion.identity;
 
-        public GameObject GameObject { get; set; }
-        public Transform Transform { get; set; }
-        public Animator Animator { get; set; }
+        // R3-S4/S7: 纯逻辑数据字段（逻辑真相），不再读写 Transform。
+        // 表现层（ActorViewBinder）通过 IActorViewBinding.SyncTransform 接收单向投影。
+        private Float3 _position;
+        private Float4 _rotation = new Float4(0f, 0f, 0f, 1f);
+
         public ICombatAbilityServices AbilityServices { get; set; }
+
+        /// <summary>
+        /// R3-S4: 表现层绑定契约。L3 ActorViewBinder 实现此接口，
+        /// L2 通过接口下发单向指令（SyncTransform/PlayHit/PlayDeath/DestroyView 等）。
+        /// </summary>
+        public IActorViewBinding ViewBinding { get; set; }
+
+        /// <summary>
+        /// R3-S7: 攻击动画片段（ClipTransition 是 Animancer 数据类，非 Unity 引擎对象）。
+        /// 保留在 CombatActor 上供 IAbilityAnimationProvider 使用，S8 迁移到 ActorViewBinder。
+        /// </summary>
         public ClipTransition AttackClip { get; protected set; }
-        public Vector3 SpawnPosition
-        {
-            get => _spawnPosition;
-            set => _spawnPosition = value;
-        }
-        public AnimancerComponent Animancer => ResolveAnimancer();
-        public PlayableDirector Director => ResolveDirector();
+
+        // R3-S7: Unity 引擎对象通过 ViewBinding 转发，CombatActor 不再直接持有。
+        // 过渡期表现组件（ActorPresentationComponent/ActorAnimationComponent）通过这些属性访问 Unity 资源。
+        public GameObject GameObject => (ViewBinding as IActorViewResources)?.GameObject;
+        public Transform Transform => (ViewBinding as IActorViewResources)?.Transform;
+        public Animator Animator => (ViewBinding as IActorViewResources)?.Animator;
+        public AnimancerComponent Animancer => (ViewBinding as IActorViewResources)?.Animancer;
+        public PlayableDirector Director => (ViewBinding as IActorViewResources)?.Director;
+
         public virtual float HitRadius { get; protected set; } = 0.5f;
         public virtual bool IsValidTarget => IsAlive;
-        public Vector3 MeleeOrigin => Position;
-        public Vector3 MeleeForward => Transform != null ? Transform.forward : Rotation * Vector3.forward;
 
-        public override Vector3 Position
+        // R3-S4: MeleeOrigin/MeleeForward 保持 Vector3 类型（IMeleeAttackSourceProvider 契约），
+        // 内部从纯逻辑数据计算，不再读 Transform。
+        public Vector3 MeleeOrigin => new Vector3(_position.x, _position.y, _position.z);
+        public Vector3 MeleeForward => ComputeForward(_rotation);
+
+        public override Float3 Position
         {
-            get => Transform != null ? Transform.position : _spawnPosition;
+            get => _position;
             set
             {
-                _spawnPosition = value;
-                if (Transform != null) Transform.position = value;
+                _position = value;
+                ViewBinding?.SyncTransform(_position, _rotation);
             }
         }
 
-        public override Quaternion Rotation
+        // 显式实现 IRangedTarget.Position（Vector3），保持与 ProjectileRuntime 的 Vector3 体系兼容
+        Vector3 IRangedTarget.Position => new Vector3(_position.x, _position.y, _position.z);
+
+        public override Float4 Rotation
         {
-            get => Transform != null ? Transform.rotation : _spawnRotation;
+            get => _rotation;
             set
             {
-                _spawnRotation = value;
-                if (Transform != null) Transform.rotation = value;
+                _rotation = value;
+                ViewBinding?.SyncTransform(_position, _rotation);
             }
         }
 
@@ -104,6 +121,8 @@ namespace BattleCommon
 
         public virtual void BeginDeathFadeOut(float duration)
         {
+            // R3-S4: 转发到表现层绑定。
+            ViewBinding?.BeginDeathFadeOut(duration);
         }
 
         public void MoveTo(Vector3 destination)
@@ -119,8 +138,8 @@ namespace BattleCommon
         public override void DeactivateForPool()
         {
             base.DeactivateForPool();
-            _animancer = null;
-            _director = null;
+            // R3-S4: 表现侧缓存清理委托给 ViewBinding。
+            ViewBinding?.OnRecycle();
             AttackClip = null;
         }
 
@@ -148,30 +167,22 @@ namespace BattleCommon
             return clip != null && clip.Clip != null;
         }
 
-        private AnimancerComponent ResolveAnimancer()
+        // R3-S4: 从 Float4 Rotation 纯数学推导 forward 向量，不读 Transform。
+        private static Vector3 ComputeForward(Float4 r)
         {
-            if (_animancer == null && GameObject != null)
-                _animancer = GameObject.GetComponentInChildren<AnimancerComponent>();
-            return _animancer;
-        }
-
-        private PlayableDirector ResolveDirector()
-        {
-            if (_director == null && GameObject != null)
-                _director = GameObject.GetComponentInChildren<PlayableDirector>();
-            return _director;
+            float x = r.x, y = r.y, z = r.z, w = r.w;
+            return new Vector3(
+                2f * (x * z + w * y),
+                2f * (y * z - w * x),
+                1f - 2f * (x * x + y * y));
         }
 
         protected override void OnDispose()
         {
             _meleeTargetCache.Clear();
-            if (GameObject != null)
-                UnityEngine.Object.Destroy(GameObject);
-            GameObject = null;
-            Transform = null;
-            Animator = null;
-            _animancer = null;
-            _director = null;
+            // R3-S4/S7: GameObject 销毁委托给 ViewBinding。
+            ViewBinding?.DestroyView();
+            ViewBinding = null;
             AbilityServices = null;
             AttackClip = null;
             base.OnDispose();

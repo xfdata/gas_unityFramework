@@ -1,13 +1,14 @@
 using System;
 using System.Runtime.CompilerServices;
-using UnityEngine.Profiling;
 #if UWA
 using UWAShared;
 #endif
 
 namespace Framework
 {
-#if ENABLE_PROFILER        
+#if ENABLE_PROFILER
+    using UnityEngine.Profiling;
+
     public struct AutoProfiler : IDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

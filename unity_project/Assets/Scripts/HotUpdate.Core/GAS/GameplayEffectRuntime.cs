@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Framework;
 
 namespace GAS
 {
@@ -139,7 +138,7 @@ namespace GAS
             if (spec == null || spec.Asset == null)
                 return GameplayEffectApplyResult.Failed;
 
-            using (new AutoProfiler("GAS.GameplayEffectRuntime.ApplySpecToSelf"))
+            using (GASProfiler.Sample("GAS.GameplayEffectRuntime.ApplySpecToSelf"))
             {
                 var context = EnsureRuntimeContext();
 
@@ -322,7 +321,7 @@ namespace GAS
             if (deltaTime <= 0f)
                 return;
 
-            using (new AutoProfiler("GAS.GameplayEffectRuntime.Tick"))
+            using (GASProfiler.Sample("GAS.GameplayEffectRuntime.Tick"))
             {
                 var context = EnsureRuntimeContext();
 
@@ -785,8 +784,8 @@ namespace GAS
                     SpecId = spec.SpecId,
                     RuntimeEffectId = runtimeId,
                     Magnitude = magnitude,
-                    Position = spec.Position,
                     UserData = spec.UserData,
+                    ContextData = spec.ContextData,
                 };
 
                 cueManager.HandleCue(cue.CueTag, eventType, payload);
@@ -855,7 +854,10 @@ namespace GAS
                 EffectId = spec != null && spec.Asset != null ? spec.Asset.EffectId : 0,
                 SpecId = spec != null ? spec.SpecId : 0,
                 RuntimeEffectId = runtimeEffectId,
-                Position = spec != null ? spec.Position : default,
+                // 溯源字段从 spec 读取（S5 后 spec 已在 4 处填充点携带溯源信息）
+                SourceAbilitySpecId = spec != null ? spec.SourceAbilitySpecId : 0,
+                SourceRuntimeEffectId = spec != null ? spec.SourceRuntimeEffectId : 0,
+                ContextData = spec != null ? spec.ContextData : null,
             };
         }
 
@@ -947,6 +949,9 @@ namespace GAS
                         Duration = state.Duration,
                         Period = state.Period,
                         Stack = state.Stack,
+                        // 溯源字段从 state 恢复，确保回放后 spec 仍携带溯源信息
+                        SourceAbilitySpecId = state.SourceAbilitySpecId,
+                        SourceRuntimeEffectId = state.SourceRuntimeEffectId,
                     };
 
                     var active = new ActiveGameplayEffect(

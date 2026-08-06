@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Framework;
-using UnityEngine;
 
 namespace BattleFoundation
 {
@@ -9,12 +8,6 @@ namespace BattleFoundation
     {
         public const int EntityCreated = 1001;
         public const int EntityRemoved = 1002;
-        public const int EntityDied = 1003;
-        public const int DamageDealt = 2001;
-        public const int Healed = 2002;
-        public const int AbilityActivated = 3001;
-        public const int BuffApplied = 3002;
-        public const int BuffRemoved = 3003;
         public const int CommandExecuted = 4001;
         public const int PhaseChanged = 5001;
         public const int RuleTriggered = 5002;
@@ -22,6 +15,7 @@ namespace BattleFoundation
 
     public class BattleEventBus : Disposable
     {
+        private readonly IBattleLog _log;
         private sealed class HandlerSet
         {
             public readonly Type PayloadType;
@@ -80,6 +74,11 @@ namespace BattleFoundation
 
         private readonly Dictionary<int, HandlerSet> _handlers = new Dictionary<int, HandlerSet>();
 
+        public BattleEventBus(IBattleLog log = null)
+        {
+            _log = log;
+        }
+
         public void On<T>(int eventId, Action<T> handler)
         {
             if (handler == null) return;
@@ -123,7 +122,7 @@ namespace BattleFoundation
                         }
                         catch (Exception e)
                         {
-                            Debug.LogError($"[BattleEventBus] Error handling event {eventId}: {e}");
+                            _log?.Error($"[BattleEventBus] Error handling event {eventId}: {e}");
                         }
                     }
                 }

@@ -1,3 +1,4 @@
+
 namespace BattleFoundation
 {
     public interface IBattleContext
@@ -6,7 +7,7 @@ namespace BattleFoundation
         EntityManager EntityManager { get; }
         BattleEventBus EventBus { get; }
         BattleSystemManager SystemManager { get; }
-        BattleRandom Random { get; }
+        IRandom Random { get; }
 
         T AddSystem<T>(T system) where T : IBattleSystem;
         T GetSystem<T>() where T : class, IBattleSystem;

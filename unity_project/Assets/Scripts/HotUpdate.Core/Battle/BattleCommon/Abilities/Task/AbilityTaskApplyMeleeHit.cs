@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using BattleFoundation;
 
 namespace GAS
 {
@@ -37,12 +38,12 @@ namespace GAS
                 return;
             }
 
-            RecordMeleeEvent(GameplayEffectEventType.MeleeWindowStarted, 0, sourceProvider.MeleeOrigin);
+            RecordMeleeEvent(GameplayEffectEventType.MeleeWindowStarted, 0);
 
             var targets = sourceProvider.GetMeleeTargets(hitDefinition);
             ApplyTargets(targets);
 
-            RecordMeleeEvent(GameplayEffectEventType.MeleeWindowEnded, 0, sourceProvider.MeleeOrigin);
+            RecordMeleeEvent(GameplayEffectEventType.MeleeWindowEnded, 0);
             onCompleted?.Invoke(this, HitCount);
             EndTask();
         }
@@ -75,23 +76,23 @@ namespace GAS
 
                 effectSpec.SourceEntityId = AbilitySpec.SourceEntityId;
                 effectSpec.TargetEntityId = targetRuntime.EntityId;
-                effectSpec.Position = target.Position;
                 effectSpec.UserData = userData ?? target;
+                // 溯源填充：近战命中由 AbilityTask 施加，源 AbilitySpec 即 Task 所属 spec；无上游 ActiveGameplayEffect
+                effectSpec.ContextData = new BattleCommon.CombatEffectPresentationContext(
+                    new Float3(target.Position.x, target.Position.y, target.Position.z));
+                effectSpec.SourceAbilitySpecId = AbilitySpec.AbilitySpecId;
+                effectSpec.SourceRuntimeEffectId = 0;
 
                 AbilitySpec.Source.ApplySpecToTarget(effectSpec, targetRuntime);
                 HitCount++;
 
-                RecordMeleeEvent(
-                    GameplayEffectEventType.MeleeHit,
-                    targetRuntime.EntityId,
-                    target.Position);
+                RecordMeleeEvent(GameplayEffectEventType.MeleeHit, targetRuntime.EntityId);
             }
         }
 
         private void RecordMeleeEvent(
             GameplayEffectEventType eventType,
-            long targetEntityId,
-            Vector3 position)
+            long targetEntityId)
         {
             var context = AbilitySpec.RuntimeContext;
             context.RecordEvent(new GameplayEffectEvent
@@ -105,9 +106,9 @@ namespace GAS
                 AbilitySpecId = AbilitySpec.AbilitySpecId,
                 AbilityTaskId = TaskId,
                 MeleeDefinitionId = hitDefinition != null ? hitDefinition.MeleeDefinitionId : 0,
-                Position = position,
                 Magnitude = HitCount,
             });
         }
+
     }
 }

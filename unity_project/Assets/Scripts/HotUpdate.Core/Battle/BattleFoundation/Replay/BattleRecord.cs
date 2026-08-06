@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Framework;
-using UnityEngine;
 
 namespace BattleFoundation
 {
@@ -11,6 +10,11 @@ namespace BattleFoundation
         BattleEntity CreateEntity(EntitySnapshot snapshot, BattleContext context);
         void ApplyEntity(BattleEntity entity, EntitySnapshot snapshot);
         void RemoveEntity(BattleEntity entity, BattleContext context);
+
+        // R3-S2: 属性状态捕获/恢复委托，避免 BF 层直接引用 GAS 类型。
+        // 上层（BattleCommon）adapter 实现内部完成 AttributeSetState 的 Capture/Restore。
+        object CaptureAttributes(BattleEntity entity);
+        void ApplyAttributes(BattleEntity entity, object state);
     }
 
     [Serializable]
@@ -38,7 +42,7 @@ namespace BattleFoundation
             var entities = context.EntityManager.All;
             for (int i = 0; i < entities.Count; i++)
             {
-                var snapshot = EntitySnapshot.Capture(entities[i]);
+                var snapshot = EntitySnapshot.Capture(entities[i], adapter);
                 adapter?.CaptureEntity(entities[i], snapshot);
                 data.Entities.Add(snapshot);
             }
@@ -63,12 +67,15 @@ namespace BattleFoundation
         public bool IsAlive;
         public string SpawnKey;
         public string PayloadJson;
-        public AttributeSnapshot FoundationAttributes;
+        // R3-S2: 属性状态委托捕获，BF 层不再直接引用 GAS AttributeSetState。
+        // 运行时实际类型由 IBattleReplayAdapter 实现决定（GAS.AttributeSetState），
+        // BF 层以 object 透传，解除 BF→GAS 编译期依赖。
+        public object FoundationAttributes;
 
-        public Vector3 Position => new Vector3(PosX, PosY, PosZ);
-        public Quaternion Rotation => new Quaternion(RotX, RotY, RotZ, RotW);
+        public Float3 Position => new Float3(PosX, PosY, PosZ);
+        public Float4 Rotation => new Float4(RotX, RotY, RotZ, RotW);
 
-        public static EntitySnapshot Capture(BattleEntity entity)
+        public static EntitySnapshot Capture(BattleEntity entity, IBattleReplayAdapter adapter)
         {
             return new EntitySnapshot
             {
@@ -83,16 +90,19 @@ namespace BattleFoundation
                 RotZ = entity.Rotation.z,
                 RotW = entity.Rotation.w,
                 IsAlive = entity.IsAlive,
-                FoundationAttributes = entity.Get<BattleAttributeSet>()?.Snapshot(),
+                // 属性状态捕获委托给 adapter，避免 BF 层引用 GAS 类型
+                FoundationAttributes = adapter?.CaptureAttributes(entity),
             };
         }
 
-        public void ApplyBaseState(BattleEntity entity)
+        public void ApplyBaseState(BattleEntity entity, IBattleReplayAdapter adapter)
         {
             entity.Position = Position;
             entity.Rotation = Rotation;
             entity.IsAlive = IsAlive;
-            entity.Get<BattleAttributeSet>()?.RestoreSnapshot(FoundationAttributes);
+            // 属性状态恢复委托给 adapter
+            if (FoundationAttributes != null && adapter != null)
+                adapter.ApplyAttributes(entity, FoundationAttributes);
         }
     }
 
@@ -210,7 +220,7 @@ namespace BattleFoundation
             using (new AutoProfiler("BattleFoundation.BattlePlayback.Update"))
             {
                 if (!IsPlaying) return;
-                _time += Mathf.Max(0f, deltaTime);
+                _time += BattleMathF.Max(0f, deltaTime);
                 ApplyDueFrames();
             }
         }
@@ -259,7 +269,7 @@ namespace BattleFoundation
                     }
 
                     if (entity == null) continue;
-                    snapshot.ApplyBaseState(entity);
+                    snapshot.ApplyBaseState(entity, _adapter);
                     _adapter?.ApplyEntity(entity, snapshot);
                 }
             }

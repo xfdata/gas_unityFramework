@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Framework;
-using UnityEngine;
 
 namespace BattleFoundation
 {
@@ -19,8 +18,7 @@ namespace BattleFoundation
 
     public abstract class BattleEngine : Disposable
     {
-        [SerializeField]
-        protected BattleFoundationConfig _config;
+        protected IBattleLog _log;
 
         public EBattlePhase Phase { get; protected set; } = EBattlePhase.Uninitialized;
         public BattleContext Context { get; protected set; }
@@ -50,7 +48,9 @@ namespace BattleFoundation
 
         protected virtual BattleRuntimeSettings CreateRuntimeSettings()
         {
-            return _config != null ? _config.CreateRuntimeSettings() : new BattleRuntimeSettings();
+            // L0 不持有 UnityEngine ScriptableObject 配置；
+            // 子类（在 Assembly-CSharp 侧）可重写此方法注入由 BattleFoundationConfig 转换的运行时设置。
+            return new BattleRuntimeSettings();
         }
 
         public virtual void Initialize()
@@ -113,7 +113,7 @@ namespace BattleFoundation
         {
             using (new AutoProfiler("BattleFoundation.BattleEngine.UpdateFromUnity"))
             {
-                float scaledDeltaTime = Mathf.Max(0f, unityDeltaTime) * Mathf.Max(0f, TimeScale);
+                float scaledDeltaTime = BattleMathF.Max(0f, unityDeltaTime) * BattleMathF.Max(0f, TimeScale);
 
                 if (Phase == EBattlePhase.Replaying)
                 {
@@ -155,7 +155,7 @@ namespace BattleFoundation
             if (Phase != EBattlePhase.Running || IsPaused)
                 return;
 
-            TickSimulation(Mathf.Max(0f, fixedDeltaTime));
+            TickSimulation(BattleMathF.Max(0f, fixedDeltaTime));
         }
 
         public void TickTurn()
@@ -207,7 +207,7 @@ namespace BattleFoundation
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"[BattleEngine] Command execution failed: {e}");
+                    _log?.Error($"[BattleEngine] Command execution failed: {e}");
                 }
             }
         }
@@ -250,7 +250,7 @@ namespace BattleFoundation
             if (Phase != EBattlePhase.Running && Phase != EBattlePhase.Paused && Phase != EBattlePhase.Replaying)
                 return;
 
-            Debug.LogWarning($"[BattleEndDebug] EndBattle called! result={result}, Phase(before)={Phase}, FrameIndex={FrameIndex}, ElapsedTime={ElapsedTime:F2}s. Game Over.");
+            _log?.Warning($"[BattleEndDebug] EndBattle called! result={result}, Phase(before)={Phase}, FrameIndex={FrameIndex}, ElapsedTime={ElapsedTime:F2}s. Game Over.");
 
             if (Recorder?.IsRecording == true)
                 Recorder.RecordFrame(FrameRecordData.Create(FrameIndex, ElapsedTime, Context, ReplayAdapter));
@@ -360,8 +360,8 @@ namespace BattleFoundation
         private static BattleRuntimeSettings ResolveSettings(BattleRuntimeSettings settings)
         {
             var resolved = settings?.Clone() ?? new BattleRuntimeSettings();
-            resolved.FrameSyncStep = Mathf.Max(0.0001f, resolved.FrameSyncStep);
-            resolved.InitialTimeScale = Mathf.Max(0f, resolved.InitialTimeScale);
+            resolved.FrameSyncStep = BattleMathF.Max(0.0001f, resolved.FrameSyncStep);
+            resolved.InitialTimeScale = BattleMathF.Max(0f, resolved.InitialTimeScale);
             if (resolved.RandomSeed == 0)
             {
                 resolved.RandomSeed = Environment.TickCount;

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using BattleFoundation;
 using GAS;
 using UnityEngine;
 
 namespace BattleCommon
 {
-    public class CombatAbilityComponent : CombatComponentBase
+    public class CombatAbilityComponent : CombatComponentBase, ICombatAbilityComponent
     {
         private readonly List<GameplayAbilityDefinition> _initialAbilities = new List<GameplayAbilityDefinition>();
         private readonly List<GameplayAbilityDefinition> _lightAbilities = new List<GameplayAbilityDefinition>(8);
@@ -20,6 +21,18 @@ namespace BattleCommon
         public CombatAbilityRuntimeMode RuntimeMode { get; set; } = CombatAbilityRuntimeMode.FullGas;
         public bool IsDead => Owner == null || !Owner.IsAlive;
         public bool IsLightweight => RuntimeMode == CombatAbilityRuntimeMode.Lightweight;
+
+        // R3-S10: 表现层 Sink 桥接。由上层注入，用于将 GAS 事件转发到表现层单通路。
+        // null 时不转发（保证无表现层时逻辑层正常运行）。
+        public BattlePresentationSink PresentationSink { get; set; }
+
+        // R3-S10 修复: GAS 事件 per-actor 内部分发。
+        // ActorPresentationComponent 通过此事件接收 GAS 通知（不再直接订阅 GAS），
+        // CombatAbilityComponent 作为唯一 GAS 订阅点，避免重复订阅。
+        public event Action<GameplayEffectEvent> GASForwarded;
+
+        // Owner 继承自 EntityComponent，类型为 BattleEntity。需要 CombatActor 特有成员时通过 Actor 访问。
+        protected CombatActor Actor => Owner as CombatActor;
 
         public void SetInitialAbilities(IEnumerable<GameplayAbilityDefinition> abilities)
         {
@@ -38,23 +51,48 @@ namespace BattleCommon
             _lightEffects?.Dispose();
             _lightEffects = null;
 
-            var services = Owner?.AbilityServices;
+            var services = Actor?.AbilityServices;
+            var gasRuntimeContext = CreateRuntimeContext(Owner?.Engine?.Context?.Random);
             if (RuntimeMode == CombatAbilityRuntimeMode.Lightweight)
             {
                 _lightEffects = new GameplayEffectRuntime(
                     Owner?.Id ?? 0,
-                    Owner,
-                    null,
+                    Actor,
+                    gasRuntimeContext,
                     services?.GameplayCueManager);
             }
             else
             {
-                _gas = new GameplayAbilitySystem(Owner?.Id ?? 0, Owner, null, services?.AbilityCatalog,
+                _gas = new GameplayAbilitySystem(Owner?.Id ?? 0, Actor, gasRuntimeContext, services?.AbilityCatalog,
                     services?.GameplayCueManager);
+            }
+
+            // R3-S10: 订阅 GAS 事件，作为唯一订阅点。
+            // 收敛 F4 痛点：ActorPresentationComponent 不再直接订阅 GAS，由本组件统一转发。
+            // 始终订阅（不依赖 PresentationSink 是否注入），保证 per-actor 表现组件能收到事件。
+            var runtimeContext = RuntimeContext;
+            if (runtimeContext != null)
+            {
+                runtimeContext.Subscribe(GameplayEffectEventType.AbilityActivated, OnGASEventForwarded);
+                runtimeContext.Subscribe(GameplayEffectEventType.AbilityEnded, OnGASEventForwarded);
+                runtimeContext.Subscribe(GameplayEffectEventType.AttributeChanged, OnGASEventForwarded);
+                runtimeContext.Subscribe(GameplayEffectEventType.CueTriggered, OnGASEventForwarded);
             }
 
             for (int i = 0; i < _initialAbilities.Count; i++)
                 GrantAbility(_initialAbilities[i]);
+        }
+
+        /// <summary>
+        /// R3-S10: GAS 事件转发回调。作为唯一订阅点，分发给 per-actor 表现组件 + 转发到 PresentationSink。
+        /// 替代 ActorPresentationComponent 直接订阅 GAS 的并行通路。
+        /// </summary>
+        private void OnGASEventForwarded(GameplayEffectEvent evt)
+        {
+            // per-actor 内部分发（ActorPresentationComponent 等）
+            GASForwarded?.Invoke(evt);
+            // battle 级 Sink 转发（注入时才转发）
+            PresentationSink?.ForwardGASEvent(evt);
         }
 
         public void GrantAbility(GameplayAbilityDefinition ability)
@@ -73,7 +111,7 @@ namespace BattleCommon
         {
             if (RuntimeMode == CombatAbilityRuntimeMode.Lightweight)
             {
-                GrantAbility(Owner?.AbilityServices?.AbilityCatalog?.GetAbility(abilityId));
+                GrantAbility(Actor?.AbilityServices?.AbilityCatalog?.GetAbility(abilityId));
                 return;
             }
 
@@ -293,9 +331,9 @@ namespace BattleCommon
                 return false;
             }
 
-            BeginLightAbility(ability, _lightEffects, GetLightAbilityDuration(ability));
-            ApplyLightConfiguredEffects(ability, _lightEffects);
-            ApplyLightEffect(ability.SelfBornEffect, _lightEffects);
+            var abilitySpecId = BeginLightAbility(ability, _lightEffects, GetLightAbilityDuration(ability));
+            ApplyLightConfiguredEffects(ability, _lightEffects, abilitySpecId);
+            ApplyLightEffect(ability.SelfBornEffect, _lightEffects, default, null, abilitySpecId);
             return true;
         }
 
@@ -310,14 +348,14 @@ namespace BattleCommon
                 return false;
             }
 
-            BeginLightAbility(ability, targetEffects, GetLightAbilityDuration(ability));
-            ApplyLightConfiguredEffects(ability, targetEffects);
+            var abilitySpecId = BeginLightAbility(ability, targetEffects, GetLightAbilityDuration(ability));
+            ApplyLightConfiguredEffects(ability, targetEffects, abilitySpecId);
 
             if (ability is RemoteAttackAbilityDefinition remoteAbility)
-                return ActivateLightRemoteAttack(remoteAbility, target, targetEffects);
+                return ActivateLightRemoteAttack(remoteAbility, target, targetEffects, abilitySpecId);
 
             if (ability is MeleeAttackAbilityDefinition meleeAbility)
-                return ActivateLightMeleeAttack(meleeAbility);
+                return ActivateLightMeleeAttack(meleeAbility, abilitySpecId);
 
             return false;
         }
@@ -330,15 +368,15 @@ namespace BattleCommon
                 return false;
             }
 
-            BeginLightAbility(ability, killerEffects, GetLightAbilityDuration(ability));
-            ApplyLightConfiguredEffects(ability, killerEffects);
-            ApplyLightEffect(ability.SelfDeathEffect, _lightEffects);
-            ApplyLightEffect(ability.KillerEffect, killerEffects);
-            Owner?.BeginDeathFadeOut(ability.FadeOutDuration);
+            var abilitySpecId = BeginLightAbility(ability, killerEffects, GetLightAbilityDuration(ability));
+            ApplyLightConfiguredEffects(ability, killerEffects, abilitySpecId);
+            ApplyLightEffect(ability.SelfDeathEffect, _lightEffects, default, null, abilitySpecId);
+            ApplyLightEffect(ability.KillerEffect, killerEffects, default, null, abilitySpecId);
+            Actor?.BeginDeathFadeOut(ability.FadeOutDuration);
             return true;
         }
 
-        private bool ActivateLightMeleeAttack(MeleeAttackAbilityDefinition ability)
+        private bool ActivateLightMeleeAttack(MeleeAttackAbilityDefinition ability, int abilitySpecId)
         {
             if (ability.DamageEffect == null || ability.HitDefinition == null || !(Owner is IMeleeAttackSourceProvider melee))
                 return false;
@@ -360,7 +398,7 @@ namespace BattleCommon
                 if (!hitEntities.Add(targetEffects.EntityId))
                     continue;
 
-                ApplyLightEffect(ability.DamageEffect, targetEffects, target.Position, target);
+                ApplyLightEffect(ability.DamageEffect, targetEffects, target.Position, target, abilitySpecId);
                 hitCount++;
             }
 
@@ -370,7 +408,8 @@ namespace BattleCommon
         private bool ActivateLightRemoteAttack(
             RemoteAttackAbilityDefinition ability,
             CombatActor target,
-            GameplayEffectRuntime targetEffects)
+            GameplayEffectRuntime targetEffects,
+            int abilitySpecId)
         {
             if (!(Owner is IRangedAttackSourceProvider sourceProvider) ||
                 sourceProvider.ProjectileRuntime == null ||
@@ -399,6 +438,7 @@ namespace BattleCommon
                 StartPosition = sourceProvider.FirePosition,
                 UserData = target,
                 AbilityId = ability.AbilityId,
+                AbilitySpecId = abilitySpecId,
             });
 
             return handle.IsValid;
@@ -422,20 +462,24 @@ namespace BattleCommon
             return query == null || query.Match(runtime != null ? runtime.OwnedTags : null);
         }
 
-        private void BeginLightAbility(
+        private int BeginLightAbility(
             GameplayAbilityDefinition ability,
             GameplayEffectRuntime target,
             float duration)
         {
             AddActivationOwnedTags(ability);
+            // Lightweight 路径无 GameplayAbilitySpec，但仍需要一个唯一 AbilitySpecId 供溯源链路使用
+            var abilitySpecId = RuntimeContext != null ? RuntimeContext.NewAbilitySpecId() : 0;
             _lightActiveAbilities.Add(new LightweightActiveAbility
             {
                 Ability = ability,
                 Target = target,
                 EndTime = _lightTime + Mathf.Max(0.01f, duration),
+                AbilitySpecId = abilitySpecId,
             });
             RecordLightAbilityEvent(ability, target, GameplayEffectEventType.AbilityActivated);
             PlayLightAbilityAnimation(ability);
+            return abilitySpecId;
         }
 
         private void EndLightAbilityAt(int index)
@@ -502,7 +546,10 @@ namespace BattleCommon
             });
         }
 
-        private void ApplyLightConfiguredEffects(GameplayAbilityDefinition ability, GameplayEffectRuntime target)
+        private void ApplyLightConfiguredEffects(
+            GameplayAbilityDefinition ability,
+            GameplayEffectRuntime target,
+            int abilitySpecId = 0)
         {
             if (ability?.EffectsOnActivate == null)
                 return;
@@ -513,7 +560,12 @@ namespace BattleCommon
                 if (application == null || application.Effect == null)
                     continue;
 
-                ApplyLightEffect(application.Effect, ResolveLightTarget(application.TargetPolicy, target));
+                ApplyLightEffect(
+                    application.Effect,
+                    ResolveLightTarget(application.TargetPolicy, target),
+                    default,
+                    null,
+                    abilitySpecId);
             }
         }
 
@@ -535,7 +587,8 @@ namespace BattleCommon
             GameplayEffectDefinition effect,
             GameplayEffectRuntime target,
             Vector3 position = default,
-            object userData = null)
+            object userData = null,
+            int abilitySpecId = 0)
         {
             if (effect == null || _lightEffects == null || target == null)
                 return;
@@ -544,14 +597,33 @@ namespace BattleCommon
             if (spec == null)
                 return;
 
-            spec.Position = position;
             spec.UserData = userData;
+            spec.ContextData = new CombatEffectPresentationContext(new Float3(position.x, position.y, position.z));
+            // 溯源填充：abilitySpecId 由调用方透传（born/death/attack/configured 均已接入）
+            spec.SourceAbilitySpecId = abilitySpecId;
+            // SourceRuntimeEffectId = 0 是语义正确值：
+            // 该字段仅在"由另一个 ActiveGameplayEffect 触发新 spec"时填充（如 buff 周期触发/DOT），
+            // Lightweight 路径由 ability 直接施加效果，不经过 ActiveGameplayEffect，故为 0。
+            // 与 FullGas 路径的 4 个填充点（技能/近战/投射物/普攻）语义一致。
+            spec.SourceRuntimeEffectId = 0;
             _lightEffects.ApplySpecToTarget(spec, target);
+        }
+
+        private static DefaultGameplayEffectRuntimeContext CreateRuntimeContext(
+            IRandom battleRandom)
+        {
+            var context = new DefaultGameplayEffectRuntimeContext();
+            if (battleRandom != null)
+            {
+                context.SetRandom(new BattleGameplayRandomAdapter(battleRandom));
+            }
+
+            return context;
         }
 
         private float GetLightAbilityDuration(GameplayAbilityDefinition ability)
         {
-            var clip = Owner?.GetAbilityMontage(ability);
+            var clip = Actor?.GetAbilityMontage(ability);
             if (clip != null && clip.Clip != null)
                 return clip.Clip.length;
 
@@ -563,11 +635,11 @@ namespace BattleCommon
 
         private void PlayLightAbilityAnimation(GameplayAbilityDefinition ability)
         {
-            var clip = Owner?.GetAbilityMontage(ability);
+            var clip = Actor?.GetAbilityMontage(ability);
             if (clip == null || clip.Clip == null)
                 return;
 
-            var animancer = Owner?.Animancer;
+            var animancer = Actor?.Animancer;
             if (animancer == null)
                 return;
 
@@ -578,6 +650,8 @@ namespace BattleCommon
 
         public override void DeactivateForPool()
         {
+            // R3-S10: 反订阅 GAS 事件，避免 PresentationSink 收到已销毁实体的事件。
+            UnsubscribeGASEvents();
             _gas?.Dispose();
             _gas = null;
             _lightEffects?.Dispose();
@@ -590,6 +664,7 @@ namespace BattleCommon
 
         protected override void OnDispose()
         {
+            UnsubscribeGASEvents();
             _gas?.Dispose();
             _gas = null;
             _lightEffects?.Dispose();
@@ -600,11 +675,24 @@ namespace BattleCommon
             base.OnDispose();
         }
 
+        /// <summary>R3-S10: 反订阅 GAS 事件转发。</summary>
+        private void UnsubscribeGASEvents()
+        {
+            var runtimeContext = RuntimeContext;
+            if (runtimeContext == null) return;
+            runtimeContext.Unsubscribe(GameplayEffectEventType.AbilityActivated, OnGASEventForwarded);
+            runtimeContext.Unsubscribe(GameplayEffectEventType.AbilityEnded, OnGASEventForwarded);
+            runtimeContext.Unsubscribe(GameplayEffectEventType.AttributeChanged, OnGASEventForwarded);
+            runtimeContext.Unsubscribe(GameplayEffectEventType.CueTriggered, OnGASEventForwarded);
+        }
+
         private class LightweightActiveAbility
         {
             public GameplayAbilityDefinition Ability;
             public GameplayEffectRuntime Target;
             public float EndTime;
+            // Lightweight 路径无 GameplayAbilitySpec，这里分配一个真实 AbilitySpecId 用于溯源（投射物、事件等）
+            public int AbilitySpecId;
         }
     }
 }

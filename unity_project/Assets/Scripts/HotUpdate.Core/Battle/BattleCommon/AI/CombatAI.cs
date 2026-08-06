@@ -190,7 +190,7 @@ namespace BattleCommon
 
             _attackCheckTimer = 0f;
             float attackRange = Attributes?.AttackRange ?? 2f;
-            if ((Owner.Position - target.Position).sqrMagnitude > attackRange * attackRange)
+            if ((Owner.Position - target.Position).sqrMagnitude > attackRange * attackRange) // Float3 运算，sqrMagnitude 为 float
             {
                 State = CombatAIBehaviorState.Inactive;
                 return;
@@ -243,13 +243,13 @@ namespace BattleCommon
                 return;
             }
 
-            if ((Owner.Position - target.Position).sqrMagnitude > _giveUpDistanceSqr)
+            if ((Owner.Position - target.Position).sqrMagnitude > _giveUpDistanceSqr) // Float3 运算
             {
                 State = CombatAIBehaviorState.Inactive;
                 return;
             }
 
-            Movement?.MoveTo(target.Position);
+            Movement?.MoveTo(new Vector3(target.Position.x, target.Position.y, target.Position.z));
         }
 
         public override void Exit()
@@ -284,17 +284,28 @@ namespace BattleCommon
             base.Enter(target);
             _timer = 0f;
 
+            // Owner.Position / Owner.Rotation 为 Float3/Float4，需转换为 Vector3/Quaternion
+            Float3 ownerPos = Owner.Position;
+            Float3 delta = target != null ? ownerPos - target.Position : Float3.zero;
             Vector3 awayDirection = target != null
-                ? (Owner.Position - target.Position).normalized
-                : -(Owner.Rotation * Vector3.forward);
+                ? new Vector3(delta.normalized.x, delta.normalized.y, delta.normalized.z)
+                : -(new Quaternion(Owner.Rotation.x, Owner.Rotation.y, Owner.Rotation.z, Owner.Rotation.w) * Vector3.forward);
 
             if (awayDirection.sqrMagnitude < 0.01f)
             {
                 var random = Owner.Engine?.Context?.Random;
-                awayDirection = random != null ? random.InsideUnitSphere().normalized : Vector3.back;
+                if (random != null)
+                {
+                    var f3 = random.InsideUnitSphere().normalized;
+                    awayDirection = new Vector3(f3.x, f3.y, f3.z);
+                }
+                else
+                {
+                    awayDirection = Vector3.back;
+                }
             }
 
-            _destination = Owner.Position + awayDirection * Mathf.Max(1f, Profile.FleeDistance);
+            _destination = new Vector3(ownerPos.x, ownerPos.y, ownerPos.z) + awayDirection * Mathf.Max(1f, Profile.FleeDistance);
             Movement?.MoveTo(_destination);
         }
 
@@ -335,7 +346,7 @@ namespace BattleCommon
         public override void Setup(CombatActor owner, CombatAIProfile profile)
         {
             base.Setup(owner, profile);
-            _patrolCenter = owner?.Position ?? Vector3.zero;
+            _patrolCenter = owner != null ? new Vector3(owner.Position.x, owner.Position.y, owner.Position.z) : Vector3.zero;
             ResetWaypointsFromProfile();
         }
 
@@ -416,7 +427,8 @@ namespace BattleCommon
             int count = Owner.Engine.Context.Random.Range(3, 6);
             for (int i = 0; i < count; i++)
             {
-                Vector2 randomCircle = Owner.Engine.Context.Random.InsideUnitCircle() * radius;
+                var randomCircleF2 = Owner.Engine.Context.Random.InsideUnitCircle() * radius;
+                Vector2 randomCircle = new Vector2(randomCircleF2.x, randomCircleF2.y);
                 _waypoints.Add(_patrolCenter + new Vector3(randomCircle.x, 0f, randomCircle.y));
             }
         }
@@ -474,6 +486,9 @@ namespace BattleCommon
         private CombatAIThreatLevel _threatLevel;
         private Vector3 _homePosition;
 
+        // Owner 继承自 EntityComponent，类型为 BattleEntity。需要 CombatActor 特有成员时通过 Actor 访问。
+        protected CombatActor Actor => Owner as CombatActor;
+
         public CombatActor CurrentTarget => _target;
         public CombatAIThreatLevel ThreatLevel => _threatLevel;
         public CombatBehaviorBase ActiveBehavior => _activeBehavior;
@@ -495,7 +510,7 @@ namespace BattleCommon
             if (behavior == null)
                 return;
 
-            behavior.Setup(Owner, _profile);
+            behavior.Setup(Actor, _profile);
             _behaviors.Add(behavior);
             _behaviors.Sort((a, b) => a.Priority.CompareTo(b.Priority));
         }
@@ -542,7 +557,7 @@ namespace BattleCommon
         public override void Initialize()
         {
             base.Initialize();
-            _homePosition = Owner != null ? Owner.Position : Vector3.zero;
+            _homePosition = Owner != null ? new Vector3(Owner.Position.x, Owner.Position.y, Owner.Position.z) : Vector3.zero;
             _decisionTimer = 0f;
             _retargetTimer = 0f;
         }

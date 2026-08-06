@@ -61,6 +61,9 @@ namespace GAS
                 TimeLeft = TimeLeft,
                 Period = Spec != null ? Spec.Period : 0f,
                 PeriodLeft = PeriodLeft,
+                // 溯源字段从 Spec 读取，确保 Capture→Restore 后溯源链路不丢失
+                SourceAbilitySpecId = Spec != null ? Spec.SourceAbilitySpecId : 0,
+                SourceRuntimeEffectId = Spec != null ? Spec.SourceRuntimeEffectId : 0,
             };
         }
 

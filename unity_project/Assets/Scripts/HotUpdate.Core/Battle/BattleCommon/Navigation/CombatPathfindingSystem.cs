@@ -8,7 +8,7 @@ using UnityEngine.AI;
 namespace BattleCommon
 {
 
-public class CombatPathfindingSystem : Disposable, IBattleSystem
+public class CombatPathfindingSystem : global::Disposable, IBattleSystem
 {
     private IBattleContext _context;
     private NavMeshPath _cachedPath = new NavMeshPath();
@@ -144,7 +144,8 @@ public class CombatPathfindingSystem : Disposable, IBattleSystem
 
         for (int i = 0; i < 30; i++)
         {
-            Vector3 randomDirection = _context.Random.InsideUnitSphere() * radius;
+            var randomDirF3 = _context.Random.InsideUnitSphere() * radius;
+            Vector3 randomDirection = new Vector3(randomDirF3.x, randomDirF3.y, randomDirF3.z);
             randomDirection += center;
             if (NavMesh.SamplePosition(randomDirection, out var hit, radius, NavMesh.AllAreas))
             {

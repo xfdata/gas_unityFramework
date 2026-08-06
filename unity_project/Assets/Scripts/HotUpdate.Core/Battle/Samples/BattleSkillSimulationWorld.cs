@@ -8,6 +8,8 @@ namespace BattleSkillSimulation
 {
     public sealed class BattleSkillSimulationWorld : IDisposable
     {
+        private static Vector3 ToVector3(Float3 f) => new Vector3(f.x, f.y, f.z);
+
         private readonly SimulationBattleEngine _engine;
         private readonly SimulationActor _player;
         private readonly SimulationActor _npc;
@@ -16,6 +18,7 @@ namespace BattleSkillSimulation
         private readonly GameplayEffectDefinition _damageEffect;
         private readonly CombatDamageExecution _damageExecution;
         private readonly float _skillCooldown;
+        private readonly Action<ActorDiedEvent> _onActorDied;
 
         private float _nextSkillTime;
 
@@ -44,8 +47,10 @@ namespace BattleSkillSimulation
             _damageExecution = damageExecution;
             _skillCooldown = skillCooldown;
 
-            _npc.Get<CombatHealthComponent>().OnDeath += OnNpcDeath;
-            _player.Get<BattleSkillSimulationMoveComponent>()?.Face(_npc.Position);
+            // R3-S10 修复: 改为通过 EventBus 订阅 ActorDiedEvent，替代 Obsolete 的 OnDeath C# 事件。
+            _onActorDied = OnActorDied;
+            _engine.Context.EventBus.On(CombatActorEventIds.ActorDied, _onActorDied);
+            _player.Get<BattleSkillSimulationMoveComponent>()?.Face(ToVector3(_npc.Position));
         }
 
         public void Update(float deltaTime)
@@ -62,7 +67,7 @@ namespace BattleSkillSimulation
             if (inputDirection.sqrMagnitude > 0.001f)
                 movement.Move(inputDirection, deltaTime);
             else
-                movement.Face(_npc.Position);
+                movement.Face(ToVector3(_npc.Position));
         }
 
         public void CastSkill(float currentTime)
@@ -77,7 +82,7 @@ namespace BattleSkillSimulation
             }
 
             float oldHP = NpcHP;
-            _player.Get<BattleSkillSimulationMoveComponent>()?.Face(_npc.Position);
+            _player.Get<BattleSkillSimulationMoveComponent>()?.Face(ToVector3(_npc.Position));
 
             bool activated = _player.Get<CombatAbilityComponent>()?.TryActivateById(CombatAbilityIds.Skill) ?? false;
             _nextSkillTime = currentTime + _skillCooldown;
@@ -95,6 +100,8 @@ namespace BattleSkillSimulation
 
         public void Dispose()
         {
+            // R3-S10 修复: 反订阅 EventBus。
+            _engine?.Context?.EventBus?.Off(CombatActorEventIds.ActorDied, _onActorDied);
             _engine?.Dispose();
             DestroyRuntimeAsset(_skillAbility);
             DestroyRuntimeAsset(_damageEffect);
@@ -102,9 +109,13 @@ namespace BattleSkillSimulation
             DestroyRuntimeAsset(_catalog);
         }
 
-        private void OnNpcDeath(CombatActor killer)
+        private void OnActorDied(ActorDiedEvent evt)
         {
-            LastMessage = "NPC defeated. Press R to reset.";
+            // R3-S10 修复: 通过 ActorDiedEvent 接收死亡事件（替代 OnNpcDeath）。
+            if (_npc != null && evt.EntityId == _npc.Id)
+            {
+                LastMessage = "NPC defeated. Press R to reset.";
+            }
         }
 
         private static float ReadHP(CombatActor actor)

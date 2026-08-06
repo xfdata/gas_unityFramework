@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Framework;
 
 namespace GAS
 {
@@ -31,7 +30,7 @@ namespace GAS
 
         public float GetAttribute(int attributeId)
         {
-            using (new AutoProfiler("GAS.AttributeSet.GetAttribute"))
+            using (GASProfiler.Sample("GAS.AttributeSet.GetAttribute"))
             {
                 if (!dirtyAttributes.Contains(attributeId) &&
                     cachedValues.TryGetValue(attributeId, out var cachedValue))
@@ -143,6 +142,40 @@ namespace GAS
             return handle;
         }
 
+        /// <summary>
+        /// 新增 int 通道重载（并行于 object 通道，最终替代 Source）。
+        /// 用于回放友好与调试溯源，避免依赖对象引用相等性。
+        /// </summary>
+        public AttributeModifierHandle AddModifier(
+            int attributeId,
+            AttributeModifierOp op,
+            float value,
+            int sourceRuntimeEffectId)
+        {
+            var oldValue = GetAttribute(attributeId);
+            var handle = new AttributeModifierHandle(nextModifierId++);
+
+            if (!modifiers.TryGetValue(attributeId, out var list))
+            {
+                list = new List<AttributeModifierEntry>();
+                modifiers[attributeId] = list;
+            }
+
+            list.Add(new AttributeModifierEntry
+            {
+                AttributeId = attributeId,
+                Handle = handle,
+                Op = op,
+                Value = value,
+                SourceRuntimeEffectId = sourceRuntimeEffectId,
+            });
+            modifierAttributeIds[handle] = attributeId;
+
+            MarkDirty(attributeId);
+            NotifyAttributeChanged(attributeId, oldValue, GetAttribute(attributeId));
+            return handle;
+        }
+
         public void RemoveModifier(AttributeModifierHandle handle)
         {
             if (!handle.IsValid)
@@ -175,59 +208,6 @@ namespace GAS
             }
 
             modifierAttributeIds.Remove(handle);
-        }
-
-        public int RemoveModifiersBySource(object source)
-        {
-            if (source == null)
-                return 0;
-
-            var removedCount = 0;
-            var attributeIds = ListPool<int>.Get();
-
-            foreach (var kv in modifiers)
-            {
-                attributeIds.Add(kv.Key);
-            }
-
-            for (int i = 0; i < attributeIds.Count; i++)
-            {
-                removedCount += RemoveModifiersBySource(attributeIds[i], source);
-            }
-
-            ListPool<int>.Release(attributeIds);
-            return removedCount;
-        }
-
-        public int RemoveModifiersBySource(int attributeId, object source)
-        {
-            if (source == null || !modifiers.TryGetValue(attributeId, out var list))
-                return 0;
-
-            var oldValue = GetAttribute(attributeId);
-            var removedCount = 0;
-
-            for (int i = list.Count - 1; i >= 0; i--)
-            {
-                if (!Equals(list[i].Source, source))
-                    continue;
-
-                modifierAttributeIds.Remove(list[i].Handle);
-                list.RemoveAt(i);
-                removedCount++;
-            }
-
-            if (removedCount == 0)
-                return 0;
-
-            if (list.Count == 0)
-            {
-                modifiers.Remove(attributeId);
-            }
-
-            MarkDirty(attributeId);
-            NotifyAttributeChanged(attributeId, oldValue, GetAttribute(attributeId));
-            return removedCount;
         }
 
         public void ClearAllModifiers()
@@ -339,6 +319,8 @@ namespace GAS
                         Op = modifier.Op,
                         Value = modifier.Value,
                         Source = null,
+                        // 同步恢复 int 通道，保证回放后溯源信息不丢失
+                        SourceRuntimeEffectId = modifier.SourceRuntimeEffectId,
                     });
                     modifierAttributeIds[modifier.Handle] = modifier.AttributeId;
                     MarkDirty(modifier.AttributeId);
@@ -359,7 +341,8 @@ namespace GAS
         {
             if (modifiers.TryGetValue(attributeId, out var list))
             {
-                for (int i = list.Count - 1; i >= 0; i--)
+                // 正序扫描：同组 Override 取先注册者（与 AbilityKit 对齐）
+                for (int i = 0; i < list.Count; i++)
                 {
                     if (list[i].Op == AttributeModifierOp.Override)
                         return ClampAttributeValue(attributeId, list[i].Value);
@@ -412,7 +395,9 @@ namespace GAS
 
         protected virtual float ClampAttributeValue(int attributeId, float value)
         {
-            return PreAttributeChange(attributeId, value);
+            // 先走 AttributeRegistry 统一 clamp（HP=0 等），再走子类 PreAttributeChange hook
+            var clamped = AttributeRegistry.ClampValue(attributeId, value);
+            return PreAttributeChange(attributeId, clamped);
         }
 
         protected virtual void NotifyAttributeBaseValueChanged(int attributeId, float oldValue, float newValue)
@@ -463,7 +448,10 @@ namespace GAS
                         Handle = modifier.Handle,
                         Op = modifier.Op,
                         Value = modifier.Value,
-                        SourceRuntimeEffectId = (modifier.Source as ActiveGameplayEffect)?.RuntimeEffectId ?? 0,
+                        // 优先读 int 通道；旧通道（object）回退到 ActiveGameplayEffect.RuntimeEffectId
+                        SourceRuntimeEffectId = modifier.SourceRuntimeEffectId != 0
+                            ? modifier.SourceRuntimeEffectId
+                            : (modifier.Source as ActiveGameplayEffect)?.RuntimeEffectId ?? 0,
                     };
                 }
             }
@@ -567,7 +555,8 @@ namespace GAS
             public AttributeModifierHandle Handle;
             public AttributeModifierOp Op;
             public float Value;
-            public object Source;
+            public object Source;                  // 旧通道：对象引用（过渡保留）
+            public int SourceRuntimeEffectId;      // 新通道：来源运行时效果 ID（最终替代 Source）
         }
 
         private static class ListPool<T>

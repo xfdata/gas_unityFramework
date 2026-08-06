@@ -6,7 +6,7 @@ namespace BattleFoundation
         public EntityManager EntityManager { get; protected set; }
         public BattleEventBus EventBus { get; protected set; }
         public BattleSystemManager SystemManager { get; protected set; }
-        public BattleRandom Random { get; protected set; }
+        public IRandom Random { get; protected set; }
 
         public virtual void Initialize(BattleEngine engine)
         {

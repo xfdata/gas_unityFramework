@@ -1,4 +1,5 @@
 using BattleCommon;
+using BattleFoundation;
 using UnityEngine;
 
 namespace BattleSkillSimulation
@@ -6,6 +7,7 @@ namespace BattleSkillSimulation
     public sealed class BattleSkillSimulationMoveComponent : CombatComponentBase
     {
         private float _moveSpeed;
+        private CombatActor Actor => Owner as CombatActor;
 
         public void SetMoveSpeed(float moveSpeed)
         {
@@ -23,19 +25,23 @@ namespace BattleSkillSimulation
 
             direction.Normalize();
             float speed = ResolveMoveSpeed();
-            Owner.Position += direction * speed * Mathf.Max(0f, deltaTime);
-            Owner.Rotation = Quaternion.LookRotation(direction, Vector3.up);
+            Owner.Position += new Float3(direction.x, direction.y, direction.z) * speed * Mathf.Max(0f, deltaTime);
+            var rotation = Quaternion.LookRotation(direction, Vector3.up);
+            Owner.Rotation = new Float4(rotation.x, rotation.y, rotation.z, rotation.w);
         }
 
         public void Face(Vector3 targetPosition)
         {
-            if (Owner == null || Owner.Transform == null)
+            if (Owner == null || Actor?.Transform == null)
                 return;
 
-            Vector3 direction = targetPosition - Owner.Position;
+            Vector3 direction = targetPosition - new Vector3(Owner.Position.x, Owner.Position.y, Owner.Position.z);
             direction.y = 0f;
             if (direction.sqrMagnitude > 0.001f)
-                Owner.Rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+            {
+                var rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+                Owner.Rotation = new Float4(rotation.x, rotation.y, rotation.z, rotation.w);
+            }
         }
 
         private float ResolveMoveSpeed()

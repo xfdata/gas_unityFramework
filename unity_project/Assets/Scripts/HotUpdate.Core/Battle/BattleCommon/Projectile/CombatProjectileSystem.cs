@@ -67,7 +67,12 @@ namespace BattleCommon
                     continue;
                 }
 
-                if ((actor.Position - center).sqrMagnitude <= radiusSqr)
+                // actor.Position 为 Float3，center 为 Vector3，统一转 Float3 运算
+                var actorPos = actor.Position;
+                float dx = actorPos.x - center.x;
+                float dy = actorPos.y - center.y;
+                float dz = actorPos.z - center.z;
+                if (dx * dx + dy * dy + dz * dz <= radiusSqr)
                     _queryResults.Add(actor);
             }
 

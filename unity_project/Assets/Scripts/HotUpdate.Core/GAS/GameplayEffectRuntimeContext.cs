@@ -9,7 +9,7 @@ namespace GAS
         float DeltaTime { get; }
         IReadOnlyList<GameplayEffectEvent> Events { get; }
 
-        System.Random Random { get; }
+        IGameplayRandom Random { get; }
 
         int NewSpecId();
         int NewRuntimeEffectId();
@@ -50,12 +50,12 @@ namespace GAS
         private int nextAbilitySpecId = 1;
         private int nextAbilityTaskId = 1;
         private int nextProjectileId = 1;
-        private System.Random random;
+        private IGameplayRandom random;
 
         public int CurrentFrame { get; private set; }
         public float DeltaTime { get; private set; }
         public IReadOnlyList<GameplayEffectEvent> Events => events;
-        public System.Random Random => random ?? (random = new System.Random());
+        public IGameplayRandom Random => random ?? (random = new DefaultRandom());
 
         public int NewSpecId()
         {
@@ -181,7 +181,12 @@ namespace GAS
 
         public void InitRandom(int seed)
         {
-            random = new System.Random(seed);
+            random = new DefaultRandom(seed);
+        }
+
+        public void SetRandom(IGameplayRandom random)
+        {
+            this.random = random;
         }
 
         public void RestoreFrame(int frame)
@@ -200,5 +205,56 @@ namespace GAS
                     handlers[i]?.Invoke(gameplayEvent);
             }
         }
+    }
+
+    /// <summary>
+    /// Standalone GAS xorshift128 random implementation.
+    /// Integration layers may inject an IGameplayRandom through SetRandom.
+    /// </summary>
+    public sealed class DefaultRandom : IGameplayRandom
+    {
+        private uint _state0;
+        private uint _state1;
+
+        public DefaultRandom() : this(Environment.TickCount) { }
+
+        public DefaultRandom(int seed)
+        {
+            _state0 = HashSeed((uint)seed);
+            _state1 = HashSeed(~(uint)seed);
+        }
+
+        private static uint HashSeed(uint x)
+        {
+            x = ((x >> 16) ^ x) * 0x45d9f3b;
+            x = ((x >> 16) ^ x) * 0x45d9f3b;
+            x = (x >> 16) ^ x;
+            return x != 0 ? x : 1u;
+        }
+
+        private uint NextUInt()
+        {
+            uint t = _state0;
+            uint s = _state1;
+            _state0 = s;
+            t ^= t << 23;
+            t ^= t >> 17;
+            t ^= s ^ (s >> 26);
+            _state1 = t;
+            return t + s;
+        }
+
+        private float NextFloat01() => (NextUInt() & 0x007FFFFF) * (1f / 8388608f);
+
+        public double NextDouble() => NextFloat01();
+
+        public int Next(int maxValue) => Next(0, maxValue);
+
+        public int Next(int minValue, int maxValue)
+        {
+            if (minValue >= maxValue) return minValue;
+            return minValue + (int)(NextUInt() % (uint)(maxValue - minValue));
+        }
+
     }
 }

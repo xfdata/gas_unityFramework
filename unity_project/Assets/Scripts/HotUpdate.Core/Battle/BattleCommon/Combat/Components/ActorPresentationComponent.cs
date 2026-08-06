@@ -294,7 +294,6 @@ namespace BattleCommon
         private CombatAbilityComponent _ability;
         private CombatMovementComponent _movement;
         private CombatActor _combatActor;
-        private IGameplayEffectRuntimeContext _gasRuntimeContext;
         private GameplayTagContainer _ownedTags;
         private Renderer[] _renderers = Array.Empty<Renderer>();
         private bool _isBornFadingIn;
@@ -330,11 +329,9 @@ namespace BattleCommon
             RefreshRendererBindings();
             ResetAllPresentationState();
 
-            if (_health != null)
-            {
-                _health.OnDeath -= OnHealthDeath;
-                _health.OnDeath += OnHealthDeath;
-            }
+            // R3-S10 修复: 不再直接订阅 GAS，改为通过 CombatAbilityComponent.GASForwarded 接收事件。
+            // CombatAbilityComponent 作为唯一 GAS 订阅点，避免重复订阅。
+            // 死亡表现仍由 AttributeChanged 检测 HP 归零触发（per-actor 表现通路）。
 
             SubscribeGameplayPresentationEvents();
         }
@@ -351,8 +348,8 @@ namespace BattleCommon
 
         public void RefreshRendererBindings(bool includeInactive = true)
         {
-            _renderers = Owner?.GameObject != null
-                ? Owner.GameObject.GetComponentsInChildren<Renderer>(includeInactive)
+            _renderers = _combatActor?.GameObject != null
+                ? _combatActor.GameObject.GetComponentsInChildren<Renderer>(includeInactive)
                 : Array.Empty<Renderer>();
 
             RebuildShaderController();
@@ -461,13 +458,15 @@ namespace BattleCommon
 
         private void SubscribeGameplayPresentationEvents()
         {
+            // R3-S10 修复: 通过 CombatAbilityComponent.GASForwarded 接收 GAS 事件（唯一订阅点）。
+            if (_ability != null)
+            {
+                _ability.GASForwarded += OnGASForwarded;
+            }
+
             var effects = _ability?.Effects;
             if (effects == null)
                 return;
-
-            _gasRuntimeContext = effects.RuntimeContext;
-            _gasRuntimeContext?.Subscribe(GameplayEffectEventType.AbilityActivated, OnGameplayAbilityActivated);
-            _gasRuntimeContext?.Subscribe(GameplayEffectEventType.AttributeChanged, OnGameplayAttributeChanged);
 
             _ownedTags = effects.OwnedTags;
             if (_ownedTags != null)
@@ -477,30 +476,43 @@ namespace BattleCommon
             }
         }
 
-        private void OnGameplayAbilityActivated(GameplayEffectEvent gameplayEvent)
+        /// <summary>
+        /// R3-S10 修复: 统一 GAS 事件回调，按 evt.Type 分发。
+        /// 替代原 OnGameplayAbilityActivated + OnGameplayAttributeChanged 两个独立订阅。
+        /// </summary>
+        private void OnGASForwarded(GameplayEffectEvent gameplayEvent)
         {
             var owner = Owner;
-            if (owner == null || gameplayEvent.SourceEntityId != owner.Id)
-                return;
+            if (owner == null) return;
 
-            if (gameplayEvent.AbilityId == CombatAbilityIds.Born)
+            switch (gameplayEvent.Type)
             {
-                StartBornFadeIn(ResolveBornFadeInDuration(gameplayEvent.AbilityId));
-            }
-        }
+                case GameplayEffectEventType.AbilityActivated:
+                    if (gameplayEvent.SourceEntityId != owner.Id) return;
+                    if (gameplayEvent.AbilityId == CombatAbilityIds.Born)
+                    {
+                        StartBornFadeIn(ResolveBornFadeInDuration(gameplayEvent.AbilityId));
+                    }
+                    break;
 
-        private void OnGameplayAttributeChanged(GameplayEffectEvent gameplayEvent)
-        {
-            var owner = Owner;
-            if (owner == null || gameplayEvent.TargetEntityId != owner.Id)
-                return;
-
-            if (gameplayEvent.AttributeId == CombatAttributeIds.HP &&
-                gameplayEvent.NewValue < gameplayEvent.OldValue &&
-                gameplayEvent.NewValue > 0f &&
-                !_isDeathPresenting)
-            {
-                PlayHitFlash();
+                case GameplayEffectEventType.AttributeChanged:
+                    if (gameplayEvent.TargetEntityId != owner.Id) return;
+                    if (gameplayEvent.AttributeId == CombatAttributeIds.HP)
+                    {
+                        // R3-S10: HP 归零触发死亡表现（替代 OnHealthDeath 订阅，收敛 F4 通路 B）。
+                        if (gameplayEvent.OldValue > 0f && gameplayEvent.NewValue <= 0f)
+                        {
+                            StartDeathPresentation();
+                        }
+                        // HP 下降但未死亡触发受击闪烁
+                        else if (gameplayEvent.NewValue < gameplayEvent.OldValue &&
+                                 gameplayEvent.NewValue > 0f &&
+                                 !_isDeathPresenting)
+                        {
+                            PlayHitFlash();
+                        }
+                    }
+                    break;
             }
         }
 
@@ -509,10 +521,7 @@ namespace BattleCommon
             SetPoisoned(added);
         }
 
-        private void OnHealthDeath(CombatActor killer)
-        {
-            StartDeathPresentation();
-        }
+        // R3-S10: OnHealthDeath 已移除，死亡表现由 OnGASForwarded(AttributeChanged) 检测 HP 归零触发。
 
         private void StartDeathPresentation()
         {
@@ -671,14 +680,11 @@ namespace BattleCommon
 
         private void UnsubscribePresentationEvents()
         {
-            if (_health != null)
+            // R3-S10 修复: 反订阅 CombatAbilityComponent.GASForwarded。
+            if (_ability != null)
             {
-                _health.OnDeath -= OnHealthDeath;
+                _ability.GASForwarded -= OnGASForwarded;
             }
-
-            _gasRuntimeContext?.Unsubscribe(GameplayEffectEventType.AbilityActivated, OnGameplayAbilityActivated);
-            _gasRuntimeContext?.Unsubscribe(GameplayEffectEventType.AttributeChanged, OnGameplayAttributeChanged);
-            _gasRuntimeContext = null;
 
             if (_ownedTags != null)
             {

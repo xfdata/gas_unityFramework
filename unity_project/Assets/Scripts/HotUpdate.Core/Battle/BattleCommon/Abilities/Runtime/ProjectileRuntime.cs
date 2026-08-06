@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Framework;
+using BattleFoundation;
 using UnityEngine;
 
 namespace GAS
@@ -412,7 +413,6 @@ namespace GAS
                 AbilityTaskId = abilityTaskId,
                 ProjectileId = handle.Id,
                 ProjectileDefinitionId = GetProjectileDefinitionId(projectileDefinition),
-                Position = position,
             });
         }
 
@@ -579,8 +579,13 @@ namespace GAS
 
             effectSpec.SourceEntityId = projectile.Source.EntityId;
             effectSpec.TargetEntityId = targetRuntime.EntityId;
-            effectSpec.Position = projectile.Position;
             effectSpec.UserData = projectile.UserData ?? target;
+            effectSpec.ContextData = new BattleCommon.CombatEffectPresentationContext(
+                new Float3(projectile.Position.x, projectile.Position.y, projectile.Position.z));
+            // 溯源填充：投射物命中由 ProjectileInstance 施加，源 AbilitySpec 来自 Spawn 时的 request；
+            // 投射物本身不是 ActiveGameplayEffect，故 SourceRuntimeEffectId = 0
+            effectSpec.SourceAbilitySpecId = projectile.AbilitySpecId;
+            effectSpec.SourceRuntimeEffectId = 0;
 
             projectile.Source.ApplySpecToTarget(effectSpec, targetRuntime);
         }

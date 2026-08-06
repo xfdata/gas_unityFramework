@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using BattleFoundation;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace BattleCommon
 {
@@ -12,6 +11,9 @@ namespace BattleCommon
         private CombatHealthComponent _health;
         private IMovementMotor _motor;
         private int _currentPathIndex;
+
+        // Owner 继承自 EntityComponent，类型为 BattleEntity。需要 CombatActor 特有成员时通过 Actor 访问。
+        protected CombatActor Actor => Owner as CombatActor;
 
         public bool IsMoving => _motor?.IsMoving ?? false;
         public float RemainingDistance => _motor?.RemainingDistance ?? 0f;
@@ -25,10 +27,9 @@ namespace BattleCommon
 
         public void SetMotor(IMovementMotor motor) => _motor = motor;
 
-        public void SetNavAgent(NavMeshAgent navAgent)
-        {
-            _motor = navAgent == null ? null : new NavMeshMovementMotor(Owner, navAgent);
-        }
+        // R3-S8: SetNavAgent(NavMeshAgent) 已移除，避免 L2 逻辑层直接依赖 UnityEngine.AI。
+        // 上层（Samples/工厂）应调用 SetMotor(NavMeshMovementMotor.CreateFromViewBinding(actor))。
+        // NavMeshMovementMotor 已迁移到 Presentation 目录（L3 层）。
 
         public void MoveTo(Vector3 destination)
         {

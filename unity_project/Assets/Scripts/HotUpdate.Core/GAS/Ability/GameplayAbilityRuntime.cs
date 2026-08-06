@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Framework;
 
 namespace GAS
 {
@@ -196,7 +195,7 @@ namespace GAS
             if (deltaTime <= 0f)
                 return;
 
-            using (new AutoProfiler("GAS.GameplayAbilityRuntime.Tick"))
+            using (GASProfiler.Sample("GAS.GameplayAbilityRuntime.Tick"))
             {
                 for (int i = activeAbilities.Count - 1; i >= 0; i--)
                 {
@@ -322,7 +321,7 @@ namespace GAS
             if (!eventTag.IsValid)
                 return;
 
-            using (new AutoProfiler("GAS.GameplayAbilityRuntime.HandleGameplayEvent"))
+            using (GASProfiler.Sample("GAS.GameplayAbilityRuntime.HandleGameplayEvent"))
             {
                 foreach (var ability in grantedAbilities)
                 {

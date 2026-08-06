@@ -1,8 +1,7 @@
-using UnityEngine;
 
 namespace BattleFoundation
 {
-    public class BattleRandom
+    public class BattleRandom : IRandom
     {
         private uint _seed;
         private uint _state0;
@@ -69,19 +68,24 @@ namespace BattleFoundation
 
         public float Value => NextFloat01();
 
-        public Vector2 InsideUnitCircle()
+        public Float2 InsideUnitCircle()
         {
-            float angle = Range(0f, Mathf.PI * 2f);
-            float radius = Mathf.Sqrt(Value);
-            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            float angle = Range(0f, BattleMathF.PI * 2f);
+            float radius = BattleMathF.Sqrt(Value);
+            return new Float2(BattleMathF.Cos(angle), BattleMathF.Sin(angle)) * radius;
         }
 
-        public Vector3 InsideUnitSphere()
+        public Float3 InsideUnitSphere()
         {
             float z = Range(-1f, 1f);
-            float angle = Range(0f, Mathf.PI * 2f);
-            float radius = Mathf.Sqrt(1f - z * z);
-            return new Vector3(radius * Mathf.Cos(angle), z, radius * Mathf.Sin(angle)) * Mathf.Pow(Value, 1f / 3f);
+            float angle = Range(0f, BattleMathF.PI * 2f);
+            float radius = BattleMathF.Sqrt(1f - z * z);
+            return new Float3(radius * BattleMathF.Cos(angle), z, radius * BattleMathF.Sin(angle)) * BattleMathF.Pow(Value, 1f / 3f);
         }
+
+        // GAS 侧 API：转发到现有 BF 侧实现，保证同一随机流
+        public int Next(int maxValue) => Range(maxValue);
+        public int Next(int minValue, int maxValue) => Range(minValue, maxValue);
+        public double NextDouble() => Value;
     }
 }

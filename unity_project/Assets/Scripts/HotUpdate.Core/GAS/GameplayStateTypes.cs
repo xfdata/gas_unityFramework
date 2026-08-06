@@ -20,6 +20,10 @@ namespace GAS
         public float TimeLeft;
         public float Period;
         public float PeriodLeft;
+
+        // 溯源字段：回放恢复时同步，确保恢复后的 spec 仍携带溯源信息
+        public int SourceAbilitySpecId;
+        public int SourceRuntimeEffectId;
     }
 
     [Serializable]

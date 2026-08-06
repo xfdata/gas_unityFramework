@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace BattleFoundation
 {
@@ -27,6 +26,9 @@ namespace BattleFoundation
 
     public class BattleAttribute : Disposable
     {
+        // R2 退役：BattleAttributeSet 已退役，统一使用 GAS.AttributeSet。
+        // BattleAttribute 仅作为旧实现保留，不再用于运行时属性管理。
+        // 详见 03_refactor_layering_proposal.md R2-S9。
         private float _baseValue;
         private float _minValue = float.MinValue;
         private float _maxValue = float.MaxValue;
@@ -39,7 +41,7 @@ namespace BattleFoundation
             get => _baseValue;
             set
             {
-                if (Mathf.Approximately(_baseValue, value)) return;
+                if (BattleMathF.Approximately(_baseValue, value)) return;
                 float oldValue = Value;
                 _baseValue = value;
                 _dirty = true;
@@ -154,13 +156,13 @@ namespace BattleFoundation
                 result = (_baseValue + additive) * multiplicative;
             }
 
-            return Mathf.Clamp(result, _minValue, _maxValue);
+            return BattleMathF.Clamp(result, _minValue, _maxValue);
         }
 
         private void NotifyChanged(float oldValue)
         {
             float newValue = Value;
-            if (!Mathf.Approximately(oldValue, newValue))
+            if (!BattleMathF.Approximately(oldValue, newValue))
                 OnChanged?.Invoke(this, oldValue, newValue);
         }
 
@@ -190,6 +192,10 @@ namespace BattleFoundation
         public const int AbsoluteReduce = 14;
     }
 
+    // R2 退役：统一使用 GAS.AttributeSet 作为唯一属性系统实现。
+    // BattleRecord.EntitySnapshot.FoundationAttributes 已改存 GAS.AttributeSetState。
+    // 本类保留仅为兼容性目的，不再用于运行时属性管理。详见 03_refactor_layering_proposal.md R2-S9。
+    [Obsolete("R2 退役：统一使用 GAS.AttributeSet。详见 03_refactor_layering_proposal.md R2-S9。")]
     public class BattleAttributeSet : EntityComponent
     {
         private Dictionary<int, BattleAttribute> _attributes = new Dictionary<int, BattleAttribute>();
@@ -274,7 +280,7 @@ namespace BattleFoundation
         public void RestoreSnapshot(AttributeSnapshot snapshot)
         {
             if (snapshot == null) return;
-            int count = Mathf.Min(snapshot.AttributeIds.Count, snapshot.BaseValues.Count);
+            int count = BattleMathF.Min(snapshot.AttributeIds.Count, snapshot.BaseValues.Count);
             for (int i = 0; i < count; i++)
             {
                 if (_attributes.TryGetValue(snapshot.AttributeIds[i], out var attr))

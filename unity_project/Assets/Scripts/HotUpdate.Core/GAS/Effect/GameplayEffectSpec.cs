@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace GAS
 {
@@ -14,17 +13,25 @@ namespace GAS
         public long TargetEntityId;
         public int RuntimeEffectId { get; internal set; }
 
+        // 溯源字段：触发该 spec 的源（与 spec 自身的 RuntimeEffectId 区分）
+        // - SourceAbilitySpecId：触发该 spec 的源 AbilitySpec 的 SpecId（技能/普攻/投射物路径均填充）
+        // - SourceRuntimeEffectId：触发该 spec 的源 ActiveGameplayEffect 的 RuntimeEffectId
+        //   （仅在由另一个 Effect 触发时填充；技能/普攻/投射物路径填 0）
+        // 用于 DamageResult 等回溯链路定位"谁打出了这一击"。
+        public int SourceAbilitySpecId;
+        public int SourceRuntimeEffectId;
+
         public int Level { get; }
         public int Stack = 1;
 
         public float Duration;
         public float Period;
 
-        public Vector3 Position;
-
         public int RandomSeed;
 
         public object UserData;
+        // Opaque integration-owned data propagated by GAS without interpretation.
+        public object ContextData;
 
         internal IGameplayEffectRuntimeContext RuntimeContext;
 
@@ -70,12 +77,15 @@ namespace GAS
                 SourceEntityId = SourceEntityId,
                 TargetEntityId = target != null ? target.EntityId : TargetEntityId,
                 RuntimeEffectId = RuntimeEffectId,
+                // 溯源字段同步透传（CloneForTarget 用于 ApplySpecToTarget 跨 target 复制，源不变）
+                SourceAbilitySpecId = SourceAbilitySpecId,
+                SourceRuntimeEffectId = SourceRuntimeEffectId,
                 Stack = Stack,
                 Duration = Duration,
                 Period = Period,
-                Position = Position,
                 RandomSeed = RandomSeed,
                 UserData = UserData,
+                ContextData = ContextData,
                 RuntimeContext = RuntimeContext,
             };
 
@@ -97,9 +107,14 @@ namespace GAS
             if (other == null)
                 return;
 
-            Position = other.Position;
             RandomSeed = other.RandomSeed;
             UserData = other.UserData;
+
+            ContextData = other.ContextData;
+            // 溯源字段同步：CopyDynamicValuesFrom 在 Stack 合并时调用，
+            // incoming spec 的溯源信息应覆盖 existing spec（以最新触发源为准）
+            SourceAbilitySpecId = other.SourceAbilitySpecId;
+            SourceRuntimeEffectId = other.SourceRuntimeEffectId;
 
             if (copyPeriod)
             {

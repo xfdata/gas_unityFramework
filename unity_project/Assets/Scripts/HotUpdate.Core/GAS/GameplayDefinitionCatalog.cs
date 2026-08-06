@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace GAS
 {
-    [CreateAssetMenu(menuName = "PVE/GAS/Gameplay Definition Catalog")]
+    [CreateAssetMenu(menuName = "GAS/Gameplay Definition Catalog")]
     public class GameplayDefinitionCatalog : ScriptableObject
     {
         [SerializeField]

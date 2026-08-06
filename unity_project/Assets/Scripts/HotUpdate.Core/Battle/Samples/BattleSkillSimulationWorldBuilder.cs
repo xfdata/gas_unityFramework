@@ -44,6 +44,10 @@ namespace BattleSkillSimulation
                 ResolveActorRoot(request.NpcRoot, "NPC", new Vector3(2f, 0f, 0f), Color.red, request.CreatePrimitiveActors),
                 services);
 
+            // R3-S10: 注入 PresentationSink 到 CombatAbilityComponent，桥接 GAS 事件到表现层单通路。
+            player.Get<CombatAbilityComponent>().PresentationSink = engine.PresentationSink;
+            npc.Get<CombatAbilityComponent>().PresentationSink = engine.PresentationSink;
+
             ConfigureStats(
                 player,
                 request.PlayerMaxHP,
@@ -124,10 +128,19 @@ namespace BattleSkillSimulation
             var actor = new SimulationActor
             {
                 Name = actorName,
-                Transform = actorRoot.Transform,
-                GameObject = actorRoot.DestroyWithActor ? actorRoot.Transform.gameObject : null,
                 AbilityServices = services,
             };
+
+            // R3-S7: 创建 ActorViewBinder 并注入，CombatActor 不再直接持有 Unity 引擎对象。
+            // ActorViewBinder 接管 GameObject/Transform/Animator/Animancer/Director 的持有与生命周期。
+            actor.ViewBinding = new ActorViewBinder(
+                actorRoot.DestroyWithActor ? actorRoot.Transform.gameObject : null,
+                actorRoot.DestroyWithActor);
+
+            // R3-S4: CombatActor.Position 改纯数据字段，不再从 Transform 反读。
+            // 创建时从 Transform.position 一次性初始化逻辑位置。
+            var initialPos = actorRoot.Transform.position;
+            actor.Position = new Float3(initialPos.x, initialPos.y, initialPos.z);
 
             actor.SetCamp(camp);
             actor.SetEntityType(type);

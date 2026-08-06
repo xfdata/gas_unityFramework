@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Framework;
 
 namespace GAS
 {
@@ -21,9 +20,8 @@ namespace GAS
         public int RuntimeEffectId;
 
         public float Magnitude;
-        public Vector3 Position;
-
         public object UserData;
+        public object ContextData;
     }
 
     public abstract class GameplayCueNotify : ScriptableObject
@@ -33,7 +31,7 @@ namespace GAS
             in GameplayCuePayload payload
         )
         {
-            using (new AutoProfiler("GAS.GameplayCueNotify.HandleCue"))
+            using (GASProfiler.Sample("GAS.GameplayCueNotify.HandleCue"))
             {
                 switch (eventType)
                 {
@@ -117,7 +115,7 @@ namespace GAS
             if (!cueTag.IsValid)
                 return;
 
-            using (new AutoProfiler("GAS.GameplayCueManager.HandleCue"))
+            using (GASProfiler.Sample("GAS.GameplayCueManager.HandleCue"))
             {
                 for (int i = 0; i < runtimeEntries.Count; i++)
                 {

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace GAS
 {
-    [CreateAssetMenu(menuName = "PVE/GAS/Gameplay Ability")]
+    [CreateAssetMenu(menuName = "GAS/Gameplay Ability")]
     public class GameplayAbilityDefinition : ScriptableObject
     {
         [Header("AbilityId")]
@@ -295,6 +295,9 @@ namespace GAS
             var effectSpec = Source.MakeOutgoingSpec(target, effect, Level);
             effectSpec.SourceEntityId = SourceEntityId;
             effectSpec.TargetEntityId = target.EntityId;
+            // 溯源填充：技能直接施加 Effect，源 AbilitySpec 即自身；无上游 ActiveGameplayEffect
+            effectSpec.SourceAbilitySpecId = AbilitySpecId;
+            effectSpec.SourceRuntimeEffectId = 0;
 
             return Source.ApplySpecToTarget(effectSpec, target);
         }

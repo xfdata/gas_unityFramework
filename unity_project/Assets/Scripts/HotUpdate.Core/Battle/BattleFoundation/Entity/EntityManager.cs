@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using Framework;
-using UnityEngine;
 
 namespace BattleFoundation
 {
     public class EntityManager : Disposable
     {
         private IBattleContext _context;
+        private IBattleLog _log;
         private Dictionary<int, BattleEntity> _idToEntity = new Dictionary<int, BattleEntity>();
         private Dictionary<EEntityCamp, List<BattleEntity>> _campToEntities = new Dictionary<EEntityCamp, List<BattleEntity>>();
         private List<BattleEntity> _allEntities = new List<BattleEntity>();
@@ -16,12 +16,15 @@ namespace BattleFoundation
         public IReadOnlyList<BattleEntity> All => _allEntities;
         public int Count => _allEntities.Count;
 
-        public EntityManager(IBattleContext context)
+        public EntityManager(IBattleContext context, IBattleLog log = null)
         {
             _context = context;
+            _log = log;
             foreach (EEntityCamp camp in Enum.GetValues(typeof(EEntityCamp)))
                 _campToEntities[camp] = new List<BattleEntity>();
         }
+
+        public void SetLog(IBattleLog log) => _log = log;
 
         public int GenerateId()
         {
@@ -41,7 +44,7 @@ namespace BattleFoundation
 
                 if (_idToEntity.ContainsKey(entity.Id))
                 {
-                    Debug.LogWarning($"[EntityManager] Entity with Id={entity.Id} already exists, skipping.");
+                    _log?.Warning($"[EntityManager] Entity with Id={entity.Id} already exists, skipping.");
                     return;
                 }
 
@@ -125,7 +128,7 @@ namespace BattleFoundation
             return count;
         }
 
-        public List<BattleEntity> FindInRange(Vector3 center, float radius, EEntityCamp camp)
+        public List<BattleEntity> FindInRange(Float3 center, float radius, EEntityCamp camp)
         {
             var result = new List<BattleEntity>();
             if (!_campToEntities.TryGetValue(camp, out var list))
@@ -137,14 +140,14 @@ namespace BattleFoundation
                 var entity = list[i];
                 if (!entity.IsAlive) continue;
 
-                float distSqr = (entity.Position - center).sqrMagnitude;
+                float distSqr = Float3.SqrDistance(entity.Position, center);
                 if (distSqr <= radiusSqr)
                     result.Add(entity);
             }
             return result;
         }
 
-        public BattleEntity FindNearest(Vector3 center, EEntityCamp camp)
+        public BattleEntity FindNearest(Float3 center, EEntityCamp camp)
         {
             BattleEntity nearest = null;
             float nearestDistSqr = float.MaxValue;
@@ -157,7 +160,7 @@ namespace BattleFoundation
                 var entity = list[i];
                 if (!entity.IsAlive) continue;
 
-                float distSqr = (entity.Position - center).sqrMagnitude;
+                float distSqr = Float3.SqrDistance(entity.Position, center);
                 if (distSqr < nearestDistSqr)
                 {
                     nearestDistSqr = distSqr;
