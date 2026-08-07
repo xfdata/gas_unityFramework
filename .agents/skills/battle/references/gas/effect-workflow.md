@@ -25,9 +25,9 @@ Add a `GameplayEffectExecution` when the effect needs:
 
 ## 2. File Placement
 
-- Combat formula: `Assets/Scripts/HotUpdate.Game/BattleCommon/GAS/Effect/<Name>Execution.cs`.
-- Generic formula: `Assets/Scripts/HotUpdate.Core/GAS/EffectExecution/<Name>Execution.cs`.
-- Runtime changes to effect application/stacking/tags/cues: `Assets/Scripts/HotUpdate.Core/GAS/GameplayEffectRuntime.cs`.
+- Combat formula: `unity_project/Assets/Scripts/HotUpdate.Core/Battle/BattleCommon/Abilities/Effect/<Name>Execution.cs`.
+- Generic formula: `unity_project/Assets/Scripts/HotUpdate.Core/GAS/EffectExecution/<Name>Execution.cs`.
+- Runtime changes to effect application/stacking/tags/cues: `unity_project/Assets/Scripts/HotUpdate.Core/GAS/GameplayEffectRuntime.cs`.
 
 Use `BattleCommon` namespace for combat executions that depend on combat actors/components/attributes. Use `GAS` namespace for generic executions.
 

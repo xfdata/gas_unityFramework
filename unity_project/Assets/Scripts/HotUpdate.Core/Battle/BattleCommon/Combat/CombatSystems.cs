@@ -26,6 +26,7 @@ namespace BattleCommon
         }
 
         public void Initialize(IBattleContext context) => _context = context;
+
         public void Start() { }
         public void Update(float deltaTime) { }
         public void LateUpdate(float deltaTime) { }
@@ -156,6 +157,9 @@ namespace BattleCommon
 
         private static bool CanBeCombatTarget(CombatActor target)
         {
+            if (target?.Gameplay?.States.CanBeTargeted() == false)
+                return false;
+
             return target?.Get<CombatStateComponent>() is not {} state || state.CanBeAttacked;
         }
 
@@ -195,7 +199,19 @@ namespace BattleCommon
         public Action<CombatActor> OnRecycleRequested;
 
         public void Initialize(IBattleContext context) => _context = context;
-        public void Start() { }
+
+        public void Start()
+        {
+            var entities = _context?.EntityManager?.All;
+            if (entities == null)
+                return;
+
+            for (int i = 0; i < entities.Count; i++)
+            {
+                if (entities[i] is CombatActor actor)
+                    actor.Start();
+            }
+        }
 
         // ===== R3-S5: 唯一 spawn/销毁门面 API =====
 
@@ -243,18 +259,20 @@ namespace BattleCommon
 
         // ===== 向后兼容 API（委托到新 API）=====
 
+        [Obsolete("Use Spawn instead.")]
         public void AddActor(CombatActor actor) => Spawn(actor);
 
+        [Obsolete("Use Despawn instead.")]
         public void RemoveActor(CombatActor actor)
         {
-            if (actor == null || _context == null) return;
-            // R3-S5: RemoveActor 保留原语义——只移除不 Dispose/ReclaimActorState。
-            // 若需完整销毁请用 Despawn。迭代期不延迟（移除操作对迭代安全）。
-            _context.EntityManager.RemoveEntity(actor);
+            // Backward-compatible name; removal now follows the same cleanup path as Despawn.
+            Despawn(actor, DeathReason.SceneCleanup);
         }
 
+        [Obsolete("Use Despawn instead.")]
         public void RecycleActor(CombatActor actor) => Despawn(actor, DeathReason.Killed);
 
+        [Obsolete("Use Despawn instead.")]
         public void DisposeActor(CombatActor actor) => Despawn(actor, DeathReason.SceneCleanup);
 
         public void Update(float deltaTime)
@@ -302,9 +320,13 @@ namespace BattleCommon
 
         public void Dispose()
         {
+            // Context disposes systems before EntityManager. Route every remaining
+            // combat actor through Despawn while the event bus is still available.
+            _isIteratingActors = false;
+            FlushPendingActorOperations();
+            DespawnAll(DeathReason.SceneCleanup);
             _pendingRecycle.Clear();
             _pendingActorOperations.Clear();
-            _isIteratingActors = false;
             OnRecycleRequested = null;
             _context = null;
         }
@@ -318,7 +340,17 @@ namespace BattleCommon
             try
             {
                 _context.EntityManager.AddEntity(actor);
+                if (_context.EntityManager.GetById(actor.Id) != actor)
+                    throw new InvalidOperationException($"Actor {actor.Id} could not be registered.");
+
                 actor.Initialize();
+                var phase = _context.Engine?.Phase;
+                if (phase == EBattlePhase.Running ||
+                    phase == EBattlePhase.Paused ||
+                    phase == EBattlePhase.Replaying)
+                {
+                    actor.Start();
+                }
             }
             catch (Exception)
             {

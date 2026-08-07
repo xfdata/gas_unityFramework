@@ -12,6 +12,11 @@ namespace BattleCommon
 
         public CombatActor CurrentTarget { get; private set; }
 
+        /// <summary>
+        /// Business SkillId for the normal attack. Zero preserves the legacy ability-type selection path.
+        /// </summary>
+        public int BasicAttackSkillId { get; set; }
+
         // Owner 继承自 EntityComponent，类型为 BattleEntity。需要 CombatActor 特有成员时通过 Actor 访问。
         protected CombatActor Actor => Owner as CombatActor;
 
@@ -30,20 +35,46 @@ namespace BattleCommon
         public bool TryAttack(CombatActor target)
         {
             if (_health == null || _health.IsDead || target == null || target == Owner || !target.IsAlive) return false;
-            if (Owner?.Get<CombatStateComponent>() is {} state && !state.CanAct) return false;
-            if (target?.Get<CombatStateComponent>() is {} tgtState && !tgtState.CanBeAttacked) return false;
+            if (Actor?.Gameplay?.States.CanAttack() == false) return false;
+            if (target.Gameplay?.States.CanBeTargeted() == false) return false;
 
             float range = _attributes?.AttackRange ?? 2f;
             float interval = _attributes?.AttackInterval ?? 1.5f;
             if ((Owner.Position - target.Position).sqrMagnitude > range * range || _attackTimer < interval) return false;
-            _attackTimer = 0f;
+
             CurrentTarget = target;
-            return Owner.Get<CombatAbilityComponent>()?.TryActivateAttackAbility(target) ?? false;
+            bool activated;
+            int skillId = ResolveBasicAttackSkillId();
+            if (skillId > 0)
+            {
+                var result = Actor?.Gameplay?.Skills.TryCast(skillId, target);
+                activated = result?.Success == true;
+            }
+            else
+            {
+                activated = Owner.Get<CombatAbilityComponent>()?.TryActivateAttackAbility(target) ?? false;
+            }
+
+            if (activated)
+                _attackTimer = 0f;
+
+            return activated;
+        }
+
+        private int ResolveBasicAttackSkillId()
+        {
+            if (BasicAttackSkillId > 0)
+                return BasicAttackSkillId;
+
+            var ability = Owner?.Get<CombatAbilityComponent>()?.FindGrantedAttackAbilityDefinition();
+            return Actor?.GameplayCatalog?.TryGetSkillId(ability, out var skillId) == true
+                ? skillId
+                : 0;
         }
 
         public CombatActor FindTarget(Func<CombatActor, bool> filter, CombatTargetPriority priority = CombatTargetPriority.Nearest)
         {
-            if (Owner?.Get<CombatStateComponent>() is {} state && !state.CanAct)
+            if (Actor?.Gameplay?.States.CanAttack() == false)
                 return null;
 
             var query = Owner?.Engine?.Context?.GetSystem<CombatTargetQuerySystem>();

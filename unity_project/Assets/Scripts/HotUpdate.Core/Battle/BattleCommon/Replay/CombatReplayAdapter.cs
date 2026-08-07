@@ -1,8 +1,19 @@
+using System;
 using BattleFoundation;
 using GAS;
 
 namespace BattleCommon.Replay
 {
+    /// <summary>
+    /// Battle-mode factory for replay entity identity and custom state.
+    /// The factory must return a detached, fully configured CombatActor.
+    /// </summary>
+    public interface ICombatReplayEntityFactory
+    {
+        void Capture(CombatActor actor, EntitySnapshot snapshot);
+        CombatActor Create(EntitySnapshot snapshot, BattleContext context);
+        void Apply(CombatActor actor, EntitySnapshot snapshot);
+    }
     /// <summary>
     /// R3-S2: IBattleReplayAdapter 默认实现。
     /// 承担 BF 层无法直接引用的 GAS 类型操作（AttributeSetState 的 Capture/Restore），
@@ -10,25 +21,63 @@ namespace BattleCommon.Replay
     /// </summary>
     public class CombatReplayAdapter : IBattleReplayAdapter
     {
+        private readonly ICombatReplayEntityFactory entityFactory;
+
+        public CombatReplayAdapter(ICombatReplayEntityFactory entityFactory = null)
+        {
+            this.entityFactory = entityFactory;
+        }
+
         public void CaptureEntity(BattleEntity entity, EntitySnapshot snapshot)
         {
-            // 默认无额外捕获，EntitySnapshot.Capture 已完成基础字段填充
+            if (entity is CombatActor actor)
+                entityFactory?.Capture(actor, snapshot);
         }
 
         public BattleEntity CreateEntity(EntitySnapshot snapshot, BattleContext context)
         {
-            // 默认不创建实体，由上层（BattleEngine/EntityManager）处理
-            return null;
+            if (snapshot == null || context == null || entityFactory == null)
+                return null;
+
+            var actor = entityFactory.Create(snapshot, context);
+            if (actor == null)
+                return null;
+
+            var actorSystem = context.GetSystem<CombatActorSystem>();
+            if (actorSystem == null)
+            {
+                actor.Dispose();
+                throw new InvalidOperationException(
+                    "Combat replay requires CombatActorSystem to create dynamic actors.");
+            }
+
+            actor.SetId(snapshot.EntityId);
+            actor.SetCamp(snapshot.Camp);
+            actor.SetEntityType(snapshot.EntityType);
+            actorSystem.Spawn(actor);
+            return actor;
         }
 
         public void ApplyEntity(BattleEntity entity, EntitySnapshot snapshot)
         {
-            // 默认无额外应用，EntitySnapshot.ApplyBaseState 已完成基础字段恢复
+            if (entity is CombatActor actor)
+                entityFactory?.Apply(actor, snapshot);
         }
 
         public void RemoveEntity(BattleEntity entity, BattleContext context)
         {
+            if (entity is CombatActor actor)
+            {
+                var actorSystem = context?.GetSystem<CombatActorSystem>();
+                if (actorSystem != null)
+                {
+                    actorSystem.Despawn(actor, DeathReason.SceneCleanup);
+                    return;
+                }
+            }
+
             context?.EntityManager?.RemoveEntity(entity);
+            entity?.Dispose();
         }
 
         /// <summary>

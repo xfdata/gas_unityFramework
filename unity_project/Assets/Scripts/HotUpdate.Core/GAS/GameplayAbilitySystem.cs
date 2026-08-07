@@ -262,6 +262,22 @@ namespace GAS
             return ActivateAbility(ability, target, level);
         }
 
+        public GameplayAbilityActivationResult TryActivateAbility(
+            GameplayAbilityDefinition ability,
+            GameplayAbilitySystem target = null,
+            int level = 1)
+        {
+            EnsureInitialized();
+            return abilityRuntime.TryActivateAbility(ability, target != null ? target.Effects : null, level);
+        }
+
+        public GameplayAbilityActivationResult TryActivateAbility(
+            int abilityId,
+            GameplayAbilitySystem target = null,
+            int level = 1)
+        {
+            return TryActivateAbility(GetAbilityDefinition(abilityId), target, level);
+        }
         public GameplayEffectApplyResult ApplyEffectToSelf(
             GameplayEffectDefinition effect,
             int level = 1)

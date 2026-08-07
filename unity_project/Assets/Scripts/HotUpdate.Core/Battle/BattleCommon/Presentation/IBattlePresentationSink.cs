@@ -45,6 +45,7 @@ namespace BattleCommon
 
         /// <summary>Cue 触发（对应 GAS CueTriggered，替代 IGameplayCueManager 并行通路）。</summary>
         void OnCueTriggered(in CuePresentation evt);
+        void OnGameplayTagChanged(in GameplayTagChangedPresentation evt);
     }
 
     // ===== 事件载荷结构（readonly struct，零 GC）=====
@@ -117,16 +118,46 @@ namespace BattleCommon
         public readonly int TargetEntityId;
         public readonly int SourceEntityId;
         public readonly GameplayTag CueTag;
+        public readonly GameplayCueEventType EventType;
+        public readonly int RuntimeEffectId;
         public readonly float Magnitude;
         public readonly Float3 Position;
 
         public CuePresentation(int targetEntityId, int sourceEntityId, GameplayTag cueTag, float magnitude, in Float3 position)
+            : this(targetEntityId, sourceEntityId, cueTag, GameplayCueEventType.Execute, 0, magnitude, position)
+        {
+        }
+
+        public CuePresentation(
+            int targetEntityId,
+            int sourceEntityId,
+            GameplayTag cueTag,
+            GameplayCueEventType eventType,
+            int runtimeEffectId,
+            float magnitude,
+            in Float3 position)
         {
             TargetEntityId = targetEntityId;
             SourceEntityId = sourceEntityId;
             CueTag = cueTag;
+            EventType = eventType;
+            RuntimeEffectId = runtimeEffectId;
             Magnitude = magnitude;
             Position = position;
+        }
+    }
+
+    public readonly struct GameplayTagChangedPresentation
+    {
+        public readonly int EntityId;
+        public readonly GameplayTag Tag;
+        public readonly bool Added;
+
+        public GameplayTagChangedPresentation(int entityId, GameplayTag tag, bool added)
+        {
+            EntityId = entityId;
+            Tag = tag;
+            Added = added;
         }
     }
 }

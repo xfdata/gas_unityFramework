@@ -2,9 +2,9 @@
 
 Target folders:
 
-- `Assets/Scripts/HotUpdate.Game/BattleFoundation/`
-- `Assets/Scripts/HotUpdate.Game/BattleCommon/`
-- `Assets/Scripts/HotUpdate.Core/GAS/`
+- `unity_project/Assets/Scripts/HotUpdate.Core/Battle/BattleFoundation/`
+- `unity_project/Assets/Scripts/HotUpdate.Core/Battle/BattleCommon/`
+- `unity_project/Assets/Scripts/HotUpdate.Core/GAS/`
 
 ## Layer Model
 
@@ -51,7 +51,7 @@ Target folders:
 - `AbilityTask`: asynchronous ability task base.
 - `GameplayEffectDefinition`: ScriptableObject effect data, modifiers, duration, stack, tags, executions, cues.
 - `GameplayEffectRuntime`: active effect application, ticking, stacking, tag/cue handling.
-- `GameplayEffectSpec`: runtime effect payload with set-by-caller, captured values, position, user data.
+- `GameplayEffectSpec`: runtime effect payload with set-by-caller, captured values, context data, user data.
 - `GameplayEffectExecution`: effect formula hook.
 - `GameplayDefinitionCatalog`: ability/effect lookup by id.
 - `AttributeSet`: base values, modifiers, capture/restore.
@@ -75,11 +75,11 @@ Common:
 - `Combat/`: components, contracts, actor/target systems, animation time scale.
 - `Entity/`: `CombatActor`.
 - `AI/`: combat behavior profiles and components.
-- `GAS/Ability/`: combat ability definitions.
-- `GAS/Definition/`: combat hit/projectile definitions and provider interfaces.
-- `GAS/Task/`: combat ability tasks.
-- `GAS/Effect/`: combat-specific effect executions.
-- `GAS/Runtime/`: projectile runtime.
+- `Abilities/Ability/`: combat ability definitions.
+- `Abilities/Definition/`: combat hit/projectile definitions and provider interfaces.
+- `Abilities/Task/`: combat ability tasks.
+- `Abilities/Effect/`: combat-specific effect executions.
+- `Abilities/Runtime/`: projectile runtime.
 - `Projectile/`, `Physics/`, `Navigation/`, `Assets/`: support systems.
 
 Core GAS:
@@ -98,8 +98,8 @@ High-value `NewPVE` extraction candidates:
 
 - AI enums/config/behaviors/decision/presets under `NewPVE/AI/` should be represented by `BattleCommon/AI` types. Keep only NewPVE profile/preset adapters in NewPVE.
 - Actor presentation and animation components should use `BattleCommon/Combat/Components` instead of duplicate NewPVE classes.
-- Gameplay cue handling for hit and poison should use `BattleCommon/GAS/Cue/CombatGameplayCueManager`.
-- Damage execution should use `BattleCommon/GAS/Effect/CombatDamageExecution` or a shared combat formula service; avoid PVE-only damage duplicates unless the formula is truly mode-specific.
+- Gameplay cue handling for hit and poison should flow from `CombatAbilityComponent` through `IBattlePresentationSink`; presentation consumers must not access `CombatActor` or `ActorPresentationComponent` directly.
+- Damage execution should use `BattleCommon/Abilities/Effect/CombatDamageExecution` or a shared combat formula service; avoid PVE-only damage duplicates unless the formula is truly mode-specific.
 - Actor factory/pool/manager and spawn wave logic can be partially extracted after removing NewPVE table, monster-type, section, and rush dependencies.
 
 See `references/ai-workflow.md` for the detailed AI extraction audit and migration checklist.

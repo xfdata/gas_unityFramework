@@ -24,12 +24,27 @@ namespace BattleCommon
 
         // R3-S10: 表现层 Sink 桥接。由上层注入，用于将 GAS 事件转发到表现层单通路。
         // null 时不转发（保证无表现层时逻辑层正常运行）。
-        public BattlePresentationSink PresentationSink { get; set; }
+        private BattlePresentationSink _presentationSink;
 
-        // R3-S10 修复: GAS 事件 per-actor 内部分发。
-        // ActorPresentationComponent 通过此事件接收 GAS 通知（不再直接订阅 GAS），
-        // CombatAbilityComponent 作为唯一 GAS 订阅点，避免重复订阅。
-        public event Action<GameplayEffectEvent> GASForwarded;
+        /// <summary>
+        /// Battle-level presentation route. Late bootstrap injection is supported so
+        /// presentation listeners can rebind after actor initialization.
+        /// </summary>
+        public BattlePresentationSink PresentationSink
+        {
+            get => _presentationSink;
+            set
+            {
+                if (ReferenceEquals(_presentationSink, value))
+                    return;
+
+                var previous = _presentationSink;
+                _presentationSink = value;
+                PresentationSinkChanged?.Invoke(previous, value);
+            }
+        }
+
+        public event Action<BattlePresentationSink, BattlePresentationSink> PresentationSinkChanged;
 
         // Owner 继承自 EntityComponent，类型为 BattleEntity。需要 CombatActor 特有成员时通过 Actor 访问。
         protected CombatActor Actor => Owner as CombatActor;
@@ -58,18 +73,19 @@ namespace BattleCommon
                 _lightEffects = new GameplayEffectRuntime(
                     Owner?.Id ?? 0,
                     Actor,
-                    gasRuntimeContext,
-                    services?.GameplayCueManager);
+                    gasRuntimeContext);
             }
             else
             {
-                _gas = new GameplayAbilitySystem(Owner?.Id ?? 0, Actor, gasRuntimeContext, services?.AbilityCatalog,
-                    services?.GameplayCueManager);
+                _gas = new GameplayAbilitySystem(
+                    Owner?.Id ?? 0,
+                    Actor,
+                    gasRuntimeContext,
+                    services?.AbilityCatalog);
             }
 
-            // R3-S10: 订阅 GAS 事件，作为唯一订阅点。
-            // 收敛 F4 痛点：ActorPresentationComponent 不再直接订阅 GAS，由本组件统一转发。
-            // 始终订阅（不依赖 PresentationSink 是否注入），保证 per-actor 表现组件能收到事件。
+            // Subscribe once at the GAS boundary. Presentation consumers receive only
+            // converted IBattlePresentationSink events.
             var runtimeContext = RuntimeContext;
             if (runtimeContext != null)
             {
@@ -77,21 +93,17 @@ namespace BattleCommon
                 runtimeContext.Subscribe(GameplayEffectEventType.AbilityEnded, OnGASEventForwarded);
                 runtimeContext.Subscribe(GameplayEffectEventType.AttributeChanged, OnGASEventForwarded);
                 runtimeContext.Subscribe(GameplayEffectEventType.CueTriggered, OnGASEventForwarded);
+                runtimeContext.Subscribe(GameplayEffectEventType.TagAdded, OnGASEventForwarded);
+                runtimeContext.Subscribe(GameplayEffectEventType.TagRemoved, OnGASEventForwarded);
             }
 
             for (int i = 0; i < _initialAbilities.Count; i++)
                 GrantAbility(_initialAbilities[i]);
         }
 
-        /// <summary>
-        /// R3-S10: GAS 事件转发回调。作为唯一订阅点，分发给 per-actor 表现组件 + 转发到 PresentationSink。
-        /// 替代 ActorPresentationComponent 直接订阅 GAS 的并行通路。
-        /// </summary>
+        /// <summary>Forwards the actor's GAS events into the presentation route.</summary>
         private void OnGASEventForwarded(GameplayEffectEvent evt)
         {
-            // per-actor 内部分发（ActorPresentationComponent 等）
-            GASForwarded?.Invoke(evt);
-            // battle 级 Sink 转发（注入时才转发）
             PresentationSink?.ForwardGASEvent(evt);
         }
 
@@ -128,7 +140,7 @@ namespace BattleCommon
             var ability = FindAbility<BornAbilityDefinition>();
             if (ability == null) return false;
             return RuntimeMode == CombatAbilityRuntimeMode.Lightweight
-                ? ActivateLightBornAbility(ability)
+                ? ActivateLightBornAbility(ability, 1)
                 : _gas != null && _gas.ActivateAbility(ability) != null;
         }
 
@@ -140,7 +152,7 @@ namespace BattleCommon
 
             var targetEffects = target.Get<CombatAbilityComponent>()?.Effects;
             return RuntimeMode == CombatAbilityRuntimeMode.Lightweight
-                ? ActivateLightAttackAbility(ability, target, targetEffects)
+                ? ActivateLightAttackAbility(ability, target, targetEffects, 1)
                 : _gas != null && _gas.ActivateAbility(ability, targetEffects) != null;
         }
 
@@ -151,26 +163,61 @@ namespace BattleCommon
 
             var killerEffects = killer?.Get<CombatAbilityComponent>()?.Effects;
             return RuntimeMode == CombatAbilityRuntimeMode.Lightweight
-                ? ActivateLightDeathAbility(ability, killerEffects)
+                ? ActivateLightDeathAbility(ability, killerEffects, 1)
                 : _gas != null && _gas.ActivateAbility(ability, killerEffects) != null;
         }
 
         public bool TryActivateById(int abilityId)
         {
-            if (abilityId <= 0) return false;
-            var ability = FindAbilityById(abilityId);
-            if (ability == null) return false;
-
-            if (RuntimeMode != CombatAbilityRuntimeMode.Lightweight)
-                return _gas != null && _gas.ActivateAbility(ability) != null;
-
-            if (ability is BornAbilityDefinition bornAbility)
-                return ActivateLightBornAbility(bornAbility);
-            if (ability is DeathAbilityDefinition deathAbility)
-                return ActivateLightDeathAbility(deathAbility, null);
-            return false;
+            return TryActivateById(abilityId, null).Success;
         }
 
+        public GameplayAbilityActivationResult TryActivateById(
+            int abilityId,
+            ICombatActor target,
+            int level = 1)
+        {
+            if (abilityId <= 0)
+                return GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.InvalidAbility);
+
+            var ability = FindAbilityById(abilityId);
+            if (ability == null)
+                return GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.NotGranted);
+
+            if (RuntimeMode != CombatAbilityRuntimeMode.Lightweight)
+            {
+                var targetEffects = target?.Get<CombatAbilityComponent>()?.Effects;
+                return _gas != null
+                    ? _gas.Abilities.TryActivateAbility(ability, targetEffects, level)
+                    : GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.InvalidAbility);
+            }
+
+            if (ability is BornAbilityDefinition bornAbility)
+            {
+                return ActivateLightBornAbility(bornAbility, level)
+                    ? GameplayAbilityActivationResult.Activated(null)
+                    : GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.ActivationRequirementsNotMet);
+            }
+
+            if (ability is DeathAbilityDefinition deathAbility)
+            {
+                var killerEffects = target?.Get<CombatAbilityComponent>()?.Effects;
+                return ActivateLightDeathAbility(deathAbility, killerEffects, level)
+                    ? GameplayAbilityActivationResult.Activated(null)
+                    : GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.ActivationRequirementsNotMet);
+            }
+
+            if (ability is MeleeAttackAbilityDefinition || ability is RemoteAttackAbilityDefinition)
+            {
+                var targetActor = target as CombatActor;
+                var targetEffects = target?.Get<CombatAbilityComponent>()?.Effects;
+                return targetActor != null && ActivateLightAttackAbility(ability, targetActor, targetEffects, level)
+                    ? GameplayAbilityActivationResult.Activated(null)
+                    : GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.ActivationRequirementsNotMet);
+            }
+
+            return GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.InvalidAbility);
+        }
         public bool TryBlockIncomingDamage(DamageBlockContext blockContext)
         {
             if (_gas?.Abilities == null || blockContext == null)
@@ -280,6 +327,11 @@ namespace BattleCommon
             return FindAbilityById(abilityId);
         }
 
+        public GameplayAbilityDefinition FindGrantedAttackAbilityDefinition()
+        {
+            return FindAttackAbility();
+        }
+
         private T FindAbility<T>() where T : GameplayAbilityDefinition
         {
             var abilities = GetGrantedAbilities();
@@ -323,7 +375,7 @@ namespace BattleCommon
                 : _gas?.Abilities?.GrantedAbilities;
         }
 
-        private bool ActivateLightBornAbility(BornAbilityDefinition ability)
+        private bool ActivateLightBornAbility(BornAbilityDefinition ability, int level)
         {
             if (!CanActivateLightAbility(ability, _lightEffects))
             {
@@ -332,15 +384,16 @@ namespace BattleCommon
             }
 
             var abilitySpecId = BeginLightAbility(ability, _lightEffects, GetLightAbilityDuration(ability));
-            ApplyLightConfiguredEffects(ability, _lightEffects, abilitySpecId);
-            ApplyLightEffect(ability.SelfBornEffect, _lightEffects, default, null, abilitySpecId);
+            ApplyLightConfiguredEffects(ability, _lightEffects, abilitySpecId, level);
+            ApplyLightEffect(ability.SelfBornEffect, _lightEffects, default, null, abilitySpecId, level);
             return true;
         }
 
         private bool ActivateLightAttackAbility(
             GameplayAbilityDefinition ability,
             CombatActor target,
-            GameplayEffectRuntime targetEffects)
+            GameplayEffectRuntime targetEffects,
+            int level)
         {
             if (!CanActivateLightAbility(ability, targetEffects))
             {
@@ -349,18 +402,21 @@ namespace BattleCommon
             }
 
             var abilitySpecId = BeginLightAbility(ability, targetEffects, GetLightAbilityDuration(ability));
-            ApplyLightConfiguredEffects(ability, targetEffects, abilitySpecId);
+            ApplyLightConfiguredEffects(ability, targetEffects, abilitySpecId, level);
 
             if (ability is RemoteAttackAbilityDefinition remoteAbility)
-                return ActivateLightRemoteAttack(remoteAbility, target, targetEffects, abilitySpecId);
+                return ActivateLightRemoteAttack(remoteAbility, target, targetEffects, abilitySpecId, level);
 
             if (ability is MeleeAttackAbilityDefinition meleeAbility)
-                return ActivateLightMeleeAttack(meleeAbility, abilitySpecId);
+                return ActivateLightMeleeAttack(meleeAbility, abilitySpecId, level);
 
             return false;
         }
 
-        private bool ActivateLightDeathAbility(DeathAbilityDefinition ability, GameplayEffectRuntime killerEffects)
+        private bool ActivateLightDeathAbility(
+            DeathAbilityDefinition ability,
+            GameplayEffectRuntime killerEffects,
+            int level)
         {
             if (!CanActivateLightAbility(ability, killerEffects))
             {
@@ -369,14 +425,17 @@ namespace BattleCommon
             }
 
             var abilitySpecId = BeginLightAbility(ability, killerEffects, GetLightAbilityDuration(ability));
-            ApplyLightConfiguredEffects(ability, killerEffects, abilitySpecId);
-            ApplyLightEffect(ability.SelfDeathEffect, _lightEffects, default, null, abilitySpecId);
-            ApplyLightEffect(ability.KillerEffect, killerEffects, default, null, abilitySpecId);
+            ApplyLightConfiguredEffects(ability, killerEffects, abilitySpecId, level);
+            ApplyLightEffect(ability.SelfDeathEffect, _lightEffects, default, null, abilitySpecId, level);
+            ApplyLightEffect(ability.KillerEffect, killerEffects, default, null, abilitySpecId, level);
             Actor?.BeginDeathFadeOut(ability.FadeOutDuration);
             return true;
         }
 
-        private bool ActivateLightMeleeAttack(MeleeAttackAbilityDefinition ability, int abilitySpecId)
+        private bool ActivateLightMeleeAttack(
+            MeleeAttackAbilityDefinition ability,
+            int abilitySpecId,
+            int level)
         {
             if (ability.DamageEffect == null || ability.HitDefinition == null || !(Owner is IMeleeAttackSourceProvider melee))
                 return false;
@@ -398,7 +457,7 @@ namespace BattleCommon
                 if (!hitEntities.Add(targetEffects.EntityId))
                     continue;
 
-                ApplyLightEffect(ability.DamageEffect, targetEffects, target.Position, target, abilitySpecId);
+                ApplyLightEffect(ability.DamageEffect, targetEffects, target.Position, target, abilitySpecId, level);
                 hitCount++;
             }
 
@@ -409,7 +468,8 @@ namespace BattleCommon
             RemoteAttackAbilityDefinition ability,
             CombatActor target,
             GameplayEffectRuntime targetEffects,
-            int abilitySpecId)
+            int abilitySpecId,
+            int level)
         {
             if (!(Owner is IRangedAttackSourceProvider sourceProvider) ||
                 sourceProvider.ProjectileRuntime == null ||
@@ -434,7 +494,7 @@ namespace BattleCommon
                 Target = target,
                 Definition = projectileDefinition,
                 DamageEffect = ability.DamageEffect,
-                Level = 1,
+                Level = Mathf.Max(1, level),
                 StartPosition = sourceProvider.FirePosition,
                 UserData = target,
                 AbilityId = ability.AbilityId,
@@ -549,7 +609,8 @@ namespace BattleCommon
         private void ApplyLightConfiguredEffects(
             GameplayAbilityDefinition ability,
             GameplayEffectRuntime target,
-            int abilitySpecId = 0)
+            int abilitySpecId = 0,
+            int level = 1)
         {
             if (ability?.EffectsOnActivate == null)
                 return;
@@ -565,7 +626,8 @@ namespace BattleCommon
                     ResolveLightTarget(application.TargetPolicy, target),
                     default,
                     null,
-                    abilitySpecId);
+                    abilitySpecId,
+                    level);
             }
         }
 
@@ -588,12 +650,13 @@ namespace BattleCommon
             GameplayEffectRuntime target,
             Vector3 position = default,
             object userData = null,
-            int abilitySpecId = 0)
+            int abilitySpecId = 0,
+            int level = 1)
         {
             if (effect == null || _lightEffects == null || target == null)
                 return;
 
-            var spec = _lightEffects.MakeOutgoingSpec(target, effect, 1);
+            var spec = _lightEffects.MakeOutgoingSpec(target, effect, Mathf.Max(1, level));
             if (spec == null)
                 return;
 
@@ -684,6 +747,8 @@ namespace BattleCommon
             runtimeContext.Unsubscribe(GameplayEffectEventType.AbilityEnded, OnGASEventForwarded);
             runtimeContext.Unsubscribe(GameplayEffectEventType.AttributeChanged, OnGASEventForwarded);
             runtimeContext.Unsubscribe(GameplayEffectEventType.CueTriggered, OnGASEventForwarded);
+            runtimeContext.Unsubscribe(GameplayEffectEventType.TagAdded, OnGASEventForwarded);
+            runtimeContext.Unsubscribe(GameplayEffectEventType.TagRemoved, OnGASEventForwarded);
         }
 
         private class LightweightActiveAbility

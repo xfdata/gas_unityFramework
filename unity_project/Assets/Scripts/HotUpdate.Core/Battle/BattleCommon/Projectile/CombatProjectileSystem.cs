@@ -81,6 +81,9 @@ namespace BattleCommon
 
         private static bool CanBeCombatTarget(CombatActor target)
         {
+            if (target?.Gameplay?.States.CanBeTargeted() == false)
+                return false;
+
             return target?.Get<CombatStateComponent>() is not {} state || state.CanBeAttacked;
         }
     }

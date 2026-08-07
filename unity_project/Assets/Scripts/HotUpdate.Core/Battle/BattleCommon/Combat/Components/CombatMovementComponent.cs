@@ -34,6 +34,12 @@ namespace BattleCommon
         public void MoveTo(Vector3 destination)
         {
             if (_health != null && _health.IsDead) return;
+            if (Actor?.Gameplay?.States.CanMove() == false)
+            {
+                StopMove();
+                return;
+            }
+
             _motor?.MoveTo(destination, _attributes?.MoveSpeed ?? 3f);
         }
 
@@ -59,6 +65,12 @@ namespace BattleCommon
 
         public override void Update(float deltaTime)
         {
+            if (Actor?.Gameplay?.States.CanMove() == false)
+            {
+                StopMove();
+                return;
+            }
+
             if (_currentPath.Count == 0 || _motor == null || !_motor.HasArrived) return;
 
             _currentPathIndex++;

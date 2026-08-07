@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BattleCommon
 {
-    public class ActorAnimationComponent : CombatComponentBase
+    public class ActorAnimationComponent : CombatComponentBase, IBattlePresentationSink
     {
         private const float DefaultIdleFadeDuration = 0.05f;
 
@@ -21,7 +21,7 @@ namespace BattleCommon
 
         private CombatActor _combatActor;
         private CombatAbilityComponent _ability;
-        private IGameplayEffectRuntimeContext _abilityRuntimeContext;
+        private BattlePresentationSink _presentationSink;
         private IUnitAnimationConfig _unitConfig;
         private bool _playIdleWhenAbilitiesEnd;
         private float _pendingIdleFadeDuration = DefaultIdleFadeDuration;
@@ -40,7 +40,7 @@ namespace BattleCommon
             _unitConfig = null;
             _playIdleWhenAbilitiesEnd = false;
             _pendingIdleFadeDuration = DefaultIdleFadeDuration;
-            SubscribeAbilityEvents();
+            SubscribePresentationEvents();
         }
 
         public override void Update(float deltaTime)
@@ -99,7 +99,7 @@ namespace BattleCommon
 
         public override void DeactivateForPool()
         {
-            UnsubscribeAbilityEvents();
+            UnsubscribePresentationEvents();
             _unitConfig = null;
             _playIdleWhenAbilitiesEnd = false;
             _pendingIdleFadeDuration = DefaultIdleFadeDuration;
@@ -108,7 +108,7 @@ namespace BattleCommon
 
         protected override void OnDispose()
         {
-            UnsubscribeAbilityEvents();
+            UnsubscribePresentationEvents();
             _combatActor = null;
             _ability = null;
             _unitConfig = null;
@@ -117,31 +117,30 @@ namespace BattleCommon
             base.OnDispose();
         }
 
-        private void SubscribeAbilityEvents()
+        private void SubscribePresentationEvents()
         {
-            UnsubscribeAbilityEvents();
-
-            _abilityRuntimeContext = _ability?.RuntimeContext;
-            _abilityRuntimeContext?.Subscribe(GameplayEffectEventType.AbilityActivated, OnAbilityActivated);
-            _abilityRuntimeContext?.Subscribe(GameplayEffectEventType.AbilityEnded, OnAbilityEnded);
-        }
-
-        private void UnsubscribeAbilityEvents()
-        {
-            if (_abilityRuntimeContext == null)
+            if (_ability == null)
                 return;
 
-            _abilityRuntimeContext.Unsubscribe(GameplayEffectEventType.AbilityActivated, OnAbilityActivated);
-            _abilityRuntimeContext.Unsubscribe(GameplayEffectEventType.AbilityEnded, OnAbilityEnded);
-            _abilityRuntimeContext = null;
+            _ability.PresentationSinkChanged -= OnPresentationSinkChanged;
+            _ability.PresentationSinkChanged += OnPresentationSinkChanged;
+            RebindPresentationSink(_ability.PresentationSink);
         }
 
-        private void OnAbilityActivated(GameplayEffectEvent gameplayEvent)
+        private void UnsubscribePresentationEvents()
         {
-            if (_combatActor == null || gameplayEvent.SourceEntityId != _combatActor.Id)
+            if (_ability != null)
+                _ability.PresentationSinkChanged -= OnPresentationSinkChanged;
+            _presentationSink?.UnregisterListener(this);
+            _presentationSink = null;
+        }
+
+        public void OnAbilityActivated(in AbilityPresentation evt)
+        {
+            if (_combatActor == null || evt.EntityId != _combatActor.Id)
                 return;
 
-            if (IsDeathAbilityEvent(gameplayEvent))
+            if (IsDeathAbilityEvent(evt.AbilityId))
             {
                 _playIdleWhenAbilitiesEnd = false;
                 return;
@@ -150,12 +149,12 @@ namespace BattleCommon
             _playIdleWhenAbilitiesEnd = true;
         }
 
-        private void OnAbilityEnded(GameplayEffectEvent gameplayEvent)
+        public void OnAbilityEnded(in AbilityPresentation evt)
         {
-            if (_combatActor == null || gameplayEvent.SourceEntityId != _combatActor.Id)
+            if (_combatActor == null || evt.EntityId != _combatActor.Id)
                 return;
 
-            if (IsDeathAbilityEvent(gameplayEvent))
+            if (IsDeathAbilityEvent(evt.AbilityId))
                 return;
 
             RequestIdleWhenReady(_pendingIdleFadeDuration);
@@ -240,12 +239,34 @@ namespace BattleCommon
             return _combatActor?.Get<CombatAbilityComponent>()?.HasActiveAbility(tag) ?? false;
         }
 
-        private bool IsDeathAbilityEvent(GameplayEffectEvent gameplayEvent)
+        public void OnActorSpawned(in ActorSpawnedEvent evt) { }
+        public void OnActorDied(in ActorDiedEvent evt) { }
+        public void OnDamageDealt(in DamageDealtPresentation evt) { }
+        public void OnAttributeChanged(in AttributeChangedPresentation evt) { }
+        public void OnCueTriggered(in CuePresentation evt) { }
+        public void OnGameplayTagChanged(in GameplayTagChangedPresentation evt) { }
+
+        private void OnPresentationSinkChanged(BattlePresentationSink previous, BattlePresentationSink current)
         {
-            if (gameplayEvent.AbilityId == CombatAbilityIds.Death)
+            RebindPresentationSink(current);
+        }
+
+        private void RebindPresentationSink(BattlePresentationSink sink)
+        {
+            if (ReferenceEquals(_presentationSink, sink))
+                return;
+
+            _presentationSink?.UnregisterListener(this);
+            _presentationSink = sink;
+            _presentationSink?.RegisterListener(this);
+        }
+
+        private bool IsDeathAbilityEvent(int abilityId)
+        {
+            if (abilityId == CombatAbilityIds.Death)
                 return true;
 
-            return IsDeathAbility(FindGrantedAbilityDefinition(gameplayEvent.AbilityId));
+            return IsDeathAbility(FindGrantedAbilityDefinition(abilityId));
         }
 
         private GameplayAbilityDefinition FindGrantedAbilityDefinition(int abilityId)

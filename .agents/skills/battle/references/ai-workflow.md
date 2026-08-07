@@ -21,7 +21,7 @@ Do not duplicate `BattleCommon` AI classes in `NewPVE`. If an AI behavior only n
 
 ## NewPVE Extraction Audit
 
-Prefer this split when cleaning `Assets/Scripts/HotUpdate.Game/NewPVE/`:
+Prefer this split when cleaning a legacy `NewPVE` battle-mode module:
 
 Move to `BattleCommon` directly:
 
@@ -31,7 +31,7 @@ Move to `BattleCommon` directly:
 - `AI/AIDecisionComponent.cs`: merge its richer decision loop into `CombatAIComponent`, especially active behavior tracking, threat level, home position, retarget cooldown, and pool reset.
 - `AI/AIPresetBuilder.cs`: merge preset construction into `CombatAIPresetBuilder`; NewPVE should call common presets instead of constructing behavior lists itself.
 - `Actor/Components/ActorAnimationComponent.cs` and `Actor/Components/ActorPresentationComponent.cs`: these are combat presentation components and should live under `BattleCommon/Combat/Components/`.
-- `GAS/Cue/NewPVEGameplayCueManager.cs`: use or extend `BattleCommon/GAS/Cue/CombatGameplayCueManager` for hit and poison cues.
+- `GAS/Cue/NewPVEGameplayCueManager.cs`: replace direct cue-to-actor presentation calls with an `IBattlePresentationSink` implementation; `CombatAbilityComponent` already forwards the GAS cue lifecycle to that route.
 
 Move to `BattleCommon` after extracting mode dependencies:
 

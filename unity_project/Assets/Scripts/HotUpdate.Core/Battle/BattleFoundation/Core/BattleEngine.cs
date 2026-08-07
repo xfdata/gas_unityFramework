@@ -16,10 +16,23 @@ namespace BattleFoundation
         }
     }
 
+    public readonly struct BattleCommandFailedEvent
+    {
+        public readonly BattleCommand Command;
+        public readonly Exception Exception;
+
+        public BattleCommandFailedEvent(BattleCommand command, Exception exception)
+        {
+            Command = command;
+            Exception = exception;
+        }
+    }
+
     public abstract class BattleEngine : Disposable
     {
         protected IBattleLog _log;
 
+        public IBattleLog Log => _log;
         public EBattlePhase Phase { get; protected set; } = EBattlePhase.Uninitialized;
         public BattleContext Context { get; protected set; }
         public BattleRuntimeSettings Settings { get; private set; }
@@ -33,6 +46,7 @@ namespace BattleFoundation
         public BattleRecorder Recorder { get; private set; }
         public BattlePlayback Playback { get; private set; }
         public IBattleReplayAdapter ReplayAdapter { get; private set; }
+        public IBattleCommandFactory CommandFactory { get; private set; }
 
         public event Action<EBattlePhase, EBattlePhase> OnPhaseChanged;
         public event Action<BattleEngine> OnBattleEnded;
@@ -46,6 +60,11 @@ namespace BattleFoundation
 
         protected virtual BattleContext CreateContext() => new BattleContext();
 
+        public void SetLog(IBattleLog log)
+        {
+            _log = log;
+            Context?.SetLog(log);
+        }
         protected virtual BattleRuntimeSettings CreateRuntimeSettings()
         {
             // L0 不持有 UnityEngine ScriptableObject 配置；
@@ -86,6 +105,11 @@ namespace BattleFoundation
             ReplayAdapter = adapter;
         }
 
+        protected void SetCommandFactory(IBattleCommandFactory factory)
+        {
+            CommandFactory = factory;
+        }
+
         protected virtual void OnInitialize() { }
         protected virtual void OnBeforeBattleStart() { }
 
@@ -99,10 +123,10 @@ namespace BattleFoundation
             IsPaused = false;
             _frameSyncAccumulator = 0f;
 
+            Recorder?.StartRecording();
             OnBeforeBattleStart();
             ChangePhase(EBattlePhase.Running);
             Context.Start();
-            Recorder?.StartRecording();
             OnBattleStart();
             Recorder?.RecordFrame(FrameRecordData.Create(FrameIndex, ElapsedTime, Context, ReplayAdapter));
         }
@@ -192,23 +216,49 @@ namespace BattleFoundation
 
         public void EnqueueCommand(BattleCommand command)
         {
-            if (command != null)
-                _pendingCommands.Enqueue(command);
+            if (command == null)
+                return;
+
+            // Frame 0 means "next simulation frame". Commands enqueued during a
+            // simulation tick therefore cannot affect that already-running tick.
+            if (command.CommandFrame <= 0)
+                command.CommandFrame = FrameIndex + 1;
+
+            _pendingCommands.Enqueue(command);
+            Recorder?.RecordCommand(command);
         }
 
         private void ExecutePendingCommands()
         {
-            while (_pendingCommands.TryDequeue(out var command))
+            while (_pendingCommands.TryDequeueDue(FrameIndex, out var command))
+                ExecuteCommand(command);
+        }
+
+        internal bool ExecuteRecordedCommand(BattleCommandRecord record)
+        {
+            var command = CommandFactory?.CreateCommand(record?.CommandType ?? 0);
+            if (command == null || !command.RestoreFromRecord(record))
             {
-                try
-                {
-                    command.Execute(this);
-                    Context.EventBus.Emit(BattleEventIds.CommandExecuted, command);
-                }
-                catch (Exception e)
-                {
-                    _log?.Error($"[BattleEngine] Command execution failed: {e}");
-                }
+                _log?.Error($"[BattleEngine] Unable to restore replay command type={record?.CommandType}.");
+                return false;
+            }
+
+            ExecuteCommand(command);
+            return true;
+        }
+
+        private void ExecuteCommand(BattleCommand command)
+        {
+            try
+            {
+                command.Execute(this);
+                Context?.EventBus?.Emit(BattleEventIds.CommandExecuted, command);
+            }
+            catch (Exception e)
+            {
+                _log?.Error($"[BattleEngine] Command execution failed: {e}");
+                Context?.EventBus?.Emit(BattleEventIds.CommandFailed,
+                    new BattleCommandFailedEvent(command, e));
             }
         }
 
@@ -299,7 +349,7 @@ namespace BattleFoundation
             Recorder?.StopRecording(EBattleResult.None);
             Playback?.Dispose();
             Playback = new BattlePlayback();
-            Playback.Initialize(replayData, Context, ReplayAdapter, result => EndBattle(result));
+            Playback.Initialize(replayData, Context, ReplayAdapter, this, result => EndBattle(result));
             ElapsedTime = 0f;
             DeltaTime = 0f;
             FrameIndex = 0;
@@ -384,6 +434,7 @@ namespace BattleFoundation
             Context?.Dispose();
             Context = null;
             ReplayAdapter = null;
+            CommandFactory = null;
             _pendingCommands.Clear();
             ChangePhase(EBattlePhase.Disposed);
             base.OnDispose();

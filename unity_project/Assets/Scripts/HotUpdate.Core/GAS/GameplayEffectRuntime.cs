@@ -767,7 +767,7 @@ namespace GAS
                 if (!ShouldTriggerCue(cue, eventType))
                     continue;
 
-                RecordCueEvent(spec, runtimeId, cue.CueTag, magnitude);
+                RecordCueEvent(spec, runtimeId, cue.CueTag, eventType, magnitude);
 
                 if (cueManager == null)
                     continue;
@@ -899,6 +899,7 @@ namespace GAS
             GameplayEffectSpec spec,
             int runtimeEffectId,
             GameplayTag cueTag,
+            GameplayCueEventType cueEventType,
             float magnitude)
         {
             if (suppressRuntimeEvents)
@@ -906,6 +907,7 @@ namespace GAS
 
             var evt = CreateBaseEvent(spec, GameplayEffectEventType.CueTriggered, runtimeEffectId);
             evt.CueTag = cueTag;
+            evt.CueEventType = cueEventType;
             evt.Magnitude = magnitude;
             RuntimeContext.RecordEvent(evt);
         }

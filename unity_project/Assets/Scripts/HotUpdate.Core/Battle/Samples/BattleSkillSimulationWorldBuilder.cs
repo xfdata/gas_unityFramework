@@ -1,6 +1,9 @@
+using Battle;
 using BattleCommon;
 using BattleFoundation;
 using GAS;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BattleSkillSimulation
@@ -28,6 +31,7 @@ namespace BattleSkillSimulation
             var definitions = BuildDefinitions(request);
             var services = new RuntimeAbilityServices(definitions.Catalog);
             var engine = new SimulationBattleEngine();
+            engine.SetLog(new DefaultBattleLog());
             engine.Initialize();
 
             var player = CreateActor(
@@ -58,12 +62,13 @@ namespace BattleSkillSimulation
 
             ConfigureStats(npc, request.NpcMaxHP, 0f, request.NpcDefense, 0f, 0f);
 
-            player.Get<CombatAbilityComponent>()?.SetInitialAbilities(new[] { definitions.SkillAbility });
+            ConfigureGameplayActor(player, definitions.PlayerGameplayConfig);
+            ConfigureGameplayActor(npc, definitions.NpcGameplayConfig);
             player.Get<BattleSkillSimulationMoveComponent>()?.SetMoveSpeed(request.PlayerMoveSpeed);
 
             var actorSystem = engine.Context.GetSystem<CombatActorSystem>();
-            actorSystem.AddActor(player);
-            actorSystem.AddActor(npc);
+            actorSystem.Spawn(player);
+            actorSystem.Spawn(npc);
 
             engine.StartBattle();
 
@@ -72,9 +77,12 @@ namespace BattleSkillSimulation
                 player,
                 npc,
                 definitions.Catalog,
+                definitions.GameplayCatalog,
                 definitions.SkillAbility,
                 definitions.DamageEffect,
                 definitions.DamageExecution,
+                definitions.PlayerGameplayConfig,
+                definitions.NpcGameplayConfig,
                 request.SkillCooldown);
         }
 
@@ -109,13 +117,45 @@ namespace BattleSkillSimulation
             catalog.RegisterEffect(damageEffect);
             catalog.RegisterAbility(skillAbility);
 
+            var gameplayCatalog = ScriptableObject.CreateInstance<BattleGameplayCatalog>();
+            gameplayCatalog.name = "RuntimeBattleGameplayCatalog";
+            gameplayCatalog.RegisterSkill(CombatSkillIds.SimulationSkill, skillAbility);
+
+            var playerGameplayConfig = ScriptableObject.CreateInstance<BattleUnitGameplayConfig>();
+            playerGameplayConfig.name = "RuntimePlayerGameplayConfig";
+            playerGameplayConfig.SetGameplayCatalog(gameplayCatalog);
+            playerGameplayConfig.RegisterGrantedSkill(CombatSkillIds.SimulationSkill);
+
+            var npcGameplayConfig = ScriptableObject.CreateInstance<BattleUnitGameplayConfig>();
+            npcGameplayConfig.name = "RuntimeNpcGameplayConfig";
+            npcGameplayConfig.SetGameplayCatalog(gameplayCatalog);
+
             return new RuntimeDefinitions
             {
                 Catalog = catalog,
+                GameplayCatalog = gameplayCatalog,
                 SkillAbility = skillAbility,
                 DamageEffect = damageEffect,
                 DamageExecution = damageExecution,
+                PlayerGameplayConfig = playerGameplayConfig,
+                NpcGameplayConfig = npcGameplayConfig,
             };
+        }
+
+        private static void ConfigureGameplayActor(
+            CombatActor actor,
+            BattleUnitGameplayConfig gameplayConfig)
+        {
+            var errors = new List<string>();
+            if (BattleGameplayActorConfigurator.ConfigureBeforeInitialize(
+                    actor,
+                    gameplayConfig,
+                    errors))
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(string.Join("\n", errors));
         }
 
         private static SimulationActor CreateActor(
@@ -217,9 +257,12 @@ namespace BattleSkillSimulation
         private struct RuntimeDefinitions
         {
             public GameplayDefinitionCatalog Catalog;
+            public BattleGameplayCatalog GameplayCatalog;
             public MeleeAttackAbilityDefinition SkillAbility;
             public GameplayEffectDefinition DamageEffect;
             public CombatDamageExecution DamageExecution;
+            public BattleUnitGameplayConfig PlayerGameplayConfig;
+            public BattleUnitGameplayConfig NpcGameplayConfig;
         }
 
         private struct ActorRoot
@@ -236,7 +279,6 @@ namespace BattleSkillSimulation
             }
 
             public GameplayDefinitionCatalog AbilityCatalog { get; }
-            public IGameplayCueManager GameplayCueManager => null;
             public ProjectileRuntime ProjectileRuntime => null;
         }
     }

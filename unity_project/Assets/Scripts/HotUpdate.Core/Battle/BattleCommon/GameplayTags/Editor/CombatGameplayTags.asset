@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -20,14 +20,14 @@ MonoBehaviour:
     siblingId: 1
   - path: Ability.Attack
     siblingId: 1
+  - path: Ability.Block
+    siblingId: 5
   - path: Ability.Born
     siblingId: 2
   - path: Ability.Death
     siblingId: 3
   - path: Ability.Skill
     siblingId: 4
-  - path: Ability.Block
-    siblingId: 5
   - path: Cue
     siblingId: 2
   - path: Cue.Hit
@@ -38,6 +38,10 @@ MonoBehaviour:
     siblingId: 3
   - path: State.Attacking
     siblingId: 1
+  - path: State.BlockCooldown
+    siblingId: 8
+  - path: State.BornInvincible
+    siblingId: 9
   - path: State.Casting
     siblingId: 2
   - path: State.Dead
@@ -50,10 +54,14 @@ MonoBehaviour:
     siblingId: 6
   - path: State.Poisoned
     siblingId: 7
-  - path: State.BlockCooldown
-    siblingId: 8
-  - path: State.BornInvincible
-    siblingId: 9
+  - path: State.Rooted
+    siblingId: 11
+  - path: State.Silenced
+    siblingId: 12
+  - path: State.Stunned
+    siblingId: 10
+  - path: State.Untargetable
+    siblingId: 13
   - path: Trigger
     siblingId: 4
   - path: Trigger.OnDamageTaken
@@ -68,6 +76,8 @@ MonoBehaviour:
   - parentPath: Cue
     nextId: 3
   - parentPath: State
-    nextId: 10
+    nextId: 14
   - parentPath: Trigger
     nextId: 3
+  retiredIds: []
+  recycledPool: []

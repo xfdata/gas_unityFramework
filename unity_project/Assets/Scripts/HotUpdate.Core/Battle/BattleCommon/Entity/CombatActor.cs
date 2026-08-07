@@ -19,6 +19,8 @@ namespace BattleCommon
         private Float4 _rotation = new Float4(0f, 0f, 0f, 1f);
 
         public ICombatAbilityServices AbilityServices { get; set; }
+        public IBattleGameplayCatalog GameplayCatalog { get; set; }
+        public IBattleGameplay Gameplay => Get<BattleGameplayFacadeComponent>();
 
         /// <summary>
         /// R3-S4: 表现层绑定契约。L3 ActorViewBinder 实现此接口，
@@ -41,13 +43,20 @@ namespace BattleCommon
         public PlayableDirector Director => (ViewBinding as IActorViewResources)?.Director;
 
         public virtual float HitRadius { get; protected set; } = 0.5f;
-        public virtual bool IsValidTarget => IsAlive;
+        public virtual bool IsValidTarget => IsAlive && (Gameplay?.States.CanBeTargeted() ?? true);
 
         // R3-S4: MeleeOrigin/MeleeForward 保持 Vector3 类型（IMeleeAttackSourceProvider 契约），
         // 内部从纯逻辑数据计算，不再读 Transform。
         public Vector3 MeleeOrigin => new Vector3(_position.x, _position.y, _position.z);
         public Vector3 MeleeForward => ComputeForward(_rotation);
 
+        public override void Initialize()
+        {
+            if (Get<BattleGameplayFacadeComponent>() == null)
+                AddComponent<BattleGameplayFacadeComponent>();
+
+            base.Initialize();
+        }
         public override Float3 Position
         {
             get => _position;

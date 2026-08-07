@@ -45,7 +45,6 @@ namespace BattleFoundation
         public virtual void Start() { }
         public virtual void Update(float deltaTime) { }
         public virtual void LateUpdate(float deltaTime) { }
-
         public virtual void ActivateForPool(BattleEntity owner)
         {
             Owner = owner;
@@ -73,6 +72,8 @@ namespace BattleFoundation
 
         protected List<EntityComponent> _components = new List<EntityComponent>();
         protected Dictionary<Type, EntityComponent> _componentMap = new Dictionary<Type, EntityComponent>();
+        private bool _isInitialized;
+        private bool _hasStarted;
 
         public int Id => _id;
         public EEntityCamp Camp => _camp;
@@ -81,6 +82,8 @@ namespace BattleFoundation
         public virtual Float3 Position { get; set; }
         public virtual Float4 Rotation { get; set; }
         public BattleEngine Engine { get; set; }
+        public bool IsInitialized => _isInitialized;
+        public bool HasStarted => _hasStarted;
 
         public void SetId(int id) => _id = id;
         public void SetCamp(EEntityCamp camp) => _camp = camp;
@@ -99,6 +102,11 @@ namespace BattleFoundation
             component.Attach(this);
             _components.Add(component);
             _componentMap[type] = component;
+
+            if (_isInitialized)
+                component.Initialize();
+            if (_hasStarted)
+                component.Start();
 
             return component;
         }
@@ -149,13 +157,21 @@ namespace BattleFoundation
 
         public virtual void Initialize()
         {
+            if (_isInitialized)
+                return;
+
             IsAlive = true;
             for (int i = 0; i < _components.Count; i++)
                 _components[i].Initialize();
+            _isInitialized = true;
         }
 
         public virtual void Start()
         {
+            if (!_isInitialized || _hasStarted)
+                return;
+
+            _hasStarted = true;
             for (int i = 0; i < _components.Count; i++)
                 _components[i].Start();
         }
@@ -192,6 +208,8 @@ namespace BattleFoundation
             IsAlive = true;
             Position = Float3.zero;
             Rotation = Float4.identity;
+            _isInitialized = false;
+            _hasStarted = false;
 
             for (int i = 0; i < _components.Count; i++)
                 _components[i].ActivateForPool(this);
@@ -200,6 +218,8 @@ namespace BattleFoundation
         public virtual void DeactivateForPool()
         {
             IsAlive = false;
+            _isInitialized = false;
+            _hasStarted = false;
             for (int i = 0; i < _components.Count; i++)
                 _components[i].DeactivateForPool();
         }
@@ -211,6 +231,8 @@ namespace BattleFoundation
                 _components[i].Dispose();
             _components.Clear();
             _componentMap.Clear();
+            _isInitialized = false;
+            _hasStarted = false;
             Engine = null;
         }
     }

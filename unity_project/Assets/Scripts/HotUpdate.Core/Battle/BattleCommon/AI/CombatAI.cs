@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BattleFoundation;
 using Framework;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace BattleCommon
 {
@@ -59,7 +60,8 @@ namespace BattleCommon
         public float PatrolRadius = 5f;
         public CombatTargetPriority TargetPriority = CombatTargetPriority.Nearest;
         public bool CanFlee;
-        public List<int> SkillAbilityIds = new List<int>();
+        [FormerlySerializedAs("SkillAbilityIds")]
+        public List<int> SkillIds = new List<int>();
         public List<Vector3> PatrolWaypoints = new List<Vector3>();
 
         public CombatAIProfile Clone()
@@ -79,7 +81,7 @@ namespace BattleCommon
                 PatrolRadius = PatrolRadius,
                 TargetPriority = TargetPriority,
                 CanFlee = CanFlee,
-                SkillAbilityIds = SkillAbilityIds != null ? new List<int>(SkillAbilityIds) : new List<int>(),
+                SkillIds = SkillIds != null ? new List<int>(SkillIds) : new List<int>(),
                 PatrolWaypoints = PatrolWaypoints != null ? new List<Vector3>(PatrolWaypoints) : new List<Vector3>(),
             };
         }
@@ -92,7 +94,6 @@ namespace BattleCommon
         protected CombatMovementComponent Movement;
         protected CombatAttackComponent Attack;
         protected CombatHealthComponent Health;
-        protected CombatAbilityComponent Ability;
         protected CombatAttributeComponent Attributes;
 
         public CombatAIBehaviorType Type { get; protected set; }
@@ -106,7 +107,6 @@ namespace BattleCommon
             Movement = owner?.Get<CombatMovementComponent>();
             Attack = owner?.Get<CombatAttackComponent>();
             Health = owner?.Get<CombatHealthComponent>();
-            Ability = owner?.Get<CombatAbilityComponent>();
             Attributes = owner?.Get<CombatAttributeComponent>();
         }
 
@@ -134,7 +134,6 @@ namespace BattleCommon
             Movement = null;
             Attack = null;
             Health = null;
-            Ability = null;
             Attributes = null;
         }
     }
@@ -456,15 +455,25 @@ namespace BattleCommon
 
         public override bool CanEnter(CombatActor target)
         {
-            return base.CanEnter(target) && _abilityId > 0 && _cooldown >= _minInterval;
+            return base.CanEnter(target) &&
+                   Owner?.Gameplay?.States.CanCastSkill() == true &&
+                   _abilityId > 0 &&
+                   _cooldown >= _minInterval;
         }
 
         public override void Enter(CombatActor target)
         {
             base.Enter(target);
-            Ability?.TryActivateById(_abilityId);
-            _cooldown = 0f;
-            State = CombatAIBehaviorState.Cooldown;
+            var result = Owner?.Gameplay?.Skills.TryCast(_abilityId, target);
+            if (result?.Success == true)
+            {
+                _cooldown = 0f;
+                State = CombatAIBehaviorState.Cooldown;
+            }
+            else
+            {
+                State = CombatAIBehaviorState.Inactive;
+            }
         }
 
         public override void Update(float deltaTime, CombatActor target)
@@ -629,10 +638,10 @@ namespace BattleCommon
 
             AddBehavior(new CombatFleeBehavior());
 
-            if (_profile.SkillAbilityIds != null)
+            if (_profile.SkillIds != null)
             {
-                for (int i = 0; i < _profile.SkillAbilityIds.Count; i++)
-                    AddBehavior(new CombatSkillBehavior(_profile.SkillAbilityIds[i]));
+                for (int i = 0; i < _profile.SkillIds.Count; i++)
+                    AddBehavior(new CombatSkillBehavior(_profile.SkillIds[i]));
             }
 
             AddBehavior(new CombatAttackBehavior());

@@ -9,13 +9,14 @@ namespace BattleFoundation
         public const int EntityCreated = 1001;
         public const int EntityRemoved = 1002;
         public const int CommandExecuted = 4001;
+        public const int CommandFailed = 4002;
         public const int PhaseChanged = 5001;
         public const int RuleTriggered = 5002;
     }
 
     public class BattleEventBus : Disposable
     {
-        private readonly IBattleLog _log;
+        private IBattleLog _log;
         private sealed class HandlerSet
         {
             public readonly Type PayloadType;
@@ -78,6 +79,8 @@ namespace BattleFoundation
         {
             _log = log;
         }
+
+        public void SetLog(IBattleLog log) => _log = log;
 
         public void On<T>(int eventId, Action<T> handler)
         {

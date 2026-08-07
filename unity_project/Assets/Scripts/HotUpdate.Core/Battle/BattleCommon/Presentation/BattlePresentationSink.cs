@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using GAS;
 using BattleFoundation;
 
@@ -8,9 +9,8 @@ namespace BattleCommon
     /// R3-S9: 默认表现层 Sink 桥接实现。
     ///
     /// 职责：
-    /// - 订阅 BattleEventBus（ActorSpawned/ActorDied）和 GAS RuntimeContext 事件，
-    ///   转换为 IBattlePresentationSink 载荷并转发。
-    /// - DamageDealt 由 CombatDamageExecution 直接调用 Sink.OnDamageDealt（R2 已建立）。
+    /// - 订阅 BattleEventBus（ActorSpawned/ActorDied）。
+    /// - 接收 CombatAbilityComponent 与 CombatDamageExecution 的转换后事件并转发。
     ///
     /// 使用方式：
     /// - 上层（Samples/工厂）创建 BattlePresentationSink，传入实际表现实现（如 Unity 表现层）。
@@ -24,6 +24,10 @@ namespace BattleCommon
     public class BattlePresentationSink : IBattlePresentationSink, IDisposable
     {
         private IBattlePresentationSink _sink;
+        private readonly List<IBattlePresentationSink> _listeners = new List<IBattlePresentationSink>();
+        private readonly List<IBattlePresentationSink> _pendingListenerRegistrations = new List<IBattlePresentationSink>();
+        private readonly List<IBattlePresentationSink> _pendingListenerRemovals = new List<IBattlePresentationSink>();
+        private int _listenerDispatchDepth;
         private BattleContext _context;
         private Action<ActorSpawnedEvent> _onActorSpawned;
         private Action<ActorDiedEvent> _onActorDied;
@@ -67,18 +71,107 @@ namespace BattleCommon
             _context = null;
         }
 
+        public void RegisterListener(IBattlePresentationSink listener)
+        {
+            if (listener == null || listener == this)
+                return;
+
+            if (_listenerDispatchDepth > 0)
+            {
+                _pendingListenerRemovals.Remove(listener);
+                if (!_listeners.Contains(listener) && !_pendingListenerRegistrations.Contains(listener))
+                    _pendingListenerRegistrations.Add(listener);
+                return;
+            }
+
+            if (!_listeners.Contains(listener))
+                _listeners.Add(listener);
+        }
+
+        public void UnregisterListener(IBattlePresentationSink listener)
+        {
+            if (listener == null)
+                return;
+
+            if (_listenerDispatchDepth > 0)
+            {
+                _pendingListenerRegistrations.Remove(listener);
+                if (_listeners.Contains(listener) && !_pendingListenerRemovals.Contains(listener))
+                    _pendingListenerRemovals.Add(listener);
+                return;
+            }
+
+            _listeners.Remove(listener);
+        }
+
         // ===== IBattlePresentationSink 转发 =====
 
-        public void OnActorSpawned(in ActorSpawnedEvent evt) => _sink.OnActorSpawned(evt);
-        public void OnActorDied(in ActorDiedEvent evt) => _sink.OnActorDied(evt);
-        public void OnDamageDealt(in DamageDealtPresentation evt) => _sink.OnDamageDealt(evt);
-        public void OnAttributeChanged(in AttributeChangedPresentation evt) => _sink.OnAttributeChanged(evt);
-        public void OnAbilityActivated(in AbilityPresentation evt) => _sink.OnAbilityActivated(evt);
-        public void OnAbilityEnded(in AbilityPresentation evt) => _sink.OnAbilityEnded(evt);
-        public void OnCueTriggered(in CuePresentation evt) => _sink.OnCueTriggered(evt);
+        public void OnActorSpawned(in ActorSpawnedEvent evt)
+        {
+            _sink?.OnActorSpawned(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnActorSpawned(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnActorDied(in ActorDiedEvent evt)
+        {
+            _sink?.OnActorDied(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnActorDied(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnDamageDealt(in DamageDealtPresentation evt)
+        {
+            _sink?.OnDamageDealt(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnDamageDealt(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnAttributeChanged(in AttributeChangedPresentation evt)
+        {
+            _sink?.OnAttributeChanged(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnAttributeChanged(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnAbilityActivated(in AbilityPresentation evt)
+        {
+            _sink?.OnAbilityActivated(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnAbilityActivated(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnAbilityEnded(in AbilityPresentation evt)
+        {
+            _sink?.OnAbilityEnded(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnAbilityEnded(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnCueTriggered(in CuePresentation evt)
+        {
+            _sink?.OnCueTriggered(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnCueTriggered(evt); }
+            finally { EndListenerDispatch(); }
+        }
+
+        public void OnGameplayTagChanged(in GameplayTagChangedPresentation evt)
+        {
+            _sink?.OnGameplayTagChanged(evt);
+            BeginListenerDispatch();
+            try { for (int i = 0; i < _listeners.Count; i++) _listeners[i].OnGameplayTagChanged(evt); }
+            finally { EndListenerDispatch(); }
+        }
 
         // ===== GAS 事件转发辅助方法 =====
-        // 由 CombatAbilityComponent / CombatDamageExecution 在 GAS 事件触发时调用，
+        // 由 CombatAbilityComponent 在 GAS 事件触发时调用，
         // 将 GameplayEffectEvent 转换为表现载荷并转发。
 
         /// <summary>
@@ -90,17 +183,17 @@ namespace BattleCommon
             switch (evt.Type)
             {
                 case GameplayEffectEventType.AbilityActivated:
-                    _sink.OnAbilityActivated(new AbilityPresentation(
+                    OnAbilityActivated(new AbilityPresentation(
                         (int)evt.SourceEntityId, evt.AbilityId, evt.AbilitySpecId));
                     break;
 
                 case GameplayEffectEventType.AbilityEnded:
-                    _sink.OnAbilityEnded(new AbilityPresentation(
+                    OnAbilityEnded(new AbilityPresentation(
                         (int)evt.SourceEntityId, evt.AbilityId, evt.AbilitySpecId));
                     break;
 
                 case GameplayEffectEventType.AttributeChanged:
-                    _sink.OnAttributeChanged(new AttributeChangedPresentation(
+                    OnAttributeChanged(new AttributeChangedPresentation(
                         (int)evt.TargetEntityId, evt.AttributeId, evt.OldValue, evt.NewValue, evt.Delta));
                     break;
 
@@ -109,10 +202,26 @@ namespace BattleCommon
                     Float3 cuePosition = evt.ContextData is CombatEffectPresentationContext context
                         ? context.Position
                         : default;
-                    _sink.OnCueTriggered(new CuePresentation(
-                        (int)evt.TargetEntityId, (int)evt.SourceEntityId, evt.CueTag, evt.Magnitude, cuePosition));
+                    OnCueTriggered(new CuePresentation(
+                        (int)evt.TargetEntityId,
+                        (int)evt.SourceEntityId,
+                        evt.CueTag,
+                        evt.CueEventType,
+                        evt.RuntimeEffectId,
+                        evt.Magnitude,
+                        cuePosition));
                     break;
                 }
+
+                case GameplayEffectEventType.TagAdded:
+                    OnGameplayTagChanged(new GameplayTagChangedPresentation(
+                        (int)evt.TargetEntityId, evt.GameplayTag, true));
+                    break;
+
+                case GameplayEffectEventType.TagRemoved:
+                    OnGameplayTagChanged(new GameplayTagChangedPresentation(
+                        (int)evt.TargetEntityId, evt.GameplayTag, false));
+                    break;
             }
         }
 
@@ -120,6 +229,34 @@ namespace BattleCommon
         {
             Unbind();
             _sink = null;
+            _listeners.Clear();
+            _pendingListenerRegistrations.Clear();
+            _pendingListenerRemovals.Clear();
+            _listenerDispatchDepth = 0;
+        }
+
+        private void BeginListenerDispatch()
+        {
+            _listenerDispatchDepth++;
+        }
+
+        private void EndListenerDispatch()
+        {
+            _listenerDispatchDepth--;
+            if (_listenerDispatchDepth != 0)
+                return;
+
+            for (int i = 0; i < _pendingListenerRemovals.Count; i++)
+                _listeners.Remove(_pendingListenerRemovals[i]);
+            _pendingListenerRemovals.Clear();
+
+            for (int i = 0; i < _pendingListenerRegistrations.Count; i++)
+            {
+                var listener = _pendingListenerRegistrations[i];
+                if (!_listeners.Contains(listener))
+                    _listeners.Add(listener);
+            }
+            _pendingListenerRegistrations.Clear();
         }
     }
 
@@ -138,5 +275,6 @@ namespace BattleCommon
         public void OnAbilityActivated(in AbilityPresentation evt) { }
         public void OnAbilityEnded(in AbilityPresentation evt) { }
         public void OnCueTriggered(in CuePresentation evt) { }
+        public void OnGameplayTagChanged(in GameplayTagChangedPresentation evt) { }
     }
 }

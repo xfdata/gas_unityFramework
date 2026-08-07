@@ -108,10 +108,11 @@ namespace BattleFoundation
             int aliveEnemies = entityManager.AliveCountByCamp(EEntityCamp.Enemy);
             int aliveAllies = entityManager.AliveCountByCamp(EEntityCamp.Ally);
 
-            if (aliveEnemies <= 0)
+            if (aliveEnemies <= 0 && aliveAllies <= 0)
+                Trigger(EBattleResult.Draw);
+            else if (aliveEnemies <= 0)
                 Trigger(EBattleResult.Win);
-
-            if (aliveAllies <= 0)
+            else if (aliveAllies <= 0)
                 Trigger(EBattleResult.Lose);
         }
     }

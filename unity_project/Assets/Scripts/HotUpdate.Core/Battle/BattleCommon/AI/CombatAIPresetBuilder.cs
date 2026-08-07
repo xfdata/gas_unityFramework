@@ -19,18 +19,28 @@ namespace BattleCommon
             return ai;
         }
 
-        public static CombatAIComponent BuildBossMonsterAI(CombatActor owner, CombatAIProfile profile, List<int> skillAbilityIds = null)
+        public static CombatAIComponent BuildBossMonsterAI(CombatActor owner, CombatAIProfile profile, List<int> skillIds = null)
         {
             var runtimeProfile = CreateRuntimeProfile(profile);
-            if (runtimeProfile != null && skillAbilityIds != null)
+            if (runtimeProfile != null && skillIds != null)
             {
-                runtimeProfile.SkillAbilityIds.Clear();
-                runtimeProfile.SkillAbilityIds.AddRange(skillAbilityIds);
+                runtimeProfile.SkillIds.Clear();
+                runtimeProfile.SkillIds.AddRange(skillIds);
             }
 
             var ai = owner.AddComponent<CombatAIComponent>();
             ai.SetProfile(runtimeProfile);
             return ai;
+        }
+
+        public static void ApplyGameplaySkillIds(CombatAIProfile profile, BattleUnitGameplayConfig gameplayConfig)
+        {
+            if (profile == null || gameplayConfig == null)
+                return;
+
+            profile.SkillIds.Clear();
+            for (int i = 0; i < gameplayConfig.AiSkillIds.Count; i++)
+                profile.SkillIds.Add(gameplayConfig.AiSkillIds[i]);
         }
 
         public static CombatAIComponent BuildPatrolMonsterAI(CombatActor owner, CombatAIProfile profile, List<Vector3> waypoints = null)

@@ -64,6 +64,7 @@ namespace GAS
 
         public GameplayTag GameplayTag;
         public GameplayTag CueTag;
+        public GameplayCueEventType CueEventType;
 
         public object ContextData;
         public float Magnitude;

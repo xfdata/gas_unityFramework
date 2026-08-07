@@ -4,7 +4,7 @@ Use this for ability, skill, effect, cue, tag, attribute, and combat skill work.
 
 ## Core GAS Folder
 
-`Assets/Scripts/HotUpdate.Core/GAS/` contains reusable runtime code:
+`unity_project/Assets/Scripts/HotUpdate.Core/GAS/` contains reusable runtime code:
 
 - `GameplayAbilitySystem`: grants, revokes, activates abilities; applies effects; ticks ability/effect runtime; captures/restores state.
 - `Ability/GameplayAbility.cs`: `GameplayAbilityDefinition` and `GameplayAbilitySpec`.
@@ -20,9 +20,17 @@ Use this for ability, skill, effect, cue, tag, attribute, and combat skill work.
 - `Cue/`: gameplay cue payload, set, manager.
 - `GameplayStateTypes.cs`: state structs used by capture/restore.
 
+## Core GAS Contract
+
+- Core GAS must not reference `Foundation.Common`, `BattleFoundation`, `Framework`, combat actors, projectiles, battle vectors, or presentation services.
+- Use `IGameplayRandom` for randomness. Adapt `BattleRandom` in BattleCommon rather than leaking it into GAS.
+- Use `GASProfiler` in GAS. Adapt `AutoProfiler` only in bootstrap or BattleCommon integration code.
+- Pass battle-only data through `GameplayEffectSpec.ContextData`; resolve its concrete type only in BattleCommon.
+- In BattleCommon, `CombatAbilityComponent` forwards GAS cue lifecycle to the single `IBattlePresentationSink` route. Do not inject an `IGameplayCueManager` that directly drives actor or Unity presentation.
+- With a shared `IGameplayEffectRuntimeContext`, call `BeginTick`/`EndTick` once per frame and call every GAS instance as `Tick(deltaTime, false)` inside that frame.
 ## Combat GAS Folder
 
-`Assets/Scripts/HotUpdate.Game/BattleCommon/GAS/` contains battle-specific extensions:
+`unity_project/Assets/Scripts/HotUpdate.Core/Battle/BattleCommon/Abilities/` contains battle-specific extensions:
 
 - `Ability/`: `BornAbilityDefinition`, `DeathAbilityDefinition`, `MeleeAttackAbilityDefinition`, `RemoteAttackAbilityDefinition`, `DamageBlockAbilityDefinition`.
 - `Definition/`: `MeleeHitDefinition`, `RangedProjectileDefinition`, provider/target interfaces.
@@ -68,9 +76,9 @@ Use explicit `AbilityId` and `EffectId` values. Search existing ids before choos
 
 ## Where To Put New Code
 
-- New combat ability: `BattleCommon/GAS/Ability/`.
-- New combat task: `BattleCommon/GAS/Task/`.
-- New hit/projectile/shape data: `BattleCommon/GAS/Definition/`.
-- New combat effect execution: `BattleCommon/GAS/Effect/`.
+- New combat ability: `BattleCommon/Abilities/Ability/`.
+- New combat task: `BattleCommon/Abilities/Task/`.
+- New hit/projectile/shape data: `BattleCommon/Abilities/Definition/`.
+- New combat effect execution: `BattleCommon/Abilities/Effect/`.
 - Generic ability/effect runtime feature: `HotUpdate.Core/GAS/`.
 - Generic execution not tied to combat attributes: `HotUpdate.Core/GAS/EffectExecution/`.

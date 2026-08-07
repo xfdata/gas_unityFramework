@@ -23,10 +23,14 @@ public class AssetCacheEntry
 
     public void ReleaseHandle()
     {
-        if (Handle.IsValid())
-        {
-            Addressables.Release(Handle);
-        }
+        if (!Handle.IsValid())
+            return;
+
+        // An async loader can resume after cache disposal. Clear ownership before
+        // releasing so every cleanup path observes an already-released handle.
+        var handle = Handle;
+        Handle = default;
+        Addressables.Release(handle);
     }
 }
 

@@ -7,8 +7,12 @@ namespace BattleFoundation
     public interface IBattleReplayAdapter
     {
         void CaptureEntity(BattleEntity entity, EntitySnapshot snapshot);
+        // Create and register the entity before returning it. BattlePlayback verifies
+        // that the returned instance is present in context.EntityManager.
         BattleEntity CreateEntity(EntitySnapshot snapshot, BattleContext context);
         void ApplyEntity(BattleEntity entity, EntitySnapshot snapshot);
+        // Complete any layer-specific recycle/dispose work before returning.
+
         void RemoveEntity(BattleEntity entity, BattleContext context);
 
         // R3-S2: 属性状态捕获/恢复委托，避免 BF 层直接引用 GAS 类型。
@@ -116,6 +120,7 @@ namespace BattleFoundation
         public float TimeScale;
         public int RandomSeed;
         public List<FrameRecordData> Frames = new List<FrameRecordData>();
+        public List<BattleCommandRecord> Commands = new List<BattleCommandRecord>();
         public EBattleResult FinalResult;
         public float TotalDuration;
 
@@ -157,6 +162,12 @@ namespace BattleFoundation
             }
         }
 
+        public void RecordCommand(BattleCommand command)
+        {
+            if (IsRecording && command != null)
+                _record.Commands.Add(command.ToRecord());
+        }
+
         public void StopRecording(EBattleResult result)
         {
             if (_record == null || !IsRecording) return;
@@ -187,11 +198,14 @@ namespace BattleFoundation
         private BattleRecord _record;
         private BattleContext _context;
         private IBattleReplayAdapter _adapter;
+        private BattleEngine _engine;
         private Action<EBattleResult> _onCompleted;
         private readonly HashSet<int> _frameEntityIds = new HashSet<int>();
         private readonly List<BattleEntity> _removeBuffer = new List<BattleEntity>();
         private int _nextFrameIndex;
+        private int _nextCommandIndex;
         private float _time;
+        private readonly List<BattleCommandRecord> _orderedCommands = new List<BattleCommandRecord>();
 
         public bool IsPlaying { get; private set; }
 
@@ -199,17 +213,26 @@ namespace BattleFoundation
             BattleRecord record,
             BattleContext context,
             IBattleReplayAdapter adapter,
+            BattleEngine engine,
             Action<EBattleResult> onCompleted)
         {
             _record = record;
             _context = context;
             _adapter = adapter;
+            _engine = engine;
             _onCompleted = onCompleted;
+            _orderedCommands.Clear();
+            if (record?.Commands != null)
+            {
+                _orderedCommands.AddRange(record.Commands);
+                _orderedCommands.Sort(CompareCommands);
+            }
         }
 
         public void Start()
         {
             _nextFrameIndex = 0;
+            _nextCommandIndex = 0;
             _time = 0f;
             IsPlaying = true;
             ApplyDueFrames();
@@ -248,6 +271,7 @@ namespace BattleFoundation
 
         private void ApplyFrame(FrameRecordData frame)
         {
+            ApplyCommandsThroughFrame(frame.FrameIndex);
             _frameEntityIds.Clear();
             if (frame.Entities != null)
             {
@@ -259,12 +283,17 @@ namespace BattleFoundation
                     if (entity == null)
                     {
                         entity = _adapter?.CreateEntity(snapshot, _context);
-                        if (entity != null && _context.EntityManager.GetById(snapshot.EntityId) == null)
+                        if (entity == null)
                         {
-                            entity.SetId(snapshot.EntityId);
-                            entity.SetCamp(snapshot.Camp);
-                            entity.SetEntityType(snapshot.EntityType);
-                            _context.EntityManager.AddEntity(entity);
+                            throw new InvalidOperationException(
+                                $"Replay cannot create entity {snapshot.EntityId}. " +
+                                "Configure an IBattleReplayAdapter that can create this snapshot.");
+                        }
+
+                        if (_context.EntityManager.GetById(snapshot.EntityId) != entity)
+                        {
+                            throw new InvalidOperationException(
+                                $"Replay adapter returned entity {snapshot.EntityId} without registering it.");
                         }
                     }
 
@@ -287,8 +316,34 @@ namespace BattleFoundation
                 if (_adapter != null)
                     _adapter.RemoveEntity(_removeBuffer[i], _context);
                 else
+                {
                     _context.EntityManager.RemoveEntity(_removeBuffer[i]);
+                    _removeBuffer[i].Dispose();
+                }
             }
+        }
+
+        private void ApplyCommandsThroughFrame(int frameIndex)
+        {
+            while (_nextCommandIndex < _orderedCommands.Count &&
+                   _orderedCommands[_nextCommandIndex].CommandFrame <= frameIndex)
+            {
+                var record = _orderedCommands[_nextCommandIndex++];
+                if (_engine == null || !_engine.ExecuteRecordedCommand(record))
+                {
+                    throw new InvalidOperationException(
+                        $"Replay cannot execute command type={record.CommandType} at frame={record.CommandFrame}. " +
+                        "Configure BattleEngine.SetCommandFactory with the matching command type.");
+                }
+            }
+        }
+
+        private static int CompareCommands(BattleCommandRecord left, BattleCommandRecord right)
+        {
+            int frameComparison = left.CommandFrame.CompareTo(right.CommandFrame);
+            return frameComparison != 0
+                ? frameComparison
+                : left.CommandSequence.CompareTo(right.CommandSequence);
         }
 
         protected override void OnDispose()
@@ -297,9 +352,11 @@ namespace BattleFoundation
             _record = null;
             _context = null;
             _adapter = null;
+            _engine = null;
             _onCompleted = null;
             _frameEntityIds.Clear();
             _removeBuffer.Clear();
+            _orderedCommands.Clear();
             base.OnDispose();
         }
     }

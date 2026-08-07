@@ -7,6 +7,7 @@ namespace BattleFoundation
         public BattleEventBus EventBus { get; protected set; }
         public BattleSystemManager SystemManager { get; protected set; }
         public IRandom Random { get; protected set; }
+        public IBattleLog Log { get; private set; }
 
         public virtual void Initialize(BattleEngine engine)
         {
@@ -16,8 +17,9 @@ namespace BattleFoundation
         public virtual void Initialize(BattleEngine engine, BattleRuntimeSettings settings)
         {
             Engine = engine;
-            EntityManager = new EntityManager(this);
-            EventBus = new BattleEventBus();
+            SetLog(engine?.Log);
+            EntityManager = new EntityManager(this, Log);
+            EventBus = new BattleEventBus(Log);
             SystemManager = new BattleSystemManager();
             Random = new BattleRandom(settings?.RandomSeed ?? 1);
         }
@@ -36,6 +38,13 @@ namespace BattleFoundation
         public virtual T GetSystem<T>() where T : class, IBattleSystem
         {
             return SystemManager.Get<T>();
+        }
+
+        public void SetLog(IBattleLog log)
+        {
+            Log = log;
+            EntityManager?.SetLog(log);
+            EventBus?.SetLog(log);
         }
 
         public virtual void Start()
@@ -62,6 +71,7 @@ namespace BattleFoundation
             EventBus = null;
             SystemManager = null;
             Random = null;
+            Log = null;
             Engine = null;
             base.OnDispose();
         }

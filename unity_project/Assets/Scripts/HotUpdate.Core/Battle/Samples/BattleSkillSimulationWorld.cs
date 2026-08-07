@@ -14,9 +14,12 @@ namespace BattleSkillSimulation
         private readonly SimulationActor _player;
         private readonly SimulationActor _npc;
         private readonly GameplayDefinitionCatalog _catalog;
+        private readonly BattleGameplayCatalog _gameplayCatalog;
         private readonly MeleeAttackAbilityDefinition _skillAbility;
         private readonly GameplayEffectDefinition _damageEffect;
         private readonly CombatDamageExecution _damageExecution;
+        private readonly BattleUnitGameplayConfig _playerGameplayConfig;
+        private readonly BattleUnitGameplayConfig _npcGameplayConfig;
         private readonly float _skillCooldown;
         private readonly Action<ActorDiedEvent> _onActorDied;
 
@@ -33,18 +36,24 @@ namespace BattleSkillSimulation
             SimulationActor player,
             SimulationActor npc,
             GameplayDefinitionCatalog catalog,
+            BattleGameplayCatalog gameplayCatalog,
             MeleeAttackAbilityDefinition skillAbility,
             GameplayEffectDefinition damageEffect,
             CombatDamageExecution damageExecution,
+            BattleUnitGameplayConfig playerGameplayConfig,
+            BattleUnitGameplayConfig npcGameplayConfig,
             float skillCooldown)
         {
             _engine = engine;
             _player = player;
             _npc = npc;
             _catalog = catalog;
+            _gameplayCatalog = gameplayCatalog;
             _skillAbility = skillAbility;
             _damageEffect = damageEffect;
             _damageExecution = damageExecution;
+            _playerGameplayConfig = playerGameplayConfig;
+            _npcGameplayConfig = npcGameplayConfig;
             _skillCooldown = skillCooldown;
 
             // R3-S10 修复: 改为通过 EventBus 订阅 ActorDiedEvent，替代 Obsolete 的 OnDeath C# 事件。
@@ -84,7 +93,8 @@ namespace BattleSkillSimulation
             float oldHP = NpcHP;
             _player.Get<BattleSkillSimulationMoveComponent>()?.Face(ToVector3(_npc.Position));
 
-            bool activated = _player.Get<CombatAbilityComponent>()?.TryActivateById(CombatAbilityIds.Skill) ?? false;
+            var castResult = _player.Gameplay?.Skills.TryCast(CombatSkillIds.SimulationSkill, _npc);
+            bool activated = castResult?.Success == true;
             _nextSkillTime = currentTime + _skillCooldown;
 
             float damage = Mathf.Max(0f, oldHP - NpcHP);
@@ -106,7 +116,10 @@ namespace BattleSkillSimulation
             DestroyRuntimeAsset(_skillAbility);
             DestroyRuntimeAsset(_damageEffect);
             DestroyRuntimeAsset(_damageExecution);
+            DestroyRuntimeAsset(_playerGameplayConfig);
+            DestroyRuntimeAsset(_npcGameplayConfig);
             DestroyRuntimeAsset(_catalog);
+            DestroyRuntimeAsset(_gameplayCatalog);
         }
 
         private void OnActorDied(ActorDiedEvent evt)

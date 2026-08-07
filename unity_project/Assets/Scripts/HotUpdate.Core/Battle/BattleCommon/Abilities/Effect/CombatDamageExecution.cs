@@ -174,7 +174,34 @@ namespace BattleCommon
                 }
 
                 target.ApplyAttributeBaseValue(spec, CombatAttributeIds.HP, -result.HpDamage);
+                NotifyDamageDealt(spec, targetActor, result);
             }
+        }
+
+        private static void NotifyDamageDealt(
+            GameplayEffectSpec spec,
+            CombatActor targetActor,
+            in DamageResult result)
+        {
+            if (targetActor == null)
+                return;
+
+            var sourceActor = spec?.Source?.AttributeOwner as CombatActor;
+            var sink = targetActor.Get<CombatAbilityComponent>()?.PresentationSink ??
+                       sourceActor?.Get<CombatAbilityComponent>()?.PresentationSink;
+            if (sink == null)
+                return;
+
+            var position = targetActor.Position;
+            sink.OnDamageDealt(new DamageDealtPresentation(
+                targetActor.Id,
+                sourceActor?.Id ?? 0,
+                result.FinalDamage,
+                result.ShieldCost,
+                result.BlockedDamage,
+                result.IsCrit,
+                !targetActor.IsAlive,
+                position));
         }
 
         /// <summary>

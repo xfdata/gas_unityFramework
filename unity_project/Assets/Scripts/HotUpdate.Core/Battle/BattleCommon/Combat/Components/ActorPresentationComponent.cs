@@ -277,7 +277,7 @@ namespace BattleCommon
         }
     }
 
-    public class ActorPresentationComponent : CombatComponentBase
+    public class ActorPresentationComponent : CombatComponentBase, IBattlePresentationSink
     {
         private const float DefaultBornFadeDuration = 0.35f;
         private const float DefaultDeathFadeDuration = 1f;
@@ -294,7 +294,7 @@ namespace BattleCommon
         private CombatAbilityComponent _ability;
         private CombatMovementComponent _movement;
         private CombatActor _combatActor;
-        private GameplayTagContainer _ownedTags;
+        private BattlePresentationSink _presentationSink;
         private Renderer[] _renderers = Array.Empty<Renderer>();
         private bool _isBornFadingIn;
         private bool _isDeathPresenting;
@@ -329,9 +329,8 @@ namespace BattleCommon
             RefreshRendererBindings();
             ResetAllPresentationState();
 
-            // R3-S10 修复: 不再直接订阅 GAS，改为通过 CombatAbilityComponent.GASForwarded 接收事件。
-            // CombatAbilityComponent 作为唯一 GAS 订阅点，避免重复订阅。
-            // 死亡表现仍由 AttributeChanged 检测 HP 归零触发（per-actor 表现通路）。
+            // GAS events are converted by CombatAbilityComponent and delivered through
+            // the shared presentation sink; this component never subscribes to GAS directly.
 
             SubscribeGameplayPresentationEvents();
         }
@@ -458,70 +457,47 @@ namespace BattleCommon
 
         private void SubscribeGameplayPresentationEvents()
         {
-            // R3-S10 修复: 通过 CombatAbilityComponent.GASForwarded 接收 GAS 事件（唯一订阅点）。
-            if (_ability != null)
-            {
-                _ability.GASForwarded += OnGASForwarded;
-            }
-
-            var effects = _ability?.Effects;
-            if (effects == null)
+            if (_ability == null)
                 return;
 
-            _ownedTags = effects.OwnedTags;
-            if (_ownedTags != null)
-            {
-                _ownedTags.RegisterListener(CombatGameplayTags.State_Poisoned, OnPoisonTagChanged);
-                SetPoisoned(_ownedTags.HasTag(CombatGameplayTags.State_Poisoned));
-            }
+            _ability.PresentationSinkChanged -= OnPresentationSinkChanged;
+            _ability.PresentationSinkChanged += OnPresentationSinkChanged;
+            RebindPresentationSink(_ability.PresentationSink);
         }
 
-        /// <summary>
-        /// R3-S10 修复: 统一 GAS 事件回调，按 evt.Type 分发。
-        /// 替代原 OnGameplayAbilityActivated + OnGameplayAttributeChanged 两个独立订阅。
-        /// </summary>
-        private void OnGASForwarded(GameplayEffectEvent gameplayEvent)
+        public void OnAbilityActivated(in AbilityPresentation evt)
         {
-            var owner = Owner;
-            if (owner == null) return;
-
-            switch (gameplayEvent.Type)
-            {
-                case GameplayEffectEventType.AbilityActivated:
-                    if (gameplayEvent.SourceEntityId != owner.Id) return;
-                    if (gameplayEvent.AbilityId == CombatAbilityIds.Born)
-                    {
-                        StartBornFadeIn(ResolveBornFadeInDuration(gameplayEvent.AbilityId));
-                    }
-                    break;
-
-                case GameplayEffectEventType.AttributeChanged:
-                    if (gameplayEvent.TargetEntityId != owner.Id) return;
-                    if (gameplayEvent.AttributeId == CombatAttributeIds.HP)
-                    {
-                        // R3-S10: HP 归零触发死亡表现（替代 OnHealthDeath 订阅，收敛 F4 通路 B）。
-                        if (gameplayEvent.OldValue > 0f && gameplayEvent.NewValue <= 0f)
-                        {
-                            StartDeathPresentation();
-                        }
-                        // HP 下降但未死亡触发受击闪烁
-                        else if (gameplayEvent.NewValue < gameplayEvent.OldValue &&
-                                 gameplayEvent.NewValue > 0f &&
-                                 !_isDeathPresenting)
-                        {
-                            PlayHitFlash();
-                        }
-                    }
-                    break;
-            }
+            if (Owner?.Id == evt.EntityId && evt.AbilityId == CombatAbilityIds.Born)
+                StartBornFadeIn(ResolveBornFadeInDuration(evt.AbilityId));
         }
 
-        private void OnPoisonTagChanged(bool added)
+        public void OnAttributeChanged(in AttributeChangedPresentation evt)
         {
-            SetPoisoned(added);
+            if (Owner?.Id != evt.EntityId || evt.AttributeId != CombatAttributeIds.HP)
+                return;
+
+            if (evt.OldValue > 0f && evt.NewValue <= 0f)
+                StartDeathPresentation();
+            else if (evt.NewValue < evt.OldValue && evt.NewValue > 0f && !_isDeathPresenting)
+                PlayHitFlash();
         }
 
-        // R3-S10: OnHealthDeath 已移除，死亡表现由 OnGASForwarded(AttributeChanged) 检测 HP 归零触发。
+        public void OnActorDied(in ActorDiedEvent evt)
+        {
+            if (Owner?.Id == evt.EntityId)
+                StartDeathPresentation();
+        }
+
+        public void OnGameplayTagChanged(in GameplayTagChangedPresentation evt)
+        {
+            if (Owner?.Id == evt.EntityId && evt.Tag == CombatGameplayTags.State_Poisoned)
+                SetPoisoned(evt.Added);
+        }
+
+        public void OnActorSpawned(in ActorSpawnedEvent evt) { }
+        public void OnDamageDealt(in DamageDealtPresentation evt) { }
+        public void OnAbilityEnded(in AbilityPresentation evt) { }
+        public void OnCueTriggered(in CuePresentation evt) { }
 
         private void StartDeathPresentation()
         {
@@ -680,17 +656,25 @@ namespace BattleCommon
 
         private void UnsubscribePresentationEvents()
         {
-            // R3-S10 修复: 反订阅 CombatAbilityComponent.GASForwarded。
             if (_ability != null)
-            {
-                _ability.GASForwarded -= OnGASForwarded;
-            }
+                _ability.PresentationSinkChanged -= OnPresentationSinkChanged;
+            _presentationSink?.UnregisterListener(this);
+            _presentationSink = null;
+        }
 
-            if (_ownedTags != null)
-            {
-                _ownedTags.UnregisterListener(OnPoisonTagChanged);
-                _ownedTags = null;
-            }
+        private void OnPresentationSinkChanged(BattlePresentationSink previous, BattlePresentationSink current)
+        {
+            RebindPresentationSink(current);
+        }
+
+        private void RebindPresentationSink(BattlePresentationSink sink)
+        {
+            if (ReferenceEquals(_presentationSink, sink))
+                return;
+
+            _presentationSink?.UnregisterListener(this);
+            _presentationSink = sink;
+            _presentationSink?.RegisterListener(this);
         }
 
         private float ResolveBornFadeInDuration(int abilityId)

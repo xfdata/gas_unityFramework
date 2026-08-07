@@ -122,20 +122,23 @@ namespace GAS
             int level = 1,
             GameplayEventData triggerEventData = default)
         {
+            return TryActivateAbility(ability, target, level, triggerEventData).Spec;
+        }
+
+        public virtual GameplayAbilityActivationResult TryActivateAbility(
+            GameplayAbilityDefinition ability,
+            GameplayEffectRuntime target = null,
+            int level = 1,
+            GameplayEventData triggerEventData = default)
+        {
             if (ability == null || effectRuntime == null)
-                return null;
+                return GameplayAbilityActivationResult.Failed(GameplayAbilityActivationFailure.InvalidAbility);
 
             if (!HasAbility(ability))
-            {
-                RecordAbilityEvent(null, ability, target, GameplayEffectEventType.AbilityFailed);
-                return null;
-            }
+                return FailActivation(null, ability, target, GameplayAbilityActivationFailure.NotGranted);
 
             if (!ability.IsIgnoreBlock && IsAbilityBlocked(ability))
-            {
-                RecordAbilityEvent(null, ability, target, GameplayEffectEventType.AbilityFailed);
-                return null;
-            }
+                return FailActivation(null, ability, target, GameplayAbilityActivationFailure.Blocked);
 
             var spec = new GameplayAbilitySpec(
                 RuntimeContext.NewAbilitySpecId(),
@@ -144,21 +147,24 @@ namespace GAS
                 effectRuntime,
                 target != null ? target : effectRuntime,
                 level);
-
             spec.TriggerEventData = triggerEventData;
 
             if (!ability.CanActivateAbility(spec))
+                return FailActivation(spec, ability, spec.Target, GameplayAbilityActivationFailure.ActivationRequirementsNotMet);
+
+            if (!CanApplyCommitEffects(spec, ability.CostEffects))
+                return FailActivation(spec, ability, spec.Target, GameplayAbilityActivationFailure.CostRejected);
+
+            if (!CanApplyCommitEffects(spec, ability.CooldownEffects))
+                return FailActivation(spec, ability, spec.Target, GameplayAbilityActivationFailure.CooldownRejected);
+
+            if (!ApplyCommitEffects(spec, ability.CostEffects) ||
+                !ApplyCommitEffects(spec, ability.CooldownEffects))
             {
-                RecordAbilityEvent(spec, ability, spec.Target, GameplayEffectEventType.AbilityFailed);
-                return null;
+                return FailActivation(spec, ability, spec.Target, GameplayAbilityActivationFailure.CommitFailed);
             }
 
-            if (!CanCommitAbility(spec) || !CommitAbility(spec))
-            {
-                RecordAbilityEvent(spec, ability, spec.Target, GameplayEffectEventType.AbilityFailed);
-                return null;
-            }
-
+            RecordAbilityEvent(spec, ability, spec.Target, GameplayEffectEventType.AbilityCommitted);
             CancelAbilitiesMatchingQuery(ability.CancelAbilitiesWithTag);
 
             spec.MarkActive();
@@ -168,10 +174,8 @@ namespace GAS
             RecordAbilityEvent(spec, ability, spec.Target, GameplayEffectEventType.AbilityActivated);
 
             ability.ActivateAbility(spec);
-
-            return spec;
+            return GameplayAbilityActivationResult.Activated(spec);
         }
-
         public bool CancelAbility(GameplayAbilityDefinition ability)
         {
             bool cancelled = false;
@@ -235,24 +239,15 @@ namespace GAS
             });
         }
 
-        private bool CommitAbility(GameplayAbilitySpec spec)
+        private GameplayAbilityActivationResult FailActivation(
+            GameplayAbilitySpec spec,
+            GameplayAbilityDefinition ability,
+            GameplayEffectRuntime target,
+            GameplayAbilityActivationFailure failure)
         {
-            if (!ApplyCommitEffects(spec, spec.Ability.CostEffects))
-                return false;
-
-            if (!ApplyCommitEffects(spec, spec.Ability.CooldownEffects))
-                return false;
-
-            RecordAbilityEvent(spec, spec.Ability, spec.Target, GameplayEffectEventType.AbilityCommitted);
-            return true;
+            RecordAbilityEvent(spec, ability, target, GameplayEffectEventType.AbilityFailed);
+            return GameplayAbilityActivationResult.Failed(failure);
         }
-
-        private bool CanCommitAbility(GameplayAbilitySpec spec)
-        {
-            return CanApplyCommitEffects(spec, spec.Ability.CostEffects) &&
-                   CanApplyCommitEffects(spec, spec.Ability.CooldownEffects);
-        }
-
         private bool CanApplyCommitEffects(
             GameplayAbilitySpec spec,
             List<GameplayEffectDefinition> effects)

@@ -39,7 +39,6 @@ public static class GameplayTagCatalog
 
     public static readonly Entry[] All =
     {
-        // Global / GameplayTags
         new Entry(GameplayTagDomain.Global, 0x01000000u, 0xFF000000u, "GameType", "GameplayTags", "GameType"),
         new Entry(GameplayTagDomain.Global, 0x01010000u, 0xFFFF0000u, "GameType.City", "GameplayTags", "GameType_City"),
         new Entry(GameplayTagDomain.Global, 0x01010100u, 0xFFFFFF00u, "GameType.City.Build", "GameplayTags", "GameType_City_Build"),
@@ -50,27 +49,29 @@ public static class GameplayTagCatalog
         new Entry(GameplayTagDomain.Global, 0x02000000u, 0xFF000000u, "Guide", "GameplayTags", "Guide"),
         new Entry(GameplayTagDomain.Global, 0x03000000u, 0xFF000000u, "UI", "GameplayTags", "UI"),
         new Entry(GameplayTagDomain.Global, 0x03010000u, 0xFFFF0000u, "UI.Popup", "GameplayTags", "UI_Popup"),
-
-        // Combat / CombatGameplayTags
         new Entry(GameplayTagDomain.Combat, 0x01000000u, 0xFF000000u, "Ability", "CombatGameplayTags", "Ability"),
         new Entry(GameplayTagDomain.Combat, 0x01010000u, 0xFFFF0000u, "Ability.Attack", "CombatGameplayTags", "Ability_Attack"),
+        new Entry(GameplayTagDomain.Combat, 0x01050000u, 0xFFFF0000u, "Ability.Block", "CombatGameplayTags", "Ability_Block"),
         new Entry(GameplayTagDomain.Combat, 0x01020000u, 0xFFFF0000u, "Ability.Born", "CombatGameplayTags", "Ability_Born"),
         new Entry(GameplayTagDomain.Combat, 0x01030000u, 0xFFFF0000u, "Ability.Death", "CombatGameplayTags", "Ability_Death"),
         new Entry(GameplayTagDomain.Combat, 0x01040000u, 0xFFFF0000u, "Ability.Skill", "CombatGameplayTags", "Ability_Skill"),
-        new Entry(GameplayTagDomain.Combat, 0x01050000u, 0xFFFF0000u, "Ability.Block", "CombatGameplayTags", "Ability_Block"),
         new Entry(GameplayTagDomain.Combat, 0x02000000u, 0xFF000000u, "Cue", "CombatGameplayTags", "Cue"),
         new Entry(GameplayTagDomain.Combat, 0x02010000u, 0xFFFF0000u, "Cue.Hit", "CombatGameplayTags", "Cue_Hit"),
         new Entry(GameplayTagDomain.Combat, 0x02020000u, 0xFFFF0000u, "Cue.Poison", "CombatGameplayTags", "Cue_Poison"),
         new Entry(GameplayTagDomain.Combat, 0x03000000u, 0xFF000000u, "State", "CombatGameplayTags", "State"),
         new Entry(GameplayTagDomain.Combat, 0x03010000u, 0xFFFF0000u, "State.Attacking", "CombatGameplayTags", "State_Attacking"),
+        new Entry(GameplayTagDomain.Combat, 0x03080000u, 0xFFFF0000u, "State.BlockCooldown", "CombatGameplayTags", "State_BlockCooldown"),
+        new Entry(GameplayTagDomain.Combat, 0x03090000u, 0xFFFF0000u, "State.BornInvincible", "CombatGameplayTags", "State_BornInvincible"),
         new Entry(GameplayTagDomain.Combat, 0x03020000u, 0xFFFF0000u, "State.Casting", "CombatGameplayTags", "State_Casting"),
         new Entry(GameplayTagDomain.Combat, 0x03030000u, 0xFFFF0000u, "State.Dead", "CombatGameplayTags", "State_Dead"),
         new Entry(GameplayTagDomain.Combat, 0x03040000u, 0xFFFF0000u, "State.Hit", "CombatGameplayTags", "State_Hit"),
         new Entry(GameplayTagDomain.Combat, 0x03050000u, 0xFFFF0000u, "State.Invincible", "CombatGameplayTags", "State_Invincible"),
         new Entry(GameplayTagDomain.Combat, 0x03060000u, 0xFFFF0000u, "State.Moving", "CombatGameplayTags", "State_Moving"),
         new Entry(GameplayTagDomain.Combat, 0x03070000u, 0xFFFF0000u, "State.Poisoned", "CombatGameplayTags", "State_Poisoned"),
-        new Entry(GameplayTagDomain.Combat, 0x03080000u, 0xFFFF0000u, "State.BlockCooldown", "CombatGameplayTags", "State_BlockCooldown"),
-        new Entry(GameplayTagDomain.Combat, 0x03090000u, 0xFFFF0000u, "State.BornInvincible", "CombatGameplayTags", "State_BornInvincible"),
+        new Entry(GameplayTagDomain.Combat, 0x030B0000u, 0xFFFF0000u, "State.Rooted", "CombatGameplayTags", "State_Rooted"),
+        new Entry(GameplayTagDomain.Combat, 0x030C0000u, 0xFFFF0000u, "State.Silenced", "CombatGameplayTags", "State_Silenced"),
+        new Entry(GameplayTagDomain.Combat, 0x030A0000u, 0xFFFF0000u, "State.Stunned", "CombatGameplayTags", "State_Stunned"),
+        new Entry(GameplayTagDomain.Combat, 0x030D0000u, 0xFFFF0000u, "State.Untargetable", "CombatGameplayTags", "State_Untargetable"),
         new Entry(GameplayTagDomain.Combat, 0x04000000u, 0xFF000000u, "Trigger", "CombatGameplayTags", "Trigger"),
         new Entry(GameplayTagDomain.Combat, 0x04010000u, 0xFFFF0000u, "Trigger.OnDamageTaken", "CombatGameplayTags", "Trigger_OnDamageTaken"),
         new Entry(GameplayTagDomain.Combat, 0x04020000u, 0xFFFF0000u, "Trigger.OnKill", "CombatGameplayTags", "Trigger_OnKill"),
